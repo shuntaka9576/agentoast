@@ -29,10 +29,12 @@ All notifications are grouped by repository in the menu bar. Clicking one takes 
 ```bash
 brew install shuntaka9576/tap/agentoast          # CLI
 brew install --cask shuntaka9576/tap/agentoast   # macOS menu bar app
-brew untap shuntaka9576/tap --force
+
+# Uninstall
+# brew untap shuntaka9576/tap --force
 
 # The app is not signed with an Apple Developer ID, so macOS Gatekeeper
-# may flag it as "damaged." Remove the quarantine attribute to fix this:
+# may flag it as "damaged." Remove the quarantine attribute to fix this
 xattr -cr /Applications/Agentoast.app
 ```
 
@@ -42,7 +44,7 @@ Hook scripts for Claude Code and Codex require [Deno](https://deno.land/). Grab 
 
 ### Claude Code
 
-Script: [`examples/notify/claude.ts`](examples/notify/claude.ts)
+Script [`examples/notify/claude.ts`](examples/notify/claude.ts)
 
 `~/.claude/settings.json`
 
@@ -69,7 +71,7 @@ Update the path to match where you saved the script.
 
 ### Codex
 
-Script: [`examples/notify/codex.ts`](examples/notify/codex.ts)
+Script [`examples/notify/codex.ts`](examples/notify/codex.ts)
 
 `~/.codex/config.toml`
 
@@ -83,7 +85,7 @@ Update the path to match where you saved the script.
 
 ### opencode
 
-Plugin: [`examples/notify/opencode.ts`](examples/notify/opencode.ts)
+Plugin [`examples/notify/opencode.ts`](examples/notify/opencode.ts)
 
 opencode uses a [plugin system](https://opencode.ai/docs/plugins) rather than hook scripts. Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically.
 
@@ -92,7 +94,7 @@ mkdir -p ~/.config/opencode/plugins
 cp examples/notify/opencode.ts ~/.config/opencode/plugins/
 ```
 
-Supported events:
+Supported events
 
 | Event | Notification |
 |---|---|
@@ -117,8 +119,8 @@ agentoast send \
 |---|---|---|---|
 | `--title` | No | `""` | Notification title (displayed as badge) |
 | `--body` | No | `""` | Notification body text |
-| `--color` | No | `gray` | Badge color: `green`, `blue`, `red`, `gray` |
-| `--icon` | No | `agentoast` | Icon preset: `agentoast` / `claude-code` / `codex` / `opencode` |
+| `--color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
+| `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
 | `--group` | No | `""` | Group name (e.g. repository name, project name) |
 | `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
 | `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
@@ -126,7 +128,7 @@ agentoast send \
 
 Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--group` + `--tmux-pane` are dismissed at once.
 
-For a quick test, you can fire off notifications straight from the CLI:
+For a quick test, you can fire off notifications straight from the CLI.
 
 Claude Code
 
@@ -171,7 +173,7 @@ Opens `~/.config/agentoast/config.toml` in your editor, creating a default one i
 agentoast config
 ```
 
-Editor resolution priority: `config.toml` `editor` field → `$EDITOR` → `vim`
+Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vim`
 
 ```toml
 # agentoast configuration
