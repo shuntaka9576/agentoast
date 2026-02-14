@@ -11,11 +11,11 @@ A macOS menu bar app for tmux users. Get a toast notification whenever an AI cod
 You kick off a long-running agent task, switch over to a browser or another window, and completely miss the moment it wraps up or asks for permission. agentoast makes sure you never miss it.
 ![demo](docs/assets/demo.gif)
 
-Toast notification pops up at the top-right corner when an agent completes or needs attention.
+When an agent completes or needs attention, a toast pops up at the top-right corner — click it to jump right back to the tmux pane.
 
 <img src="docs/assets/toast.png" width="400" alt="toast" />
 
-Click the menu bar icon to see all notifications grouped by repository.
+All notifications are grouped by repository in the menu bar. Clicking one takes you straight to its tmux pane.
 
 <img src="docs/assets/menubar.png" width="400" alt="menubar" />
 
