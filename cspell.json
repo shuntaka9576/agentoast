@@ -40,7 +40,8 @@
     "tsgolint",
     "unlisten",
     "untap",
-    "wezterm"
+    "wezterm",
+    "xattr"
   ],
   "flagWords": []
 }
