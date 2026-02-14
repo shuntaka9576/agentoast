@@ -25,6 +25,10 @@ All notifications are grouped by repository in the menu bar. Clicking one takes 
 brew install shuntaka9576/tap/agentoast          # CLI
 brew install --cask shuntaka9576/tap/agentoast   # macOS menu bar app
 brew untap shuntaka9576/tap --force
+
+# The app is not signed with an Apple Developer ID, so macOS Gatekeeper
+# may flag it as "damaged." Remove the quarantine attribute to fix this:
+xattr -cr /Applications/Agentoast.app
 ```
 
 ## Usage
