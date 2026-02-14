@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+/* Light mode (default) */
+:root {
+  --panel-bg: rgba(244, 244, 245, 0.95);
+  --toast-bg: rgba(255, 255, 255, 0.95);
+
+  --text-primary: rgba(0, 0, 0, 0.90);
+  --text-secondary: rgba(0, 0, 0, 0.70);
+  --text-tertiary: rgba(0, 0, 0, 0.50);
+  --text-muted: rgba(0, 0, 0, 0.40);
+  --text-faint: rgba(0, 0, 0, 0.20);
+
+  --border-primary: rgba(0, 0, 0, 0.10);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --hover-bg-strong: rgba(0, 0, 0, 0.10);
+
+  --badge-stop-bg: rgba(34, 197, 94, 0.15);
+  --badge-stop-text: #16a34a;
+  --badge-notif-bg: rgba(59, 130, 246, 0.15);
+  --badge-notif-text: #2563eb;
+  --badge-count-bg: #3b82f6;
+  --badge-count-text: #ffffff;
+
+  --tray-arrow-color: rgba(0, 0, 0, 0.10);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+
+  --delete-text: rgba(0, 0, 0, 0.30);
+  --delete-text-hover: rgba(0, 0, 0, 0.60);
+  --delete-hover-text: #ef4444;
+
+  --toast-focus-bg: rgba(237, 233, 254, 0.95);
+  --border-focus: rgba(139, 92, 246, 0.35);
+  --badge-focus-bg: rgba(139, 92, 246, 0.15);
+  --badge-focus-text: #7c3aed;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --panel-bg: rgba(28, 28, 30, 0.95);
+    --toast-bg: rgba(44, 44, 46, 0.95);
+
+    --text-primary: rgba(255, 255, 255, 0.90);
+    --text-secondary: rgba(255, 255, 255, 0.70);
+    --text-tertiary: rgba(255, 255, 255, 0.50);
+    --text-muted: rgba(255, 255, 255, 0.40);
+    --text-faint: rgba(255, 255, 255, 0.20);
+
+    --border-primary: rgba(255, 255, 255, 0.10);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --hover-bg-strong: rgba(255, 255, 255, 0.10);
+
+    --badge-stop-bg: rgba(34, 197, 94, 0.20);
+    --badge-stop-text: #4ade80;
+    --badge-notif-bg: rgba(59, 130, 246, 0.20);
+    --badge-notif-text: #60a5fa;
+    --badge-count-bg: #3b82f6;
+    --badge-count-text: #ffffff;
+
+    --tray-arrow-color: rgba(255, 255, 255, 0.10);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+
+    --delete-text: rgba(255, 255, 255, 0.30);
+    --delete-text-hover: rgba(255, 255, 255, 0.60);
+    --delete-hover-text: #f87171;
+
+    --toast-focus-bg: rgba(55, 40, 80, 0.95);
+    --border-focus: rgba(139, 92, 246, 0.40);
+    --badge-focus-bg: rgba(139, 92, 246, 0.25);
+    --badge-focus-text: #a78bfa;
+  }
+}
+
+html,
+body,
+#root {
+  background: transparent;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.tray-arrow {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid var(--tray-arrow-color);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Toast animations */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s ease-out forwards;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.3s ease-in forwards;
+}

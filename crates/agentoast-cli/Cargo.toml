@@ -1,0 +1,15 @@
+[package]
+name = "agentoast-cli"
+version.workspace = true
+edition = "2021"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "agentoast"
+path = "src/main.rs"
+
+[dependencies]
+agentoast-shared = { path = "../agentoast-shared" }
+clap = { version = "4", features = ["derive"] }

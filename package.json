@@ -1,0 +1,35 @@
+{
+  "name": "agentoast",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "postinstall": "lefthook install"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@tauri-apps/api": "^2.10.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "cspell": "^9.6.4",
+    "lefthook": "^2.1.1",
+    "oxlint": "^1.47.0",
+    "oxlint-tsgolint": "^0.12.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  }
+}

@@ -1,0 +1,86 @@
+name: TAGPR
+
+on:
+  push:
+    branches:
+    - "main"
+  workflow_dispatch:
+
+jobs:
+  tagpr:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+    outputs:
+      tag: ${{ steps.tagpr.outputs.tag }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - name: tagpr
+      id: tagpr
+      uses: Songmu/tagpr@78a926ba835e34721053309043aee696ba9c70b1 # v1.15.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-cli:
+    needs: tagpr
+    if: needs.tagpr.outputs.tag != ''
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+    - name: checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        ref: ${{ needs.tagpr.outputs.tag }}
+    - name: Generate token for homebrew-tap
+      id: app-token
+      uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+      with:
+        app-id: ${{ vars.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: ${{ github.repository_owner }}
+        repositories: homebrew-tap
+    - uses: ./.github/actions/release-cli
+      with:
+        tag: ${{ needs.tagpr.outputs.tag }}
+        homebrew_tap_token: ${{ steps.app-token.outputs.token }}
+
+  release-app:
+    needs: tagpr
+    if: needs.tagpr.outputs.tag != ''
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+    - name: checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        ref: ${{ needs.tagpr.outputs.tag }}
+    - name: Generate token for homebrew-tap
+      id: app-token
+      uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+      with:
+        app-id: ${{ vars.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: ${{ github.repository_owner }}
+        repositories: homebrew-tap
+    - uses: ./.github/actions/release-app
+      with:
+        tag: ${{ needs.tagpr.outputs.tag }}
+        homebrew_tap_token: ${{ steps.app-token.outputs.token }}
+
+  publish-release:
+    needs: [tagpr, release-cli, release-app]
+    if: needs.tagpr.outputs.tag != ''
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Publish release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+      run: gh release edit ${{ needs.tagpr.outputs.tag }} --draft=false

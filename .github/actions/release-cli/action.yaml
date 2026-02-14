@@ -1,0 +1,80 @@
+name: RELEASE CLI
+
+inputs:
+  tag:
+    description: "Release tag (e.g., v0.1.0)"
+    required: true
+  homebrew_tap_token:
+    description: "PAT for homebrew-tap repository"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: "Setup Rust"
+    shell: bash
+    run: rustup default stable
+  - name: "Build CLI"
+    shell: bash
+    run: cargo build --release -p agentoast-cli
+  - name: "Package and upload"
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_PAT: ${{ inputs.homebrew_tap_token }}
+    run: |
+      TAG="${{ inputs.tag }}"
+      VERSION="${TAG#v}"
+      ARCHIVE_NAME="agentoast_${VERSION}_darwin_arm64.tar.gz"
+
+      # Create tar.gz archive
+      mkdir -p dist
+      cp target/release/agentoast dist/
+      tar czf "dist/${ARCHIVE_NAME}" -C dist agentoast
+
+      # Generate checksums
+      shasum -a 256 "dist/${ARCHIVE_NAME}" > dist/checksums.txt
+
+      # Upload to GitHub Release
+      gh release upload "${TAG}" "dist/${ARCHIVE_NAME}" dist/checksums.txt --clobber
+
+      # Generate and push Homebrew Formula
+      SHA256=$(shasum -a 256 "dist/${ARCHIVE_NAME}" | awk '{print $1}')
+      ARCHIVE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${ARCHIVE_NAME}"
+
+      FORMULA_CONTENT=$(cat <<FORMULA_EOF
+      class Agentoast < Formula
+        desc "CLI notification tool for AI coding agents"
+        homepage "https://github.com/${{ github.repository }}"
+        url "${ARCHIVE_URL}"
+        sha256 "${SHA256}"
+        license "MIT"
+
+        def install
+          bin.install "agentoast"
+        end
+
+        test do
+          system "#{bin}/agentoast", "--help"
+        end
+      end
+      FORMULA_EOF
+      )
+
+      ENCODED=$(echo "${FORMULA_CONTENT}" | base64)
+      EXISTING_SHA=$(GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb --jq '.sha' 2>/dev/null || echo "")
+
+      if [ -n "${EXISTING_SHA}" ]; then
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb \
+          --method PUT \
+          -f message="Update agentoast formula to ${TAG}" \
+          -f content="${ENCODED}" \
+          -f sha="${EXISTING_SHA}"
+      else
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb \
+          --method PUT \
+          -f message="Add agentoast formula ${TAG}" \
+          -f content="${ENCODED}"
+      fi
+
+      echo "Done! Published CLI ${TAG}"

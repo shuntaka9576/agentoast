@@ -1,0 +1,81 @@
+name: RELEASE APP
+
+inputs:
+  tag:
+    description: "Release tag (e.g., v0.1.0)"
+    required: true
+  homebrew_tap_token:
+    description: "PAT for homebrew-tap repository"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: "Setup Bun"
+    uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+  - name: "Setup Rust"
+    shell: bash
+    run: rustup default stable
+  - name: "Install frontend dependencies"
+    shell: bash
+    run: bun install
+  - name: "Build Tauri app"
+    shell: bash
+    run: bun run tauri build
+  - name: "Upload DMG and update Cask"
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_PAT: ${{ inputs.homebrew_tap_token }}
+    run: |
+      TAG="${{ inputs.tag }}"
+      VERSION="${TAG#v}"
+      DMG_NAME="Agentoast_${VERSION}_aarch64.dmg"
+      DMG_PATH="target/release/bundle/dmg/${DMG_NAME}"
+
+      echo "Publishing Agentoast app ${TAG}..."
+
+      # Upload DMG to GitHub Release
+      gh release upload "${TAG}" "${DMG_PATH}" --clobber
+
+      # Update Cask via GitHub Contents API (use GH_PAT for cross-repo access)
+      SHA256=$(shasum -a 256 "${DMG_PATH}" | awk '{print $1}')
+      DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${DMG_NAME}"
+
+      CASK_CONTENT=$(cat <<CASK_EOF
+      cask "agentoast" do
+        version "${VERSION}"
+        sha256 "${SHA256}"
+
+        url "${DMG_URL}"
+        name "Agentoast"
+        desc "macOS menu bar notification app for AI coding agents"
+        homepage "https://github.com/${{ github.repository }}"
+
+        app "Agentoast.app"
+
+        zap trash: [
+          "~/.local/share/agentoast",
+          "~/.config/agentoast",
+        ]
+      end
+      CASK_EOF
+      )
+
+      ENCODED=$(echo "${CASK_CONTENT}" | base64)
+      EXISTING_SHA=$(GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Casks/agentoast.rb --jq '.sha' 2>/dev/null || echo "")
+
+      if [ -n "${EXISTING_SHA}" ]; then
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Casks/agentoast.rb \
+          --method PUT \
+          -f message="Update agentoast cask to ${TAG}" \
+          -f content="${ENCODED}" \
+          -f sha="${EXISTING_SHA}"
+      else
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Casks/agentoast.rb \
+          --method PUT \
+          -f message="Add agentoast cask ${TAG}" \
+          -f content="${ENCODED}"
+      fi
+
+      echo "Done! Published ${TAG}"

@@ -1,0 +1,21 @@
+# Rust
+/target/
+
+# Node
+node_modules/
+
+# Vite
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# macOS
+.DS_Store
+
+__pycache__
+.claude/
+
+# cspell
+.cspellcache

@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/agentoast-shared", "crates/agentoast-cli", "src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+unused_unit = "allow" # tauri_panel! macro requires `-> ()`
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

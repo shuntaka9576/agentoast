@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Tokyo",
+  "dependencyDashboard": false,
+  "ignoreTests": true,
+  "automerge": false,
+  "major": {
+    "enabled": true
+  },
+  "minimumReleaseAge": "1 day",
+  "rangeStrategy": "bump",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"]
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "minor", "major"],
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "Group GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group Rust workspace",
+      "matchFileNames": ["Cargo.toml", "crates/**", "src-tauri/**"],
+      "groupName": "rust-workspace"
+    },
+    {
+      "description": "Group frontend dependencies",
+      "matchFileNames": ["package.json"],
+      "groupName": "frontend"
+    },
+    {
+      "description": "Immediate updates for Tauri",
+      "matchPackageNames": ["tauri", "tauri-build", "tauri-plugin-*", "@tauri-apps/*"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Immediate updates for React",
+      "matchPackageNames": ["react", "react-dom"],
+      "minimumReleaseAge": "0 days"
+    }
+  ]
+}
