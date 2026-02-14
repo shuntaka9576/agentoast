@@ -26,16 +26,23 @@ All notifications are grouped by repository in the menu bar. Clicking one takes 
 
 ## Installation
 
+### App
+
+Download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases) and drag `Agentoast.app` into `/Applications/`.
+
+Homebrew Cask is also available but not recommended — the app is unsigned, and Cask adds a quarantine attribute that triggers Gatekeeper.
+
 ```bash
-brew install shuntaka9576/tap/agentoast          # CLI
-brew install --cask shuntaka9576/tap/agentoast   # macOS menu bar app
-
-# Uninstall
-# brew untap shuntaka9576/tap --force
-
-# The app is not signed with an Apple Developer ID, so macOS Gatekeeper
-# may flag it as "damaged." Remove the quarantine attribute to fix this
+brew install --cask shuntaka9576/tap/agentoast
 xattr -cr /Applications/Agentoast.app
+```
+
+### CLI
+
+The CLI is available via Homebrew.
+
+```bash
+brew install shuntaka9576/tap/agentoast
 ```
 
 ## Usage
