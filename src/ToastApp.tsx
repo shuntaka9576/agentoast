@@ -91,7 +91,7 @@ export function ToastApp() {
         const currentIdx = currentIndexRef.current;
         const oldQueue = queueRef.current;
 
-        // Keep only unshown notifications (from current index onward)
+        // Keep only pending notifications (from current index onward)
         const remaining = oldQueue.slice(currentIdx);
 
         // Remove duplicates (same group+tmuxPane as incoming) from remaining
@@ -99,7 +99,7 @@ export function ToastApp() {
           !notifications.some((n) => n.tmuxPane && q.groupName === n.groupName && q.tmuxPane === n.tmuxPane)
         );
 
-        // LIFO: newest notifications first, then remaining unshown
+        // LIFO: newest notifications first, then remaining pending
         const newQueue = [...[...notifications].reverse(), ...remainingDeduped];
 
         setQueue(newQueue);
