@@ -53,6 +53,7 @@ pub struct Notification {
     pub group_name: String,
     pub metadata: HashMap<String, String>,
     pub tmux_pane: String,
+    pub terminal_bundle_id: String,
     pub force_focus: bool,
     pub is_read: bool,
     pub created_at: String,

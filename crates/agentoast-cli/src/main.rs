@@ -40,6 +40,11 @@ enum Commands {
         #[arg(long, default_value = "")]
         tmux_pane: String,
 
+        /// Terminal bundle ID for focus-on-click (e.g. com.github.wez.wezterm).
+        /// Auto-detected from __CFBundleIdentifier if not specified.
+        #[arg(long)]
+        bundle_id: Option<String>,
+
         /// Focus terminal automatically when notification is sent
         #[arg(long)]
         focus: bool,
@@ -86,6 +91,7 @@ fn main() {
             icon,
             group,
             tmux_pane,
+            bundle_id,
             focus,
             meta,
         } => {
@@ -99,6 +105,9 @@ fn main() {
 
             let metadata = parse_metadata(&meta);
 
+            let terminal_bundle_id = bundle_id
+                .unwrap_or_else(|| std::env::var("__CFBundleIdentifier").unwrap_or_default());
+
             let db_path = config::db_path();
             let conn = db::open_reader(&db_path).unwrap_or_else(|e| {
                 eprintln!("Failed to open database: {}", e);
@@ -106,7 +115,8 @@ fn main() {
             });
 
             match db::insert_notification(
-                &conn, &title, &body, &color, &icon_type, &group, &metadata, &tmux_pane, focus,
+                &conn, &title, &body, &color, &icon_type, &group, &metadata, &tmux_pane,
+                &terminal_bundle_id, focus,
             ) {
                 Ok(id) => println!("Notification saved (id={})", id),
                 Err(e) => {

@@ -9,6 +9,7 @@ export interface Notification {
   groupName: string;
   metadata: Record<string, string>;
   tmuxPane: string;
+  terminalBundleId: string;
   forceFocus: boolean;
   isRead: boolean;
   createdAt: string;

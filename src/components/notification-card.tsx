@@ -43,6 +43,7 @@ export function NotificationCard({
         }
         void invoke("focus_terminal", {
           tmuxPane: notification.tmuxPane,
+          terminalBundleId: notification.terminalBundleId,
         });
       }}
     >
