@@ -51,11 +51,14 @@ run_task = { name = ["install-cli", "install-app"], parallel = false }
 # Uninstall
 # ---------------------------------------------------------------------------
 [tasks.uninstall]
-description = "Stop app, remove .app from /Applications/, and uninstall CLI"
+description = "Stop app, remove .app from /Applications/, uninstall Cask/CLI, and remove config/data"
 dependencies = ["stop-app"]
 script = '''
 rm -rf /Applications/Agentoast.app
+brew uninstall --cask agentoast 2>/dev/null || true
 cargo uninstall agentoast-cli 2>/dev/null || true
+rm -rf ~/.config/agentoast
+rm -rf ~/.local/share/agentoast
 echo "Done! Uninstalled agentoast"
 '''
 
