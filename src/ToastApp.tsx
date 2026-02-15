@@ -91,42 +91,28 @@ export function ToastApp() {
         const currentIdx = currentIndexRef.current;
         const oldQueue = queueRef.current;
 
-        // Find indices to remove (same group+tmuxPane as incoming notifications)
-        const removeIndices = new Set<number>();
-        for (let i = 0; i < oldQueue.length; i++) {
-          const q = oldQueue[i];
-          if (notifications.some((n) => n.tmuxPane && q.groupName === n.groupName && q.tmuxPane === n.tmuxPane)) {
-            removeIndices.add(i);
-          }
-        }
+        // Keep only pending notifications (from current index onward)
+        const remaining = oldQueue.slice(currentIdx);
 
-        // Adjust currentIndex for removals before it
-        let newIdx = currentIdx;
-        for (const ri of removeIndices) {
-          if (ri < currentIdx) newIdx--;
-        }
+        // Remove duplicates (same group+tmuxPane as incoming) from remaining
+        const remainingDeduped = remaining.filter((q) =>
+          !notifications.some((n) => n.tmuxPane && q.groupName === n.groupName && q.tmuxPane === n.tmuxPane)
+        );
 
-        const currentRemoved = removeIndices.has(currentIdx);
-        const dedupedQueue = oldQueue.filter((_, i) => !removeIndices.has(i));
-        const newQueue = [...dedupedQueue, ...notifications];
-
-        if (currentRemoved) {
-          // Switch to the new notification (appended at end)
-          newIdx = dedupedQueue.length;
-        }
-
-        newIdx = Math.max(0, Math.min(newIdx, newQueue.length - 1));
+        // LIFO: newest notifications first, then remaining pending
+        const newQueue = [...[...notifications].reverse(), ...remainingDeduped];
 
         setQueue(newQueue);
-        setCurrentIndex(newIdx);
+        setCurrentIndex(0);
         queueRef.current = newQueue;
-        currentIndexRef.current = newIdx;
+        currentIndexRef.current = 0;
         startTimer(() => advanceOrHide());
       } else {
-        // Start fresh queue
-        setQueue([...notifications]);
+        // Start fresh queue (LIFO: newest first)
+        const reversed = [...notifications].reverse();
+        setQueue(reversed);
         setCurrentIndex(0);
-        queueRef.current = [...notifications];
+        queueRef.current = reversed;
         currentIndexRef.current = 0;
         setIsVisible(true);
         isVisibleRef.current = true;
