@@ -6,6 +6,7 @@ import { NotificationCard } from "./notification-card";
 interface RepoGroupProps {
   group: NotificationGroup;
   isMuted: boolean;
+  newIds: Set<number>;
   onDelete: (id: number) => void;
   onDeleteGroup: (groupName: string) => void;
   onToggleGroupMute: (groupName: string) => void;
@@ -14,6 +15,7 @@ interface RepoGroupProps {
 export function RepoGroup({
   group,
   isMuted,
+  newIds,
   onDelete,
   onDeleteGroup,
   onToggleGroupMute,
@@ -65,6 +67,7 @@ export function RepoGroup({
             <NotificationCard
               key={n.id}
               notification={n}
+              isNew={newIds.has(n.id)}
               onDelete={onDelete}
             />
           ))}

@@ -76,7 +76,7 @@ fn hide_toast(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn show_main_panel(app_handle: tauri::AppHandle) {
+fn show_panel(app_handle: tauri::AppHandle) {
     panel::init(&app_handle).ok();
     use tauri_nspanel::ManagerExt;
     if let Ok(panel) = app_handle.get_webview_panel("main") {
@@ -115,12 +115,8 @@ fn get_notifications_grouped(
 ) -> Result<Vec<NotificationGroup>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::get_notifications_grouped(
-        &conn,
-        limit.unwrap_or(100),
-        state.config.display.group_limit,
-    )
-    .map_err(|e| e.to_string())
+    db::get_notifications_grouped(&conn, limit.unwrap_or(100), state.config.panel.group_limit)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -209,6 +205,18 @@ fn toggle_group_mute(
 }
 
 #[tauri::command]
+fn get_toast_duration(state: tauri::State<'_, Mutex<AppState>>) -> Result<u64, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.toast.duration_ms)
+}
+
+#[tauri::command]
+fn get_toast_persistent(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.toast.persistent)
+}
+
+#[tauri::command]
 fn delete_all_notifications(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
@@ -231,7 +239,7 @@ pub fn run() {
             init_panel,
             hide_panel,
             hide_toast,
-            show_main_panel,
+            show_panel,
             focus_terminal,
             get_notifications,
             get_notifications_grouped,
@@ -240,6 +248,8 @@ pub fn run() {
             delete_notifications_by_group_tmux,
             delete_notifications_by_group,
             delete_all_notifications,
+            get_toast_duration,
+            get_toast_persistent,
             get_mute_state,
             toggle_global_mute,
             toggle_group_mute,

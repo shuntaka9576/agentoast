@@ -6,6 +6,7 @@ import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 
 interface NotificationCardProps {
   notification: Notification;
+  isNew?: boolean;
   onDelete: (id: number) => void;
 }
 
@@ -18,6 +19,7 @@ const badgeColorClasses: Record<string, string> = {
 
 export function NotificationCard({
   notification,
+  isNew,
   onDelete,
 }: NotificationCardProps) {
   const metaEntries = Object.entries(notification.metadata).filter(
@@ -28,6 +30,7 @@ export function NotificationCard({
     <div
       className={cn(
         "group relative px-3 py-2.5 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer",
+        isNew && "animate-new-highlight",
       )}
       onClick={() => {
         if (notification.tmuxPane) {

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
 import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 
-const TOAST_DURATION = 4000;
+const DEFAULT_TOAST_DURATION = 4000;
 const FADE_DURATION = 300;
 
 const badgeColorClasses: Record<string, string> = {
@@ -16,46 +16,122 @@ const badgeColorClasses: Record<string, string> = {
 };
 
 export function ToastApp() {
-  const [notification, setNotification] = useState<Notification | null>(null);
+  const [queue, setQueue] = useState<Notification[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastDurationRef = useRef(DEFAULT_TOAST_DURATION);
+  const toastPersistentRef = useRef(false);
+  const queueRef = useRef<Notification[]>([]);
+  const currentIndexRef = useRef(0);
+  const isVisibleRef = useRef(false);
+
+  useEffect(() => {
+    invoke<number>("get_toast_duration")
+      .then((d) => { toastDurationRef.current = d; })
+      .catch(() => {});
+    invoke<boolean>("get_toast_persistent")
+      .then((p) => { toastPersistentRef.current = p; })
+      .catch(() => {});
+  }, []);
 
   const hideToast = useCallback(() => {
     setIsFadingOut(true);
     fadeTimerRef.current = setTimeout(() => {
       setIsVisible(false);
+      isVisibleRef.current = false;
       setIsFadingOut(false);
-      setNotification(null);
+      setQueue([]);
+      setCurrentIndex(0);
+      queueRef.current = [];
+      currentIndexRef.current = 0;
       void invoke("hide_toast");
     }, FADE_DURATION);
   }, []);
+
+  const startTimer = useCallback((onExpire: () => void) => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    if (!toastPersistentRef.current) {
+      hideTimerRef.current = setTimeout(onExpire, toastDurationRef.current);
+    }
+  }, []);
+
+  const advanceOrHide = useCallback(() => {
+    const nextIndex = currentIndexRef.current + 1;
+    if (nextIndex < queueRef.current.length) {
+      setCurrentIndex(nextIndex);
+      currentIndexRef.current = nextIndex;
+      startTimer(() => advanceOrHide());
+    } else {
+      hideToast();
+    }
+  }, [hideToast, startTimer]);
 
   useEffect(() => {
     const unlisten = listen<Notification[]>("toast:show", (event) => {
       const notifications = event.payload;
       if (notifications.length === 0) return;
 
-      // Show the latest notification
-      const latest = notifications[notifications.length - 1];
-      setNotification(latest);
-      setIsVisible(true);
-      setIsFadingOut(false);
-
-      // Clear existing timers
+      // Clear any pending timers
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
       }
       if (fadeTimerRef.current) {
         clearTimeout(fadeTimerRef.current);
         fadeTimerRef.current = null;
       }
+      setIsFadingOut(false);
 
-      // Auto-hide after TOAST_DURATION
-      hideTimerRef.current = setTimeout(() => {
-        hideToast();
-      }, TOAST_DURATION);
+      if (queueRef.current.length > 0 && isVisibleRef.current) {
+        const currentIdx = currentIndexRef.current;
+        const oldQueue = queueRef.current;
+
+        // Find indices to remove (same group+tmuxPane as incoming notifications)
+        const removeIndices = new Set<number>();
+        for (let i = 0; i < oldQueue.length; i++) {
+          const q = oldQueue[i];
+          if (notifications.some((n) => n.tmuxPane && q.groupName === n.groupName && q.tmuxPane === n.tmuxPane)) {
+            removeIndices.add(i);
+          }
+        }
+
+        // Adjust currentIndex for removals before it
+        let newIdx = currentIdx;
+        for (const ri of removeIndices) {
+          if (ri < currentIdx) newIdx--;
+        }
+
+        const currentRemoved = removeIndices.has(currentIdx);
+        const dedupedQueue = oldQueue.filter((_, i) => !removeIndices.has(i));
+        const newQueue = [...dedupedQueue, ...notifications];
+
+        if (currentRemoved) {
+          // Switch to the new notification (appended at end)
+          newIdx = dedupedQueue.length;
+        }
+
+        newIdx = Math.max(0, Math.min(newIdx, newQueue.length - 1));
+
+        setQueue(newQueue);
+        setCurrentIndex(newIdx);
+        queueRef.current = newQueue;
+        currentIndexRef.current = newIdx;
+        startTimer(() => advanceOrHide());
+      } else {
+        // Start fresh queue
+        setQueue([...notifications]);
+        setCurrentIndex(0);
+        queueRef.current = [...notifications];
+        currentIndexRef.current = 0;
+        setIsVisible(true);
+        isVisibleRef.current = true;
+        startTimer(() => advanceOrHide());
+      }
     });
 
     return () => {
@@ -67,36 +143,43 @@ export function ToastApp() {
         clearTimeout(fadeTimerRef.current);
       }
     };
-  }, [hideToast]);
+  }, [advanceOrHide, startTimer]);
 
   const handleClick = () => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
     }
-    if (notification) {
-      if (!notification.forceFocus) {
-        if (notification.tmuxPane) {
-          void invoke("delete_notifications_by_group_tmux", {
-            groupName: notification.groupName,
-            tmuxPane: notification.tmuxPane,
-          });
-        } else {
-          void invoke("delete_notification", { id: notification.id });
-        }
+
+    const current = queueRef.current[currentIndexRef.current];
+    if (current) {
+      if (!current.forceFocus) {
+        void invoke("delete_notification", { id: current.id });
       }
       void invoke("focus_terminal", {
-        tmuxPane: notification.tmuxPane,
+        tmuxPane: current.tmuxPane,
       });
     }
-    hideToast();
+
+    // Advance to next or hide
+    const nextIndex = currentIndexRef.current + 1;
+    if (nextIndex < queueRef.current.length) {
+      setCurrentIndex(nextIndex);
+      currentIndexRef.current = nextIndex;
+      startTimer(() => advanceOrHide());
+    } else {
+      hideToast();
+    }
   };
 
-  if (!isVisible || !notification) {
+  const current = queue[currentIndex];
+
+  if (!isVisible || !current) {
     return <div className="h-screen bg-transparent" />;
   }
 
-  const badgeClass = badgeColorClasses[notification.color] || badgeColorClasses.gray;
-  const metaEntries = Object.entries(notification.metadata).filter(
+  const badgeClass = badgeColorClasses[current.color] || badgeColorClasses.gray;
+  const metaEntries = Object.entries(current.metadata).filter(
     ([, v]) => v !== "",
   );
   return (
@@ -109,14 +192,14 @@ export function ToastApp() {
     >
       <div className={cn(
         "relative backdrop-blur-xl rounded-xl border shadow-2xl p-3 h-full",
-        notification.forceFocus
+        current.forceFocus
           ? "bg-[var(--toast-focus-bg)] border-[var(--border-focus)]"
           : "bg-[var(--toast-bg)] border-[var(--border-primary)]"
       )}>
         <div className="flex items-start gap-2.5">
           <div className="flex-shrink-0 mt-0.5">
             <IconPreset
-              icon={notification.icon}
+              icon={current.icon}
               size={20}
               className="text-[var(--text-secondary)]"
             />
@@ -124,18 +207,18 @@ export function ToastApp() {
           <div className="flex-1 min-w-0">
             {/* Title badge + group name */}
             <div className="flex items-center gap-2">
-              {notification.title && (
+              {current.title && (
                 <span
                   className={cn(
                     "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
                     badgeClass,
                   )}
                 >
-                  {notification.title}
+                  {current.title}
                 </span>
               )}
               <span className="text-[12px] font-medium text-[var(--text-primary)] truncate">
-                {notification.groupName}
+                {current.groupName}
               </span>
             </div>
 
@@ -153,24 +236,30 @@ export function ToastApp() {
             )}
 
             {/* tmux info */}
-            {notification.tmuxPane && (
+            {current.tmuxPane && (
               <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--text-tertiary)] truncate">
                 <TmuxIcon size={11} className="flex-shrink-0" />
-                {notification.tmuxPane}
+                {current.tmuxPane}
               </div>
             )}
 
             {/* Body */}
-            {notification.body && (
+            {current.body && (
               <p className="mt-1 text-[11px] text-[var(--text-secondary)] line-clamp-2">
-                {notification.body}
+                {current.body}
               </p>
             )}
 
           </div>
         </div>
+        {/* Queue counter badge */}
+        {queue.length > 1 && (
+          <span className="absolute top-2 right-3 px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--hover-bg-strong)] text-[var(--text-secondary)]">
+            {currentIndex + 1}/{queue.length}
+          </span>
+        )}
         {/* Focused: no history badge (absolute bottom-right) */}
-        {notification.forceFocus && (
+        {current.forceFocus && (
           <span className="absolute bottom-2 right-3 px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--badge-focus-bg)] text-[var(--badge-focus-text)]">
             Focused: no history
           </span>

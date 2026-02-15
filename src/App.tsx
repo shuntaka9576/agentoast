@@ -12,6 +12,7 @@ export function App() {
     deleteNotification,
     deleteGroup,
     deleteAll,
+    newIds,
   } = useNotifications();
 
   const {
@@ -51,6 +52,7 @@ export function App() {
               key={group.groupName}
               group={group}
               isMuted={isGroupMuted(group.groupName)}
+              newIds={newIds}
               onDelete={(id) => void deleteNotification(id)}
               onDeleteGroup={(name) => void deleteGroup(name)}
               onToggleGroupMute={(name) => void toggleGroupMute(name)}

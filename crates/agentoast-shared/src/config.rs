@@ -36,25 +36,48 @@ pub fn config_dir() -> PathBuf {
 pub struct AppConfig {
     pub editor: Option<String>,
     #[serde(default)]
-    pub display: DisplayConfig,
+    pub toast: ToastConfig,
+    #[serde(default)]
+    pub panel: PanelConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct DisplayConfig {
+pub struct ToastConfig {
+    #[serde(default = "default_toast_duration")]
+    pub duration_ms: u64,
+    #[serde(default)]
+    pub persistent: bool,
+}
+
+impl Default for ToastConfig {
+    fn default() -> Self {
+        Self {
+            duration_ms: default_toast_duration(),
+            persistent: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PanelConfig {
     #[serde(default = "default_group_limit")]
     pub group_limit: usize,
+}
+
+impl Default for PanelConfig {
+    fn default() -> Self {
+        Self {
+            group_limit: default_group_limit(),
+        }
+    }
 }
 
 fn default_group_limit() -> usize {
     3
 }
 
-impl Default for DisplayConfig {
-    fn default() -> Self {
-        Self {
-            group_limit: default_group_limit(),
-        }
-    }
+fn default_toast_duration() -> u64 {
+    4000
 }
 
 /// config.toml のパスを返す。
@@ -82,8 +105,17 @@ fn default_config_template() -> &'static str {
 # Falls back to $EDITOR environment variable, then vim
 # editor = "vim"
 
-[display]
-# Maximum number of notifications per group in the main panel
+# Toast popup notification
+[toast]
+# Display duration in milliseconds (default: 4000)
+# duration_ms = 4000
+
+# Keep toast visible until clicked (default: false)
+# persistent = false
+
+# Menu bar notification panel
+[panel]
+# Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
 "#
 }

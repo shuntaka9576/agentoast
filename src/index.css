@@ -36,6 +36,8 @@
   --border-focus: rgba(139, 92, 246, 0.35);
   --badge-focus-bg: rgba(139, 92, 246, 0.15);
   --badge-focus-text: #7c3aed;
+
+  --new-highlight-bg: rgba(59, 130, 246, 0.08);
 }
 
 /* Dark mode */
@@ -75,6 +77,8 @@
     --border-focus: rgba(139, 92, 246, 0.40);
     --badge-focus-bg: rgba(139, 92, 246, 0.25);
     --badge-focus-text: #a78bfa;
+
+    --new-highlight-bg: rgba(59, 130, 246, 0.12);
   }
 }
 
@@ -142,4 +146,18 @@ body,
 
 .animate-toast-out {
   animation: toast-out 0.3s ease-in forwards;
+}
+
+/* New notification highlight animation */
+@keyframes new-highlight {
+  0% {
+    background-color: var(--new-highlight-bg);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-new-highlight {
+  animation: new-highlight 3s ease-out forwards;
 }
