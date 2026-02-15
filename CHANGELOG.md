@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.5.0](https://github.com/shuntaka9576/agentoast/compare/v0.4.0...v0.5.0) - 2026-02-15
+- feat: use __CFBundleIdentifier for terminal focus instead of hardcoded list by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/9
+
 ## [v0.4.0](https://github.com/shuntaka9576/agentoast/compare/v0.3.0...v0.4.0) - 2026-02-15
 - feat: change toast notification queue from FIFO to LIFO by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/8
 
