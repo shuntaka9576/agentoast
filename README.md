@@ -201,3 +201,21 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # group_limit = 3
 ```
 
+### Tips
+
+Set up a shell alias for command completion notifications.
+
+```bash
+alias an='agentoast send --title Done --color green --group default'
+```
+
+```bash
+sleep 10 && an
+```
+
+With tmux, add `--tmux-pane` to jump back to the pane on click.
+
+```bash
+alias an='agentoast send --title Done --color green --group default --tmux-pane $(tmux display-message -p "#{pane_id}")'
+```
+
