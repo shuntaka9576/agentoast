@@ -144,6 +144,7 @@ export function ToastApp() {
       }
       void invoke("focus_terminal", {
         tmuxPane: current.tmuxPane,
+        terminalBundleId: current.terminalBundleId,
       });
     }
 

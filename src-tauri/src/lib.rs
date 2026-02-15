@@ -86,14 +86,14 @@ fn show_panel(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn focus_terminal(tmux_pane: String) -> Result<(), String> {
+fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        terminal::focus_terminal(&tmux_pane)
+        terminal::focus_terminal(&tmux_pane, &terminal_bundle_id)
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = tmux_pane;
+        let _ = (tmux_pane, terminal_bundle_id);
         Err("focus_terminal is only supported on macOS".to_string())
     }
 }

@@ -128,6 +128,7 @@ agentoast send \
 | `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
 | `--group` | No | `""` | Group name (e.g. repository name, project name) |
 | `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
+| `--bundle-id` | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
 | `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
 | `--meta` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
 

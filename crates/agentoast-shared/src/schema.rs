@@ -14,6 +14,7 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
             group_name    TEXT NOT NULL DEFAULT '',
             metadata      TEXT NOT NULL DEFAULT '{}',
             tmux_pane     TEXT NOT NULL DEFAULT '',
+            terminal_bundle_id TEXT NOT NULL DEFAULT '',
             force_focus   INTEGER NOT NULL DEFAULT 0,
             is_read       INTEGER NOT NULL DEFAULT 0,
             created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))

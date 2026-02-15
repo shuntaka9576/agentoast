@@ -10,19 +10,10 @@ fn find_tmux() -> Option<PathBuf> {
     candidates.iter().map(PathBuf::from).find(|p| p.exists())
 }
 
-const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
-    "com.github.wez.wezterm",
-    "com.mitchellh.ghostty",
-    "com.googlecode.iterm2",
-    "com.apple.Terminal",
-    "org.alacritty",
-    "net.kovidgoyal.kitty",
-];
-
 fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
     let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
 
-    // 画面に映すセッションをペインが属するセッションに切替
+    // Switch the attached session to the one containing the target pane
     Command::new(&tmux_path)
         .args(["switch-client", "-t", tmux_pane])
         .output()
@@ -41,35 +32,34 @@ fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn activate_terminal() -> Result<(), String> {
+fn activate_terminal(bundle_id: &str) -> Result<(), String> {
+    if bundle_id.is_empty() {
+        return Err("No terminal bundle ID specified".to_string());
+    }
+
     use objc2_app_kit::{NSApplicationActivationOptions, NSWorkspace};
     use objc2_foundation::NSString;
 
-    {
-        let workspace = NSWorkspace::sharedWorkspace();
-        let apps = workspace.runningApplications();
+    let workspace = NSWorkspace::sharedWorkspace();
+    let apps = workspace.runningApplications();
+    let target_ns = NSString::from_str(bundle_id);
 
-        for target_id in KNOWN_TERMINAL_BUNDLE_IDS {
-            let target_ns = NSString::from_str(target_id);
-            for app in &apps {
-                if let Some(bundle_id) = app.bundleIdentifier() {
-                    if bundle_id.isEqualToString(&target_ns) {
-                        let activated = app.activateWithOptions(
-                            NSApplicationActivationOptions::ActivateAllWindows,
-                        );
-                        if activated {
-                            return Ok(());
-                        }
-                    }
+    for app in &apps {
+        if let Some(bid) = app.bundleIdentifier() {
+            if bid.isEqualToString(&target_ns) {
+                let activated =
+                    app.activateWithOptions(NSApplicationActivationOptions::ActivateAllWindows);
+                if activated {
+                    return Ok(());
                 }
             }
         }
     }
 
-    Err("No matching terminal application found".to_string())
+    Err(format!("Terminal application not found: {}", bundle_id))
 }
 
-pub fn focus_terminal(tmux_pane: &str) -> Result<(), String> {
+pub fn focus_terminal(tmux_pane: &str, terminal_bundle_id: &str) -> Result<(), String> {
     // 1. Switch tmux pane if specified (failure is non-fatal)
     if !tmux_pane.is_empty() {
         if let Err(e) = switch_tmux_pane(tmux_pane) {
@@ -78,5 +68,5 @@ pub fn focus_terminal(tmux_pane: &str) -> Result<(), String> {
     }
 
     // 2. Activate terminal app
-    activate_terminal()
+    activate_terminal(terminal_bundle_id)
 }

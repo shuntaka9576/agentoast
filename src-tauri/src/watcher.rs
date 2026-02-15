@@ -189,9 +189,10 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     {
         if let Some(focus_notification) = active_focus.last() {
             let tmux_pane = focus_notification.tmux_pane.clone();
+            let terminal_bundle_id = focus_notification.terminal_bundle_id.clone();
             let handle_for_focus = app_handle.clone();
             let _ = handle_for_focus.run_on_main_thread(move || {
-                if let Err(e) = crate::terminal::focus_terminal(&tmux_pane) {
+                if let Err(e) = crate::terminal::focus_terminal(&tmux_pane, &terminal_bundle_id) {
                     log::debug!("force_focus: terminal focus failed (non-fatal): {}", e);
                 }
             });
