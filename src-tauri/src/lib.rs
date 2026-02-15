@@ -38,11 +38,23 @@ pub struct MuteStatePayload {
 
 impl MuteState {
     pub fn to_payload(&self) -> MuteStatePayload {
+        let mut groups: Vec<String> = self.muted_groups.iter().cloned().collect();
+        groups.sort();
         MuteStatePayload {
             global_muted: self.global_muted,
-            muted_groups: self.muted_groups.iter().cloned().collect(),
+            muted_groups: groups,
         }
     }
+}
+
+pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStatePayload, String> {
+    let mute_state = app_handle.state::<Mutex<MuteState>>();
+    let mut state = mute_state.lock().map_err(|e| e.to_string())?;
+    state.global_muted = !state.global_muted;
+    let payload = state.to_payload();
+    let _ = app_handle.emit("mute:changed", &payload);
+    tray::update_mute_menu(app_handle, payload.global_muted);
+    Ok(payload)
 }
 
 #[tauri::command]
@@ -175,16 +187,8 @@ fn get_mute_state(state: tauri::State<'_, Mutex<MuteState>>) -> Result<MuteState
 }
 
 #[tauri::command]
-fn toggle_global_mute(
-    app_handle: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<MuteState>>,
-) -> Result<MuteStatePayload, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.global_muted = !state.global_muted;
-    let payload = state.to_payload();
-    let _ = app_handle.emit("mute:changed", &payload);
-    tray::update_mute_menu(&app_handle, payload.global_muted);
-    Ok(payload)
+fn toggle_global_mute(app_handle: tauri::AppHandle) -> Result<MuteStatePayload, String> {
+    do_toggle_global_mute(&app_handle)
 }
 
 #[tauri::command]

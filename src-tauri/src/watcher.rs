@@ -134,6 +134,20 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         LAST_KNOWN_ID.store(last.id, Ordering::SeqCst);
     }
 
+    // Get mute state once for all filtering decisions
+    let mute_state = app_handle.state::<Mutex<MuteState>>();
+    let (is_global_muted, muted_groups) = match mute_state.lock() {
+        Ok(mute) => (mute.global_muted, mute.muted_groups.clone()),
+        Err(e) => {
+            log::error!("Failed to lock MuteState: {}", e);
+            (false, Default::default())
+        }
+    };
+
+    let is_muted = |n: &agentoast_shared::models::Notification| -> bool {
+        is_global_muted || muted_groups.contains(&n.group_name)
+    };
+
     // Separate force_focus and normal notifications
     let (focus_notifications, normal_notifications): (Vec<_>, Vec<_>) =
         new_notifications.into_iter().partition(|n| n.force_focus);
@@ -142,36 +156,18 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     let mut toast_notifications = normal_notifications.clone();
     toast_notifications.extend(focus_notifications.iter().cloned());
 
-    // Show toast for both normal and force_focus notifications (respecting mute state)
-    if !toast_notifications.is_empty() {
-        let mute_state = app_handle.state::<Mutex<MuteState>>();
-        let lock_result = mute_state.lock();
-        let (is_global_muted, muted_groups) = match lock_result {
-            Ok(mute) => (mute.global_muted, mute.muted_groups.clone()),
-            Err(e) => {
-                log::error!("Failed to lock MuteState: {}", e);
-                (false, Default::default())
-            }
-        };
+    // Show toast (respecting mute state)
+    let filtered_toast: Vec<_> = toast_notifications
+        .into_iter()
+        .filter(|n| !is_muted(n))
+        .collect();
 
-        let filtered_toast = if is_global_muted {
-            vec![]
-        } else if muted_groups.is_empty() {
-            toast_notifications
-        } else {
-            toast_notifications
-                .into_iter()
-                .filter(|n| !muted_groups.contains(&n.group_name))
-                .collect()
-        };
-
-        if !filtered_toast.is_empty() {
-            let _ = app_handle.emit_to("toast", "toast:show", &filtered_toast);
-            let handle = app_handle.clone();
-            let _ = app_handle.run_on_main_thread(move || {
-                toast::show(&handle);
-            });
-        }
+    if !filtered_toast.is_empty() {
+        let _ = app_handle.emit_to("toast", "toast:show", &filtered_toast);
+        let handle = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            toast::show(&handle);
+        });
     }
 
     // Emit notifications:new only for normal notifications (not force_focus)
@@ -179,10 +175,19 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         let _ = app_handle.emit("notifications:new", &normal_notifications);
     }
 
-    // force_focus notifications: focus terminal + delete from DB
+    // force_focus notifications: when muted, skip focus + DB delete (demote to regular notification)
+    let (muted_focus, active_focus): (Vec<_>, Vec<_>) =
+        focus_notifications.into_iter().partition(|n| is_muted(n));
+
+    // Muted force_focus notifications are kept in DB as regular notifications
+    if !muted_focus.is_empty() {
+        let _ = app_handle.emit("notifications:new", &muted_focus);
+    }
+
+    // Active (non-muted) force_focus notifications: focus terminal + delete from DB
     #[cfg(target_os = "macos")]
     {
-        if let Some(focus_notification) = focus_notifications.last() {
+        if let Some(focus_notification) = active_focus.last() {
             let tmux_pane = focus_notification.tmux_pane.clone();
             let handle_for_focus = app_handle.clone();
             let _ = handle_for_focus.run_on_main_thread(move || {
@@ -193,7 +198,7 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         }
     }
 
-    for n in &focus_notifications {
+    for n in &active_focus {
         if let Err(e) = db::delete_notification(conn, n.id) {
             log::error!("Failed to delete force_focus notification {}: {}", n.id, e);
         }
