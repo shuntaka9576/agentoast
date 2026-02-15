@@ -210,7 +210,7 @@ alias an='agentoast send --title Done --color green --group default'
 ```
 
 ```bash
-sleep 10 && an
+sleep 10; an
 ```
 
 With tmux, add `--tmux-pane` to jump back to the pane on click.
