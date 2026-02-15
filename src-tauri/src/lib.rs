@@ -9,16 +9,40 @@ mod watcher;
 #[cfg(target_os = "macos")]
 mod webkit_config;
 
+use std::collections::HashSet;
 use std::sync::Mutex;
 
 use agentoast_shared::config::{self, AppConfig};
 use agentoast_shared::db;
 use agentoast_shared::models::{Notification, NotificationGroup};
+use serde::Serialize;
 use tauri::{Emitter, Manager};
 
 pub struct AppState {
     pub db_path: std::path::PathBuf,
     pub config: AppConfig,
+}
+
+#[derive(Default)]
+pub struct MuteState {
+    pub global_muted: bool,
+    pub muted_groups: HashSet<String>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MuteStatePayload {
+    pub global_muted: bool,
+    pub muted_groups: Vec<String>,
+}
+
+impl MuteState {
+    pub fn to_payload(&self) -> MuteStatePayload {
+        MuteStatePayload {
+            global_muted: self.global_muted,
+            muted_groups: self.muted_groups.iter().cloned().collect(),
+        }
+    }
 }
 
 #[tauri::command]
@@ -145,6 +169,42 @@ fn delete_notifications_by_group(
 }
 
 #[tauri::command]
+fn get_mute_state(state: tauri::State<'_, Mutex<MuteState>>) -> Result<MuteStatePayload, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.to_payload())
+}
+
+#[tauri::command]
+fn toggle_global_mute(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<MuteState>>,
+) -> Result<MuteStatePayload, String> {
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.global_muted = !state.global_muted;
+    let payload = state.to_payload();
+    let _ = app_handle.emit("mute:changed", &payload);
+    tray::update_mute_menu(&app_handle, payload.global_muted);
+    Ok(payload)
+}
+
+#[tauri::command]
+fn toggle_group_mute(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<MuteState>>,
+    group_name: String,
+) -> Result<MuteStatePayload, String> {
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    if state.muted_groups.contains(&group_name) {
+        state.muted_groups.remove(&group_name);
+    } else {
+        state.muted_groups.insert(group_name);
+    }
+    let payload = state.to_payload();
+    let _ = app_handle.emit("mute:changed", &payload);
+    Ok(payload)
+}
+
+#[tauri::command]
 fn delete_all_notifications(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
@@ -176,6 +236,9 @@ pub fn run() {
             delete_notifications_by_group_tmux,
             delete_notifications_by_group,
             delete_all_notifications,
+            get_mute_state,
+            toggle_global_mute,
+            toggle_group_mute,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -199,6 +262,8 @@ pub fn run() {
                 db_path: db_path.clone(),
                 config: app_config,
             }));
+
+            app.manage(Mutex::new(MuteState::default()));
 
             tray::create(app.handle())?;
 

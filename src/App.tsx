@@ -1,4 +1,5 @@
 import { useNotifications } from "@/hooks/use-notifications";
+import { useMute } from "@/hooks/use-mute";
 import { PanelHeader } from "@/components/panel-header";
 import { RepoGroup } from "@/components/repo-group";
 import { Bell } from "lucide-react";
@@ -13,6 +14,13 @@ export function App() {
     deleteAll,
   } = useNotifications();
 
+  const {
+    globalMuted,
+    isGroupMuted,
+    toggleGlobalMute,
+    toggleGroupMute,
+  } = useMute();
+
   return (
     <div className="h-screen flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
       {/* Tray arrow */}
@@ -22,7 +30,9 @@ export function App() {
 
       <PanelHeader
         unreadCount={unreadCount}
+        globalMuted={globalMuted}
         onDeleteAll={() => void deleteAll()}
+        onToggleGlobalMute={() => void toggleGlobalMute()}
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -40,8 +50,10 @@ export function App() {
             <RepoGroup
               key={group.groupName}
               group={group}
+              isMuted={isGroupMuted(group.groupName)}
               onDelete={(id) => void deleteNotification(id)}
               onDeleteGroup={(name) => void deleteGroup(name)}
+              onToggleGroupMute={(name) => void toggleGroupMute(name)}
             />
           ))
         )}

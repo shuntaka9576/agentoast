@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::path::BaseDirectory;
@@ -6,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_nspanel::ManagerExt;
 
 use crate::panel::position_panel_at_tray_icon;
+use crate::MuteState;
 
 macro_rules! get_or_init_panel {
     ($app_handle:expr) => {
@@ -43,11 +46,12 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
     let icon = Image::from_path(tray_icon_path)?;
 
     let show = MenuItem::with_id(app_handle, "show", "Show", true, None::<&str>)?;
+    let mute = MenuItem::with_id(app_handle, "mute", "Mute Notifications", true, None::<&str>)?;
     let clear_all = MenuItem::with_id(app_handle, "clear_all", "Clear All", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app_handle)?;
     let quit = MenuItem::with_id(app_handle, "quit", "Quit", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app_handle, &[&show, &clear_all, &separator, &quit])?;
+    let menu = Menu::with_items(app_handle, &[&show, &mute, &clear_all, &separator, &quit])?;
 
     TrayIconBuilder::with_id("tray")
         .icon(icon)
@@ -58,6 +62,19 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(move |app_handle, event| match event.id.as_ref() {
             "show" => {
                 show_panel(app_handle);
+            }
+            "mute" => {
+                let (payload, is_muted) = {
+                    let mute_state = app_handle.state::<Mutex<MuteState>>();
+                    let mut state = match mute_state.lock() {
+                        Ok(s) => s,
+                        Err(_) => return,
+                    };
+                    state.global_muted = !state.global_muted;
+                    (state.to_payload(), state.global_muted)
+                };
+                let _ = app_handle.emit("mute:changed", &payload);
+                update_mute_menu(app_handle, is_muted);
             }
             "clear_all" => {
                 let db_path = agentoast_shared::config::db_path();
@@ -98,4 +115,31 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
         .build(app_handle)?;
 
     Ok(())
+}
+
+pub fn update_mute_menu(app_handle: &AppHandle, global_muted: bool) {
+    let mute_label = if global_muted {
+        "Unmute Notifications"
+    } else {
+        "Mute Notifications"
+    };
+
+    if let Some(tray) = app_handle.tray_by_id(&tauri::tray::TrayIconId::new("tray")) {
+        let result = (|| -> tauri::Result<()> {
+            let show = MenuItem::with_id(app_handle, "show", "Show", true, None::<&str>)?;
+            let mute = MenuItem::with_id(app_handle, "mute", mute_label, true, None::<&str>)?;
+            let clear_all =
+                MenuItem::with_id(app_handle, "clear_all", "Clear All", true, None::<&str>)?;
+            let separator = PredefinedMenuItem::separator(app_handle)?;
+            let quit = MenuItem::with_id(app_handle, "quit", "Quit", true, None::<&str>)?;
+            let menu =
+                Menu::with_items(app_handle, &[&show, &mute, &clear_all, &separator, &quit])?;
+            tray.set_menu(Some(menu))?;
+            Ok(())
+        })();
+
+        if let Err(e) = result {
+            log::error!("Failed to update tray menu: {}", e);
+        }
+    }
 }

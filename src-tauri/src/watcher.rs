@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use agentoast_shared::db;
@@ -11,6 +12,7 @@ use tauri::tray::TrayIconId;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::toast;
+use crate::MuteState;
 
 static LAST_KNOWN_ID: AtomicI64 = AtomicI64::new(0);
 
@@ -140,13 +142,36 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     let mut toast_notifications = normal_notifications.clone();
     toast_notifications.extend(focus_notifications.iter().cloned());
 
-    // Show toast for both normal and force_focus notifications
+    // Show toast for both normal and force_focus notifications (respecting mute state)
     if !toast_notifications.is_empty() {
-        let _ = app_handle.emit_to("toast", "toast:show", &toast_notifications);
-        let handle = app_handle.clone();
-        let _ = app_handle.run_on_main_thread(move || {
-            toast::show(&handle);
-        });
+        let mute_state = app_handle.state::<Mutex<MuteState>>();
+        let lock_result = mute_state.lock();
+        let (is_global_muted, muted_groups) = match lock_result {
+            Ok(mute) => (mute.global_muted, mute.muted_groups.clone()),
+            Err(e) => {
+                log::error!("Failed to lock MuteState: {}", e);
+                (false, Default::default())
+            }
+        };
+
+        let filtered_toast = if is_global_muted {
+            vec![]
+        } else if muted_groups.is_empty() {
+            toast_notifications
+        } else {
+            toast_notifications
+                .into_iter()
+                .filter(|n| !muted_groups.contains(&n.group_name))
+                .collect()
+        };
+
+        if !filtered_toast.is_empty() {
+            let _ = app_handle.emit_to("toast", "toast:show", &filtered_toast);
+            let handle = app_handle.clone();
+            let _ = app_handle.run_on_main_thread(move || {
+                toast::show(&handle);
+            });
+        }
     }
 
     // Emit notifications:new only for normal notifications (not force_focus)

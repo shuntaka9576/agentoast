@@ -19,3 +19,8 @@ export interface NotificationGroup {
   notifications: Notification[];
   unreadCount: number;
 }
+
+export interface MuteState {
+  globalMuted: boolean;
+  mutedGroups: string[];
+}
