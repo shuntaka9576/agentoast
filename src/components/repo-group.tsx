@@ -1,15 +1,23 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Folder, Trash2 } from "lucide-react";
+import { Bell, BellOff, ChevronDown, ChevronRight, Folder, Trash2 } from "lucide-react";
 import type { NotificationGroup } from "@/lib/types";
 import { NotificationCard } from "./notification-card";
 
 interface RepoGroupProps {
   group: NotificationGroup;
+  isMuted: boolean;
   onDelete: (id: number) => void;
   onDeleteGroup: (groupName: string) => void;
+  onToggleGroupMute: (groupName: string) => void;
 }
 
-export function RepoGroup({ group, onDelete, onDeleteGroup }: RepoGroupProps) {
+export function RepoGroup({
+  group,
+  isMuted,
+  onDelete,
+  onDeleteGroup,
+  onToggleGroupMute,
+}: RepoGroupProps) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -30,6 +38,16 @@ export function RepoGroup({ group, onDelete, onDeleteGroup }: RepoGroupProps) {
         <span className="text-[10px] text-[var(--text-muted)]">
           {group.notifications.length}
         </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleGroupMute(group.groupName);
+          }}
+          className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+          title={isMuted ? "Unmute group" : "Mute group"}
+        >
+          {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
+        </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
