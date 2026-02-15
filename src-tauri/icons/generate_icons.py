@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""アイコン生成スクリプト
+"""Icon generation script.
 
-agentoast.svg を cairosvg でラスタライズし、
-各サイズの PNG と icon.icns、トレイアイコンを生成する。
+Rasterizes agentoast.svg with cairosvg and generates PNGs, icon.icns,
+and tray icons at various sizes.
 
-依存: pip install pillow cairosvg
+Dependencies: pip install pillow cairosvg
 """
 
 import io
@@ -20,10 +20,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ソース SVG
+# Source SVG
 SVG_PATH = os.path.join(SCRIPT_DIR, "original", "agentoast.svg")
 
-# 生成先
+# Output paths
 OUTPUT_FILES = {
     32: os.path.join(SCRIPT_DIR, "32x32.png"),
     128: os.path.join(SCRIPT_DIR, "128x128.png"),
@@ -33,7 +33,7 @@ ICNS_PATH = os.path.join(SCRIPT_DIR, "icon.icns")
 TRAY_ICON_PATH = os.path.join(SCRIPT_DIR, "tray-icon.png")
 TRAY_ICON_NOTIFICATION_PATH = os.path.join(SCRIPT_DIR, "tray-icon-notification.png")
 
-# iconutil に必要なサイズとファイル名
+# Sizes and filenames required by iconutil
 ICONSET_SIZES = {
     "icon_16x16.png": 16,
     "icon_16x16@2x.png": 32,
@@ -47,19 +47,19 @@ ICONSET_SIZES = {
     "icon_512x512@2x.png": 1024,
 }
 
-# 色定義
-APP_ICON_BG_COLOR = "#5C3A1E"  # ダークブラウン (焦げトースト)
-NOTIFICATION_DOT_COLOR = "#5181B8"
+# Colors
+APP_ICON_BG_COLOR = "#5C3A1E"  # Dark brown (burnt toast)
+NOTIFICATION_DOT_COLOR = "#FF9500"
 
-# トレイアイコンサイズ (@2x Retina)
+# Tray icon size (@2x Retina)
 TRAY_SIZE = 44
 
-# 白背景と判定する閾値 (RGB 各チャンネルがこの値以上なら白とみなす)
+# Threshold for white background detection (pixels with all RGB channels >= this are considered white)
 WHITE_THRESHOLD = 250
 
 
 def _rasterize_svg(size: int) -> Image.Image:
-    """SVG を指定サイズの RGBA PNG にラスタライズ"""
+    """Rasterize SVG to an RGBA PNG at the given size."""
     png_data = cairosvg.svg2png(
         url=SVG_PATH,
         output_width=size,
@@ -69,19 +69,19 @@ def _rasterize_svg(size: int) -> Image.Image:
 
 
 def _make_ghost_svg() -> str:
-    """SVG からお化け部分（本体 + 目）のみを抽出した SVG 文字列を返す。"""
+    """Extract the ghost (body + eyes) paths from the SVG and return as an SVG string."""
     with open(SVG_PATH) as f:
         lines = f.readlines()
 
     parts = []
     parts.append(lines[0])        # SVG header
-    parts.extend(lines[2:5])      # ゴースト本体 + 左目 + 右目
+    parts.extend(lines[2:5])      # Ghost body + left eye + right eye
     parts.append(lines[5])        # </svg>
     return "".join(parts)
 
 
 def _rasterize_ghost_svg(size: int) -> Image.Image:
-    """お化け部分のみの SVG を指定サイズにラスタライズ"""
+    """Rasterize the ghost-only SVG at the given size."""
     ghost_svg = _make_ghost_svg()
     png_data = cairosvg.svg2png(
         bytestring=ghost_svg.encode("utf-8"),
@@ -92,7 +92,7 @@ def _rasterize_ghost_svg(size: int) -> Image.Image:
 
 
 def _remove_white_background(img: Image.Image) -> Image.Image:
-    """白背景を透明化 (白に近いピクセルの alpha を 0 にする)"""
+    """Make white background transparent (set alpha to 0 for near-white pixels)."""
     arr = np.array(img)
     r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
     white_mask = (r >= WHITE_THRESHOLD) & (g >= WHITE_THRESHOLD) & (b >= WHITE_THRESHOLD)
@@ -101,7 +101,7 @@ def _remove_white_background(img: Image.Image) -> Image.Image:
 
 
 def _crop_and_pad(img: Image.Image, target_size: int, padding_ratio: float = 0.05) -> Image.Image:
-    """コンテンツ領域にクロップ → 正方形化 → パディング → リサイズ"""
+    """Crop to content bounding box, square, add padding, and resize."""
     bbox = img.getbbox()
     if not bbox:
         return img.resize((target_size, target_size), Image.LANCZOS)
@@ -110,11 +110,11 @@ def _crop_and_pad(img: Image.Image, target_size: int, padding_ratio: float = 0.0
     w, h = cropped.size
     side = max(w, h)
 
-    # 正方形化 (中央配置)
+    # Square (center-aligned)
     square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     square.paste(cropped, ((side - w) // 2, (side - h) // 2))
 
-    # パディング追加
+    # Add padding
     padded_side = int(side * (1.0 + padding_ratio * 2))
     padded = Image.new("RGBA", (padded_side, padded_side), (0, 0, 0, 0))
     padded.paste(square, ((padded_side - side) // 2, (padded_side - side) // 2))
@@ -123,7 +123,7 @@ def _crop_and_pad(img: Image.Image, target_size: int, padding_ratio: float = 0.0
 
 
 def _colorize_to_white(img: Image.Image) -> Image.Image:
-    """不透明ピクセルを白に変換 (alpha はそのまま)"""
+    """Convert opaque pixels to white (preserving alpha)."""
     arr = np.array(img)
     opaque = arr[:, :, 3] > 0
     arr[opaque, 0] = 255  # R
@@ -132,13 +132,13 @@ def _colorize_to_white(img: Image.Image) -> Image.Image:
     return Image.fromarray(arr)
 
 
-# --- アイコン描画 ---
+# --- Icon rendering ---
 
 def render_app_icon(size: int) -> Image.Image:
-    """アプリアイコン (トースト色背景 + キャラクター + 角丸マスク)"""
+    """App icon (toast-colored background + character + rounded corners)."""
     canvas_size = 1024
 
-    # トースト色の角丸背景を作成
+    # Create rounded-rect background with toast color
     result = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(result)
     draw.rounded_rectangle(
@@ -147,13 +147,13 @@ def render_app_icon(size: int) -> Image.Image:
         fill=APP_ICON_BG_COLOR,
     )
 
-    # SVG をラスタライズして白背景を除去 → 白に色変換
+    # Rasterize SVG, remove white background, colorize to white
     char_size = int(canvas_size * 0.75)
     img = _rasterize_svg(char_size)
     img = _remove_white_background(img)
     img = _colorize_to_white(img)
 
-    # キャラクターを中央に配置
+    # Center character on canvas
     offset = (canvas_size - char_size) // 2
     result.paste(img, (offset, offset), img)
 
@@ -163,19 +163,19 @@ def render_app_icon(size: int) -> Image.Image:
 
 
 def _make_eyes_svg() -> str:
-    """SVG から目のパスのみを抽出した SVG 文字列を返す。"""
+    """Extract the eye paths from the SVG and return as an SVG string."""
     with open(SVG_PATH) as f:
         lines = f.readlines()
 
     parts = []
     parts.append(lines[0])        # SVG header
-    parts.extend(lines[3:5])      # 左目 + 右目
+    parts.extend(lines[3:5])      # Left eye + right eye
     parts.append(lines[5])        # </svg>
     return "".join(parts)
 
 
 def _rasterize_eyes_svg(size: int) -> Image.Image:
-    """目のみの SVG を指定サイズにラスタライズ"""
+    """Rasterize the eyes-only SVG at the given size."""
     eyes_svg = _make_eyes_svg()
     png_data = cairosvg.svg2png(
         bytestring=eyes_svg.encode("utf-8"),
@@ -186,27 +186,27 @@ def _rasterize_eyes_svg(size: int) -> Image.Image:
 
 
 def _make_tray_stencil(size: int) -> Image.Image:
-    """パン線画 + お化け白塗りつぶし + 目くり抜きのステンシルを生成。
+    """Generate a stencil with bread outline + ghost solid fill + eyes cut out.
 
-    - パン: アウトライン(線)のみ白で表示
-    - お化けボディ: 白で塗りつぶし
-    - 目: 透明(くり抜き)
+    - Bread: white outline only
+    - Ghost body: white solid fill
+    - Eyes: transparent (cut out)
     """
-    # お化けシルエット (フラッドフィルで穴を埋めた塗りつぶし)
+    # Ghost silhouette (flood-filled to close holes)
     ghost = _rasterize_ghost_svg(size)
     ghost_arr = np.array(ghost)
     ghost_opaque = ghost_arr[:, :, 3] > 20
 
-    # 四隅からフラッドフィルで外側を特定し、穴を埋めたシルエットを生成
+    # Flood-fill from corners to identify outside, then invert to get hole-filled silhouette
     ghost_binary = Image.fromarray(ghost_opaque.astype(np.uint8) * 255, mode="L").convert("RGB")
     marker = (255, 0, 0)
     for xy in [(0, 0), (size - 1, 0), (0, size - 1), (size - 1, size - 1)]:
         ImageDraw.floodfill(ghost_binary, xy, marker, thresh=10)
     filled_arr = np.array(ghost_binary)
     outside = (filled_arr[:, :, 0] > 200) & (filled_arr[:, :, 1] < 100)
-    ghost_mask = ~outside  # 外側でない = お化けシルエット全体
+    ghost_mask = ~outside  # Not outside = full ghost silhouette
 
-    # 目くり抜き (膨張で少し大きく)
+    # Eye cutout (dilated slightly larger)
     eyes = _rasterize_eyes_svg(size)
     eyes_arr = np.array(eyes)
     eyes_alpha = Image.fromarray((eyes_arr[:, :, 3] > 20).astype(np.uint8) * 255)
@@ -216,18 +216,18 @@ def _make_tray_stencil(size: int) -> Image.Image:
 
     ghost_body = ghost_mask & ~eyes_mask
 
-    # パン線画 = 全体(白背景除去後) - お化け全体
+    # Bread outline = full image (white background removed) - ghost silhouette
     full = _rasterize_svg(size)
     full = _remove_white_background(full)
     full_arr = np.array(full)
     full_opaque = full_arr[:, :, 3] > 20
     bread_outline = full_opaque & ~ghost_mask
 
-    # 合成: パン線画 + お化け塗りつぶし
+    # Composite: bread outline + ghost solid fill
     final = bread_outline | ghost_body
 
     result = np.zeros((size, size, 4), dtype=np.uint8)
-    result[final, 0] = 255  # 白
+    result[final, 0] = 255  # White
     result[final, 1] = 255
     result[final, 2] = 255
     result[final, 3] = 255
@@ -235,23 +235,23 @@ def _make_tray_stencil(size: int) -> Image.Image:
 
 
 def render_tray_icon() -> Image.Image:
-    """トレイアイコン (パン線画 + お化け白塗り + 目くり抜き、44x44 @2x)
-    icon_as_template(true) 用: macOS が alpha チャンネルのみ使用
+    """Tray icon (bread outline + ghost solid fill + eyes cut out, 44x44 @2x).
+    For icon_as_template(true): macOS uses alpha channel only.
     """
     img = _make_tray_stencil(1024)
     return _crop_and_pad(img, TRAY_SIZE, padding_ratio=0.0)
 
 
 def render_tray_notification_icon() -> Image.Image:
-    """通知ありトレイアイコン (パン線画 + お化け白塗り + 目くり抜き + 青ドット、44x44 @2x)
-    icon_as_template(false) 用
+    """Notification tray icon (bread outline + ghost solid fill + eyes cut out + dot badge, 44x44 @2x).
+    For icon_as_template(false).
     """
     img = _make_tray_stencil(1024)
 
-    # 先にステンシルを44x44にリサイズ (通常アイコンと同じサイズにする)
+    # Resize stencil to 44x44 first (same size as normal tray icon)
     img = _crop_and_pad(img, TRAY_SIZE, padding_ratio=0.0)
 
-    # 44x44のまま右上に丸バッジを重ねる
+    # Overlay dot badge at top-right on the 44x44 image
     dot_r = 7
     dot_cx = TRAY_SIZE - dot_r
     dot_cy = dot_r
@@ -270,7 +270,7 @@ def main() -> None:
         print(f"Error: SVG not found: {SVG_PATH}")
         sys.exit(1)
 
-    # アプリアイコン PNG
+    # App icon PNGs
     for size, output_path in OUTPUT_FILES.items():
         img = render_app_icon(size)
         img.save(output_path)
@@ -297,12 +297,12 @@ def main() -> None:
     finally:
         shutil.rmtree(iconset_dir)
 
-    # トレイアイコン (通常)
+    # Tray icon (normal)
     tray = render_tray_icon()
     tray.save(TRAY_ICON_PATH)
     print(f"Generated: {TRAY_ICON_PATH} ({TRAY_SIZE}x{TRAY_SIZE})")
 
-    # トレイアイコン (通知あり)
+    # Tray icon (notification)
     tray_notification = render_tray_notification_icon()
     tray_notification.save(TRAY_ICON_NOTIFICATION_PATH)
     print(f"Generated: {TRAY_ICON_NOTIFICATION_PATH} ({TRAY_SIZE}x{TRAY_SIZE})")
