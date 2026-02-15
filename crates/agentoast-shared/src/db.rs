@@ -43,6 +43,14 @@ pub fn insert_notification(
 ) -> rusqlite::Result<i64> {
     let metadata_json = serde_json::to_string(metadata).unwrap_or_else(|_| "{}".to_string());
 
+    // Overwrite: remove existing notifications from the same tmux session
+    if !tmux_pane.is_empty() {
+        conn.execute(
+            "DELETE FROM notifications WHERE group_name = ?1 AND tmux_pane = ?2",
+            params![group_name, tmux_pane],
+        )?;
+    }
+
     conn.execute(
         "INSERT INTO notifications (title, body, color, icon, group_name, metadata, tmux_pane, force_focus)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",

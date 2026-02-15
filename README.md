@@ -131,7 +131,7 @@ agentoast send \
 | `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
 | `--meta` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
 
-Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--group` + `--tmux-pane` are dismissed at once.
+Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--group` + `--tmux-pane` are dismissed at once. Sending a new notification with the same `--group` + `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
 
 For a quick test, you can fire off notifications straight from the CLI.
 
@@ -187,8 +187,17 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Falls back to $EDITOR environment variable, then vim
 # editor = "vim"
 
-[display]
-# Maximum number of notifications per group in the main panel (default: 3, 0 = unlimited)
+# Toast popup notification
+[toast]
+# Display duration in milliseconds (default: 4000)
+# duration_ms = 4000
+
+# Keep toast visible until clicked (default: false)
+# persistent = false
+
+# Menu bar notification panel
+[panel]
+# Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
 ```
 

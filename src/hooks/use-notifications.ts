@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { NotificationGroup } from "@/lib/types";
+import type { Notification, NotificationGroup } from "@/lib/types";
 
 export function useNotifications() {
   const [groups, setGroups] = useState<NotificationGroup[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [newIds, setNewIds] = useState<Set<number>>(new Set());
+  const clearNewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -26,7 +28,17 @@ export function useNotifications() {
   useEffect(() => {
     void refresh();
 
-    const unlisten1 = listen("notifications:new", () => {
+    const unlisten1 = listen<Notification[]>("notifications:new", (event) => {
+      const ids = new Set(event.payload.map((n) => n.id));
+      setNewIds((prev) => new Set([...prev, ...ids]));
+
+      if (clearNewTimerRef.current) {
+        clearTimeout(clearNewTimerRef.current);
+      }
+      clearNewTimerRef.current = setTimeout(() => {
+        setNewIds(new Set());
+      }, 3000);
+
       void refresh();
     });
 
@@ -43,6 +55,9 @@ export function useNotifications() {
       unlisten1.then((f) => f()).catch(() => {});
       unlisten2.then((f) => f()).catch(() => {});
       unlisten3.then((f) => f()).catch(() => {});
+      if (clearNewTimerRef.current) {
+        clearTimeout(clearNewTimerRef.current);
+      }
     };
   }, [refresh]);
 
@@ -75,5 +90,6 @@ export function useNotifications() {
     deleteNotification,
     deleteGroup,
     deleteAll,
+    newIds,
   };
 }
