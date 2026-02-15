@@ -1,7 +1,7 @@
 pub use rusqlite::Connection;
 
 use rusqlite::params;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::models::{IconType, Notification, NotificationGroup};
@@ -85,10 +85,17 @@ pub fn get_notifications_grouped(
     group_limit: usize,
 ) -> rusqlite::Result<Vec<NotificationGroup>> {
     let notifications = get_notifications(conn, limit)?;
-    let mut groups: BTreeMap<String, Vec<Notification>> = BTreeMap::new();
+    let mut groups: Vec<(String, Vec<Notification>)> = Vec::new();
+    let mut index_map: HashMap<String, usize> = HashMap::new();
 
     for n in notifications {
-        groups.entry(n.group_name.clone()).or_default().push(n);
+        if let Some(&idx) = index_map.get(&n.group_name) {
+            groups[idx].1.push(n);
+        } else {
+            let idx = groups.len();
+            index_map.insert(n.group_name.clone(), idx);
+            groups.push((n.group_name.clone(), vec![n]));
+        }
     }
 
     let result = groups
