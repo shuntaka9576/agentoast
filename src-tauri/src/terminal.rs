@@ -56,10 +56,7 @@ fn activate_terminal(bundle_id: &str) -> Result<(), String> {
         }
     }
 
-    Err(format!(
-        "Terminal application not found: {}",
-        bundle_id
-    ))
+    Err(format!("Terminal application not found: {}", bundle_id))
 }
 
 pub fn focus_terminal(tmux_pane: &str, terminal_bundle_id: &str) -> Result<(), String> {

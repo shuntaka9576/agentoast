@@ -115,8 +115,16 @@ fn main() {
             });
 
             match db::insert_notification(
-                &conn, &title, &body, &color, &icon_type, &group, &metadata, &tmux_pane,
-                &terminal_bundle_id, focus,
+                &conn,
+                &title,
+                &body,
+                &color,
+                &icon_type,
+                &group,
+                &metadata,
+                &tmux_pane,
+                &terminal_bundle_id,
+                focus,
             ) {
                 Ok(id) => println!("Notification saved (id={})", id),
                 Err(e) => {
