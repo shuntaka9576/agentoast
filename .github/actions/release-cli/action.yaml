@@ -48,6 +48,7 @@ runs:
         homepage "https://github.com/${{ github.repository }}"
         url "${ARCHIVE_URL}"
         sha256 "${SHA256}"
+        version "${VERSION}"
         license "MIT"
 
         def install
