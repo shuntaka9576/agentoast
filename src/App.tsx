@@ -12,7 +12,6 @@ import type { Notification } from "@/lib/types";
 export function App() {
   const {
     groups,
-    unreadCount,
     loading,
     deleteNotification,
     deleteGroup,
@@ -143,7 +142,6 @@ export function App() {
       <div className="tray-arrow" />
       <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
         <PanelHeader
-          unreadCount={unreadCount}
           globalMuted={globalMuted}
           onDeleteAll={() => void deleteAll()}
           onToggleGlobalMute={() => void toggleGlobalMute()}

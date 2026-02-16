@@ -21,9 +21,6 @@
   --badge-stop-text: #16a34a;
   --badge-notif-bg: rgba(59, 130, 246, 0.15);
   --badge-notif-text: #2563eb;
-  --badge-count-bg: #3b82f6;
-  --badge-count-text: #ffffff;
-
   --tray-arrow-fill: rgba(244, 244, 245, 0.95);
   --scrollbar-thumb: rgba(0, 0, 0, 0.15);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
@@ -62,9 +59,6 @@
     --badge-stop-text: #4ade80;
     --badge-notif-bg: rgba(59, 130, 246, 0.20);
     --badge-notif-text: #60a5fa;
-    --badge-count-bg: #3b82f6;
-    --badge-count-text: #ffffff;
-
     --tray-arrow-fill: rgba(28, 28, 30, 0.95);
     --scrollbar-thumb: rgba(255, 255, 255, 0.15);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
