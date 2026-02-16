@@ -194,12 +194,15 @@ export function App() {
           </div>
           {showHelp && <KeybindHelp onClose={() => setShowHelp(false)} />}
           {!showHelp && (
-            <div
-              className="absolute bottom-2 right-2 w-4 h-4 rounded-full border border-[var(--text-tertiary)] flex items-center justify-center text-[var(--text-tertiary)]"
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowHelp(true)}
+              className="absolute bottom-2 right-2 w-4 h-4 rounded-full border border-[var(--text-tertiary)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:border-[var(--text-secondary)] cursor-pointer bg-transparent p-0"
               style={{ fontSize: "10px", lineHeight: 1 }}
             >
               ?
-            </div>
+            </button>
           )}
         </div>
       </div>
