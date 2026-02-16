@@ -26,12 +26,10 @@ All notifications are grouped by repository in the menu bar. Clicking one takes 
 
 ## Installation
 
-> **Install the CLI before the App.** Both share the same Homebrew tap name, so installing the Cask first causes Homebrew to skip linking the CLI binary. If you installed the App first, run `brew link --overwrite agentoast` to fix it.
-
 ### CLI
 
 ```bash
-brew install --formula shuntaka9576/tap/agentoast
+brew install shuntaka9576/tap/agentoast-cli
 ```
 
 ### App
@@ -49,7 +47,7 @@ xattr -cr /Applications/Agentoast.app
 
 ```bash
 brew uninstall --cask shuntaka9576/tap/agentoast
-brew uninstall --formula shuntaka9576/tap/agentoast
+brew uninstall shuntaka9576/tap/agentoast-cli
 ```
 
 ## Usage

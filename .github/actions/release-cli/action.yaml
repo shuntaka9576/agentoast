@@ -43,7 +43,7 @@ runs:
       ARCHIVE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${ARCHIVE_NAME}"
 
       FORMULA_CONTENT=$(cat <<FORMULA_EOF
-      class Agentoast < Formula
+      class AgentoastCli < Formula
         desc "CLI notification tool for AI coding agents"
         homepage "https://github.com/${{ github.repository }}"
         url "${ARCHIVE_URL}"
@@ -63,18 +63,18 @@ runs:
       )
 
       ENCODED=$(echo "${FORMULA_CONTENT}" | base64)
-      EXISTING_SHA=$(GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb --jq '.sha' 2>/dev/null || echo "")
+      EXISTING_SHA=$(GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast-cli.rb --jq '.sha' 2>/dev/null || echo "")
 
       if [ -n "${EXISTING_SHA}" ]; then
-        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb \
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast-cli.rb \
           --method PUT \
-          -f message="Update agentoast formula to ${TAG}" \
+          -f message="Update agentoast-cli formula to ${TAG}" \
           -f content="${ENCODED}" \
           -f sha="${EXISTING_SHA}"
       else
-        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast.rb \
+        GH_TOKEN="${GH_PAT}" gh api repos/shuntaka9576/homebrew-tap/contents/Formula/agentoast-cli.rb \
           --method PUT \
-          -f message="Add agentoast formula ${TAG}" \
+          -f message="Add agentoast-cli formula ${TAG}" \
           -f content="${ENCODED}"
       fi
 
