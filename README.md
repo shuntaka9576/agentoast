@@ -141,6 +141,8 @@ agentoast send \
 
 Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--group` + `--tmux-pane` are dismissed at once. Sending a new notification with the same `--group` + `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
 
+When a terminal is focused and the notification's originating tmux pane is the active pane, notifications are automatically suppressed — since you're already looking at it.
+
 For a quick test, you can fire off notifications straight from the CLI.
 
 Claude Code
@@ -208,8 +210,6 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
 ```
-
-When a terminal is focused and the notification's originating tmux pane is the active pane, notifications are automatically suppressed — since you're already looking at it.
 
 ### Tips
 
