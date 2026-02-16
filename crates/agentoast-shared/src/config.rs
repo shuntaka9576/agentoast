@@ -97,7 +97,7 @@ impl Default for ShortcutConfig {
 }
 
 fn default_toggle_panel() -> String {
-    "ctrl+shift+n".to_string()
+    "ctrl+alt+n".to_string()
 }
 
 /// config.toml のパスを返す。
@@ -140,10 +140,10 @@ fn default_config_template() -> &'static str {
 
 # Global keyboard shortcut
 [shortcut]
-# Shortcut to toggle the notification panel (default: ctrl+shift+n)
-# Format: modifier+key (modifiers: ctrl, shift, alt, super)
+# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
-# toggle_panel = "ctrl+shift+n"
+# toggle_panel = "ctrl+alt+n"
 "#
 }
 
