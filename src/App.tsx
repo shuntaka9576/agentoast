@@ -127,6 +127,24 @@ export function App() {
           }
           break;
         }
+        case "d": {
+          if (showHelp || e.shiftKey) break;
+          e.preventDefault();
+          const n = flatNotifications[selectedIndex];
+          if (n) {
+            void deleteNotification(n.id);
+          }
+          break;
+        }
+        case "D": {
+          if (showHelp) break;
+          e.preventDefault();
+          const n = flatNotifications[selectedIndex];
+          if (n) {
+            void deleteGroup(n.groupName);
+          }
+          break;
+        }
       }
     };
 
