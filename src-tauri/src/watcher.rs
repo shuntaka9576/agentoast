@@ -134,6 +134,38 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         LAST_KNOWN_ID.store(last.id, Ordering::SeqCst);
     }
 
+    // Active pane suppression: remove notifications where the user is looking at the pane
+    #[cfg(target_os = "macos")]
+    let new_notifications = {
+        let (suppressed, remaining): (Vec<_>, Vec<_>) =
+            new_notifications.into_iter().partition(|n| {
+                crate::terminal::is_pane_visible_to_user(&n.terminal_bundle_id, &n.tmux_pane)
+            });
+
+        for n in &suppressed {
+            if let Err(e) = db::delete_notification(conn, n.id) {
+                log::error!("Failed to delete suppressed notification {}: {}", n.id, e);
+            }
+        }
+
+        if !suppressed.is_empty() {
+            log::debug!(
+                "Suppressed {} notification(s) (active pane)",
+                suppressed.len()
+            );
+        }
+
+        remaining
+    };
+
+    if new_notifications.is_empty() {
+        if let Ok(count) = db::get_unread_count(conn) {
+            let _ = app_handle.emit("notifications:unread-count", count);
+            update_tray_icon(app_handle, count);
+        }
+        return;
+    }
+
     // Get mute state once for all filtering decisions
     let mute_state = app_handle.state::<Mutex<MuteState>>();
     let (is_global_muted, muted_groups) = match mute_state.lock() {
