@@ -5,6 +5,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { useMute } from "@/hooks/use-mute";
 import { PanelHeader } from "@/components/panel-header";
 import { RepoGroup } from "@/components/repo-group";
+import { KeybindHelp } from "@/components/keybind-help";
 import { Bell } from "lucide-react";
 import type { Notification } from "@/lib/types";
 
@@ -27,6 +28,7 @@ export function App() {
   } = useMute();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Flatten all visible notifications into a single list for keyboard navigation
@@ -89,23 +91,34 @@ export function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
+        case "?":
+          e.preventDefault();
+          setShowHelp((prev) => !prev);
+          break;
         case "Escape":
           e.preventDefault();
-          void invoke("hide_panel");
+          if (showHelp) {
+            setShowHelp(false);
+          } else {
+            void invoke("hide_panel");
+          }
           break;
         case "j":
+          if (showHelp) break;
           e.preventDefault();
           if (flatNotifications.length > 0) {
             setSelectedIndex((prev) => Math.min(prev + 1, flatNotifications.length - 1));
           }
           break;
         case "k":
+          if (showHelp) break;
           e.preventDefault();
           if (flatNotifications.length > 0) {
             setSelectedIndex((prev) => Math.max(prev - 1, 0));
           }
           break;
         case "Enter": {
+          if (showHelp) break;
           e.preventDefault();
           const n = flatNotifications[selectedIndex];
           if (n) {
@@ -120,7 +133,7 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flatNotifications, selectedIndex, activateNotification]);
+  }, [flatNotifications, selectedIndex, activateNotification, showHelp]);
 
   // Build a set of selected notification IDs for highlighting
   const selectedId = flatNotifications[selectedIndex]?.id ?? null;
@@ -136,30 +149,41 @@ export function App() {
           onToggleGlobalMute={() => void toggleGlobalMute()}
         />
 
-        <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-xs text-[var(--text-muted)]">Loading...</div>
+        <div className="relative flex-1 min-h-0">
+          <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-xs text-[var(--text-muted)]">Loading...</div>
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <Bell size={32} className="text-[var(--text-faint)]" />
+                <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
+              </div>
+            ) : (
+              groups.map((group) => (
+                <RepoGroup
+                  key={group.groupName}
+                  group={group}
+                  isMuted={isGroupMuted(group.groupName)}
+                  newIds={newIds}
+                  selectedId={selectedId}
+                  flatNotifications={flatNotifications}
+                  onDelete={(id) => void deleteNotification(id)}
+                  onDeleteGroup={(name) => void deleteGroup(name)}
+                  onToggleGroupMute={(name) => void toggleGroupMute(name)}
+                />
+              ))
+            )}
+          </div>
+          {showHelp && <KeybindHelp onClose={() => setShowHelp(false)} />}
+          {!showHelp && (
+            <div
+              className="absolute bottom-2 right-2 w-4 h-4 rounded-full border border-[var(--text-tertiary)] flex items-center justify-center text-[var(--text-tertiary)]"
+              style={{ fontSize: "10px", lineHeight: 1 }}
+            >
+              ?
             </div>
-          ) : groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3">
-              <Bell size={32} className="text-[var(--text-faint)]" />
-              <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
-            </div>
-          ) : (
-            groups.map((group) => (
-              <RepoGroup
-                key={group.groupName}
-                group={group}
-                isMuted={isGroupMuted(group.groupName)}
-                newIds={newIds}
-                selectedId={selectedId}
-                flatNotifications={flatNotifications}
-                onDelete={(id) => void deleteNotification(id)}
-                onDeleteGroup={(name) => void deleteGroup(name)}
-                onToggleGroupMute={(name) => void toggleGroupMute(name)}
-              />
-            ))
           )}
         </div>
       </div>
