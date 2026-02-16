@@ -40,6 +40,18 @@ fn show_panel(app_handle: &AppHandle) {
     }
 }
 
+pub fn toggle_panel(app_handle: &AppHandle) {
+    let Some(panel) = get_or_init_panel!(app_handle) else {
+        return;
+    };
+    if panel.is_visible() {
+        panel.hide();
+    } else {
+        let _ = app_handle.emit("notifications:refresh", ());
+        panel.show_and_make_key();
+    }
+}
+
 pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
     let tray_icon_path = app_handle
         .path()
