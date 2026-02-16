@@ -126,44 +126,42 @@ export function App() {
   const selectedId = flatNotifications[selectedIndex]?.id ?? null;
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
-      {/* Tray arrow */}
-      <div className="flex justify-center -mt-[7px]">
-        <div className="tray-arrow" />
-      </div>
+    <div className="h-screen flex flex-col items-center px-4 pb-4 pt-1.5 bg-transparent">
+      <div className="tray-arrow" />
+      <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
+        <PanelHeader
+          unreadCount={unreadCount}
+          globalMuted={globalMuted}
+          onDeleteAll={() => void deleteAll()}
+          onToggleGlobalMute={() => void toggleGlobalMute()}
+        />
 
-      <PanelHeader
-        unreadCount={unreadCount}
-        globalMuted={globalMuted}
-        onDeleteAll={() => void deleteAll()}
-        onToggleGlobalMute={() => void toggleGlobalMute()}
-      />
-
-      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-xs text-[var(--text-muted)]">Loading...</div>
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3">
-            <Bell size={32} className="text-[var(--text-faint)]" />
-            <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
-          </div>
-        ) : (
-          groups.map((group) => (
-            <RepoGroup
-              key={group.groupName}
-              group={group}
-              isMuted={isGroupMuted(group.groupName)}
-              newIds={newIds}
-              selectedId={selectedId}
-              flatNotifications={flatNotifications}
-              onDelete={(id) => void deleteNotification(id)}
-              onDeleteGroup={(name) => void deleteGroup(name)}
-              onToggleGroupMute={(name) => void toggleGroupMute(name)}
-            />
-          ))
-        )}
+        <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-xs text-[var(--text-muted)]">Loading...</div>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <Bell size={32} className="text-[var(--text-faint)]" />
+              <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
+            </div>
+          ) : (
+            groups.map((group) => (
+              <RepoGroup
+                key={group.groupName}
+                group={group}
+                isMuted={isGroupMuted(group.groupName)}
+                newIds={newIds}
+                selectedId={selectedId}
+                flatNotifications={flatNotifications}
+                onDelete={(id) => void deleteNotification(id)}
+                onDeleteGroup={(name) => void deleteGroup(name)}
+                onToggleGroupMute={(name) => void toggleGroupMute(name)}
+              />
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
