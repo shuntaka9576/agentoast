@@ -144,6 +144,7 @@ fn default_config_template() -> &'static str {
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
 # toggle_panel = "ctrl+alt+n"
+
 "#
 }
 

@@ -209,6 +209,8 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # group_limit = 3
 ```
 
+When a terminal is focused and the notification's originating tmux pane is the active pane, notifications are automatically suppressed — since you're already looking at it.
+
 ### Tips
 
 Set up a shell alias for command completion notifications.
