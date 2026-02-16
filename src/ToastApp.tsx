@@ -263,20 +263,20 @@ export function ToastApp() {
           </div>
         </div>
         {/* Dismiss buttons (bottom-left) */}
-        <div className="absolute bottom-1.5 left-2.5 flex items-center gap-0.5">
+        <div className="absolute bottom-1.5 left-2.5 flex items-center gap-1">
           <button
             onClick={handleDismissKeep}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
+            className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
             title="Dismiss (keep in history)"
           >
-            <X size={12} />
+            <X size={14} />
           </button>
           <button
             onClick={handleDismissDelete}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--delete-hover-text)] hover:bg-[var(--hover-bg-strong)] transition-colors"
+            className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--delete-hover-text)] hover:bg-[var(--hover-bg-strong)] transition-colors"
             title="Delete from history"
           >
-            <Trash2 size={12} />
+            <Trash2 size={14} />
           </button>
         </div>
         {/* Queue counter badge */}
