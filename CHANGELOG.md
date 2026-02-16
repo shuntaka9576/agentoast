@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.6.0](https://github.com/shuntaka9576/agentoast/compare/v0.5.1...v0.6.0) - 2026-02-16
+- chore: rename Homebrew Formula to agentoast-cli by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/14
+
 ## [v0.5.1](https://github.com/shuntaka9576/agentoast/compare/v0.5.0...v0.5.1) - 2026-02-15
 - fix: add explicit version field to Homebrew Formula template by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/11
 
