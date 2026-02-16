@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.8.0](https://github.com/shuntaka9576/agentoast/compare/v0.7.0...v0.8.0) - 2026-02-16
+- feat: add global shortcut and keyboard navigation for notification panel by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/18
+
 ## [v0.7.0](https://github.com/shuntaka9576/agentoast/compare/v0.6.0...v0.7.0) - 2026-02-16
 - feat: add dismiss buttons to toast notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/16
 
