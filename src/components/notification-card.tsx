@@ -77,30 +77,30 @@ export function NotificationCard({
             </span>
           </div>
 
-          {/* Metadata */}
-          {metaEntries.length > 0 && (
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--text-tertiary)] truncate">
+          {/* Metadata + tmux */}
+          {(metaEntries.length > 0 || notification.tmuxPane) && (
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--text-muted)] truncate">
               {metaEntries.map(([key, value], i) => (
-                <span key={key}>
-                  {i > 0 && <span className="mx-0.5">·</span>}
-                  <span className="text-[var(--text-muted)]">{key}:</span>{" "}
+                <span key={key} className={i > 0 ? "ml-1" : ""}>
+                  <span>{key}:</span>{" "}
                   {value}
                 </span>
               ))}
-            </div>
-          )}
-
-          {/* tmux info */}
-          {notification.tmuxPane && (
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--text-tertiary)] truncate">
-              <TmuxIcon size={11} className="flex-shrink-0" />
-              {notification.tmuxPane}
+              {metaEntries.length > 0 && notification.tmuxPane && (
+                <span className="ml-1" />
+              )}
+              {notification.tmuxPane && (
+                <>
+                  <TmuxIcon size={10} className="flex-shrink-0" />
+                  {notification.tmuxPane}
+                </>
+              )}
             </div>
           )}
 
           {/* Body */}
           {notification.body && (
-            <p className="mt-1 text-[11px] text-[var(--text-secondary)] line-clamp-2">
+            <p className="mt-1 text-[12px] text-[var(--text-secondary)] line-clamp-2">
               {notification.body}
             </p>
           )}
