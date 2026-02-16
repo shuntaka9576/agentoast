@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
 import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { X, Trash2 } from "lucide-react";
 
 const DEFAULT_TOAST_DURATION = 4000;
 const FADE_DURATION = 300;
@@ -159,6 +160,28 @@ export function ToastApp() {
     }
   };
 
+  const handleDismissKeep = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    advanceOrHide();
+  };
+
+  const handleDismissDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    const current = queueRef.current[currentIndexRef.current];
+    if (current) {
+      void invoke("delete_notification", { id: current.id });
+    }
+    advanceOrHide();
+  };
+
   const current = queue[currentIndex];
 
   if (!isVisible || !current) {
@@ -238,6 +261,23 @@ export function ToastApp() {
             )}
 
           </div>
+        </div>
+        {/* Dismiss buttons (bottom-left) */}
+        <div className="absolute bottom-1.5 left-2.5 flex items-center gap-1">
+          <button
+            onClick={handleDismissKeep}
+            className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
+            title="Dismiss (keep in history)"
+          >
+            <X size={14} />
+          </button>
+          <button
+            onClick={handleDismissDelete}
+            className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--delete-hover-text)] hover:bg-[var(--hover-bg-strong)] transition-colors"
+            title="Delete from history"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
         {/* Queue counter badge */}
         {queue.length > 1 && (
