@@ -6,6 +6,8 @@ const KEYBINDS = [
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
   { key: "Enter", action: "Open" },
+  { key: "d", action: "Delete" },
+  { key: "D", action: "Delete group" },
   { key: "Esc", action: "Close" },
   { key: "?", action: "Help" },
 ] as const;
