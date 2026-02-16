@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.7.0](https://github.com/shuntaka9576/agentoast/compare/v0.6.0...v0.7.0) - 2026-02-16
+- feat: add dismiss buttons to toast notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/16
+
 ## [v0.6.0](https://github.com/shuntaka9576/agentoast/compare/v0.5.1...v0.6.0) - 2026-02-16
 - chore: rename Homebrew Formula to agentoast-cli by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/14
 
