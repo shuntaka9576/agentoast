@@ -24,7 +24,7 @@
   --badge-count-bg: #3b82f6;
   --badge-count-text: #ffffff;
 
-  --tray-arrow-color: rgba(0, 0, 0, 0.10);
+  --tray-arrow-fill: rgba(244, 244, 245, 0.95);
   --scrollbar-thumb: rgba(0, 0, 0, 0.15);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
 
@@ -65,7 +65,7 @@
     --badge-count-bg: #3b82f6;
     --badge-count-text: #ffffff;
 
-    --tray-arrow-color: rgba(255, 255, 255, 0.10);
+    --tray-arrow-fill: rgba(28, 28, 30, 0.95);
     --scrollbar-thumb: rgba(255, 255, 255, 0.15);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
 
@@ -96,7 +96,20 @@ body,
   height: 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-bottom: 7px solid var(--tray-arrow-color);
+  border-bottom: 7px solid var(--border-primary);
+  position: relative;
+  flex-shrink: 0;
+}
+.tray-arrow::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 1.5px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--tray-arrow-fill);
 }
 
 /* Scrollbar styling */

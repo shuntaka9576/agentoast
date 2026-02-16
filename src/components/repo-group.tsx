@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Bell, BellOff, ChevronDown, ChevronRight, Folder, Trash2 } from "lucide-react";
-import type { NotificationGroup } from "@/lib/types";
+import type { Notification, NotificationGroup } from "@/lib/types";
 import { NotificationCard } from "./notification-card";
 
 interface RepoGroupProps {
   group: NotificationGroup;
   isMuted: boolean;
   newIds: Set<number>;
+  selectedId: number | null;
+  flatNotifications: Notification[];
   onDelete: (id: number) => void;
   onDeleteGroup: (groupName: string) => void;
   onToggleGroupMute: (groupName: string) => void;
@@ -16,6 +18,8 @@ export function RepoGroup({
   group,
   isMuted,
   newIds,
+  selectedId,
+  flatNotifications,
   onDelete,
   onDeleteGroup,
   onToggleGroupMute,
@@ -41,6 +45,7 @@ export function RepoGroup({
           {group.notifications.length}
         </span>
         <button
+          tabIndex={-1}
           onClick={(e) => {
             e.stopPropagation();
             onToggleGroupMute(group.groupName);
@@ -51,6 +56,7 @@ export function RepoGroup({
           {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
         </button>
         <button
+          tabIndex={-1}
           onClick={(e) => {
             e.stopPropagation();
             onDeleteGroup(group.groupName);
@@ -63,14 +69,19 @@ export function RepoGroup({
 
       {expanded && (
         <div>
-          {group.notifications.map((n) => (
-            <NotificationCard
-              key={n.id}
-              notification={n}
-              isNew={newIds.has(n.id)}
-              onDelete={onDelete}
-            />
-          ))}
+          {group.notifications.map((n) => {
+            const navIndex = flatNotifications.findIndex((f) => f.id === n.id);
+            return (
+              <NotificationCard
+                key={n.id}
+                notification={n}
+                isNew={newIds.has(n.id)}
+                isSelected={n.id === selectedId}
+                navIndex={navIndex}
+                onDelete={onDelete}
+              />
+            );
+          })}
         </div>
       )}
     </div>

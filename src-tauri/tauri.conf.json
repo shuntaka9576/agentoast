@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Agentoast",
-        "width": 380,
-        "height": 520,
+        "width": 412,
+        "height": 554,
         "resizable": false,
         "decorations": false,
         "transparent": true,

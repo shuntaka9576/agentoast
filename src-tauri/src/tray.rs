@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::path::BaseDirectory;
-use tauri::tray::{MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButtonState, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_nspanel::ManagerExt;
 
@@ -37,6 +37,23 @@ fn show_panel(app_handle: &AppHandle) {
     if let Some(panel) = get_or_init_panel!(app_handle) {
         let _ = app_handle.emit("notifications:refresh", ());
         panel.show_and_make_key();
+    }
+}
+
+pub fn toggle_panel(app_handle: &AppHandle) {
+    let Some(panel) = get_or_init_panel!(app_handle) else {
+        return;
+    };
+    if panel.is_visible() {
+        panel.hide();
+    } else {
+        let _ = app_handle.emit("notifications:refresh", ());
+        panel.show_and_make_key();
+        if let Some(tray) = app_handle.tray_by_id(&TrayIconId::new("tray")) {
+            if let Ok(Some(rect)) = tray.rect() {
+                position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+            }
+        }
     }
 }
 

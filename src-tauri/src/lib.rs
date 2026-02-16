@@ -17,6 +17,7 @@ use agentoast_shared::db;
 use agentoast_shared::models::{Notification, NotificationGroup};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 pub struct AppState {
     pub db_path: std::path::PathBuf,
@@ -269,6 +270,8 @@ pub fn run() {
             log::info!("DB path: {:?}", db_path);
             log::info!("Config: {:?}", app_config);
 
+            let shortcut_str = app_config.shortcut.toggle_panel.clone();
+
             // Ensure DB is initialized
             let _ = db::open(&db_path).expect("Failed to initialize database");
 
@@ -280,6 +283,41 @@ pub fn run() {
             app.manage(Mutex::new(MuteState::default()));
 
             tray::create(app.handle())?;
+
+            // Register global shortcut for panel toggle
+            if !shortcut_str.is_empty() {
+                match shortcut_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    Ok(shortcut) => {
+                        app.handle().plugin(
+                            tauri_plugin_global_shortcut::Builder::new()
+                                .with_handler(move |app, sc, event| {
+                                    if event.state == ShortcutState::Pressed && sc == &shortcut {
+                                        tray::toggle_panel(app);
+                                    }
+                                })
+                                .build(),
+                        )?;
+                        if let Err(e) = app.global_shortcut().register(shortcut) {
+                            log::error!(
+                                "Failed to register global shortcut '{}': {}",
+                                shortcut_str,
+                                e
+                            );
+                        } else {
+                            log::info!("Global shortcut registered: {}", shortcut_str);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "Invalid shortcut '{}' in config.toml: {}, shortcut disabled",
+                            shortcut_str,
+                            e
+                        );
+                    }
+                }
+            } else {
+                log::info!("Global shortcut disabled (empty string in config)");
+            }
 
             // Initialize toast panel
             toast::init(app.handle())?;

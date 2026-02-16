@@ -7,6 +7,8 @@ import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 interface NotificationCardProps {
   notification: Notification;
   isNew?: boolean;
+  isSelected?: boolean;
+  navIndex?: number;
   onDelete: (id: number) => void;
 }
 
@@ -20,6 +22,8 @@ const badgeColorClasses: Record<string, string> = {
 export function NotificationCard({
   notification,
   isNew,
+  isSelected,
+  navIndex,
   onDelete,
 }: NotificationCardProps) {
   const metaEntries = Object.entries(notification.metadata).filter(
@@ -28,9 +32,11 @@ export function NotificationCard({
   const badgeClass = badgeColorClasses[notification.color] || badgeColorClasses.gray;
   return (
     <div
+      data-nav-index={navIndex}
       className={cn(
         "group relative px-3 py-2.5 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer",
         isNew && "animate-new-highlight",
+        isSelected && "bg-[var(--hover-bg)]",
       )}
       onClick={() => {
         if (notification.tmuxPane) {
@@ -108,6 +114,7 @@ export function NotificationCard({
 
         {/* Delete button */}
         <button
+          tabIndex={-1}
           onClick={(e) => {
             e.stopPropagation();
             onDelete(notification.id);

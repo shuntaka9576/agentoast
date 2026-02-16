@@ -11,6 +11,7 @@
     "core:window:allow-outer-size",
     "core:window:allow-inner-size",
     "core:window:allow-scale-factor",
-    "opener:default"
+    "opener:default",
+    "global-shortcut:default"
   ]
 }

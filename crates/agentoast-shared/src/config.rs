@@ -39,6 +39,8 @@ pub struct AppConfig {
     pub toast: ToastConfig,
     #[serde(default)]
     pub panel: PanelConfig,
+    #[serde(default)]
+    pub shortcut: ShortcutConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -80,6 +82,24 @@ fn default_toast_duration() -> u64 {
     4000
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct ShortcutConfig {
+    #[serde(default = "default_toggle_panel")]
+    pub toggle_panel: String,
+}
+
+impl Default for ShortcutConfig {
+    fn default() -> Self {
+        Self {
+            toggle_panel: default_toggle_panel(),
+        }
+    }
+}
+
+fn default_toggle_panel() -> String {
+    "ctrl+alt+n".to_string()
+}
+
 /// config.toml のパスを返す。
 pub fn config_path() -> PathBuf {
     config_dir().join("config.toml")
@@ -117,6 +137,13 @@ fn default_config_template() -> &'static str {
 [panel]
 # Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
+
+# Global keyboard shortcut
+[shortcut]
+# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
+# Set to "" to disable
+# toggle_panel = "ctrl+alt+n"
 "#
 }
 
