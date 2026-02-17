@@ -122,7 +122,7 @@ agentoast send \
   --body "Task Completed" \
   --color green \
   --icon claude-code \
-  --group my-repo \
+  --repo my-repo \
   --tmux-pane %0 \
   --meta branch=main
 ```
@@ -133,13 +133,13 @@ agentoast send \
 | `--body` | No | `""` | Notification body text |
 | `--color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
 | `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
-| `--group` | No | `""` | Group name (e.g. repository name, project name) |
+| `--repo` | No | `""` | Repository name for grouping notifications |
 | `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
 | `--bundle-id` | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
 | `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
 | `--meta` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
 
-Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--group` + `--tmux-pane` are dismissed at once. Sending a new notification with the same `--group` + `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
+Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--tmux-pane` are dismissed at once. Sending a new notification with the same `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
 
 When a terminal is focused and the notification's originating tmux pane is the active pane, notifications are automatically suppressed — since you're already looking at it.
 
@@ -152,7 +152,7 @@ agentoast send \
   --title "Stop" \
   --color green \
   --icon claude-code \
-  --group your-repo \
+  --repo your-repo \
   --tmux-pane %0 \
   --meta branch=your-branch
 ```
@@ -164,7 +164,7 @@ agentoast send \
   --title "Notification" \
   --color blue \
   --icon codex \
-  --group your-repo \
+  --repo your-repo \
   --meta branch=your-branch
 ```
 
@@ -175,7 +175,7 @@ agentoast send \
   --title "Stop" \
   --color red \
   --icon opencode \
-  --group your-repo \
+  --repo your-repo \
   --tmux-pane %0 \
   --meta branch=your-branch
 ```
@@ -216,7 +216,7 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 Set up a shell alias for command completion notifications.
 
 ```bash
-alias an='agentoast send --title Done --color green --group default'
+alias an='agentoast send --title Done --color green --repo default'
 ```
 
 ```bash
@@ -226,6 +226,6 @@ sleep 10; an
 With tmux, add `--tmux-pane` to jump back to the pane on click.
 
 ```bash
-alias an='agentoast send --title Done --color green --group default --tmux-pane $(tmux display-message -p "#{pane_id}")'
+alias an='agentoast send --title Done --color green --repo default --tmux-pane $(tmux display-message -p "#{pane_id}")'
 ```
 

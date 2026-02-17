@@ -80,7 +80,7 @@ export const NotifyPlugin = async ({
         config.color,
         "--icon",
         "opencode",
-        "--group",
+        "--repo",
         repoName,
       ]
 

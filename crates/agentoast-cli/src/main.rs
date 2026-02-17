@@ -32,6 +32,10 @@ enum Commands {
         #[arg(long, default_value = "agentoast")]
         icon: String,
 
+        /// Repository name for grouping notifications
+        #[arg(long, default_value = "")]
+        repo: String,
+
         /// tmux pane ID (e.g. %5)
         #[arg(long, default_value = "")]
         tmux_pane: String,
@@ -85,6 +89,7 @@ fn main() {
             body,
             color,
             icon,
+            repo,
             tmux_pane,
             bundle_id,
             focus,
@@ -116,6 +121,7 @@ fn main() {
                 &color,
                 &icon_type,
                 &metadata,
+                &repo,
                 &tmux_pane,
                 &terminal_bundle_id,
                 focus,

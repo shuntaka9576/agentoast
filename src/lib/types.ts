@@ -7,6 +7,7 @@ export interface Notification {
   color: string;
   icon: Icon;
   metadata: Record<string, string>;
+  repo: string;
   tmuxPane: string;
   terminalBundleId: string;
   forceFocus: boolean;

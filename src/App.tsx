@@ -86,6 +86,56 @@ export function App() {
       }
     }
 
+    // Collect matched tmuxPanes
+    const matchedPanes = new Set<string>();
+    for (const ug of map.values()) {
+      for (const pi of ug.paneItems) {
+        if (pi.pane.paneId) matchedPanes.add(pi.pane.paneId);
+      }
+    }
+
+    // Add orphaned notifications (not matched to any session pane) grouped by repo
+    for (const n of notifications) {
+      if (!n.repo) continue;
+      if (n.tmuxPane && matchedPanes.has(n.tmuxPane)) continue;
+
+      // Try to find existing group with same repoName
+      let targetGroup: UnifiedGroup | undefined;
+      for (const ug of map.values()) {
+        if (ug.repoName === n.repo) {
+          targetGroup = ug;
+          break;
+        }
+      }
+
+      if (!targetGroup) {
+        const groupKey = `orphan:${n.repo}`;
+        if (!map.has(groupKey)) {
+          map.set(groupKey, {
+            groupKey,
+            repoName: n.repo,
+            gitBranch: null,
+            paneItems: [],
+          });
+        }
+        targetGroup = map.get(groupKey)!;
+      }
+
+      targetGroup.paneItems.push({
+        pane: {
+          paneId: n.tmuxPane,
+          panePid: 0,
+          sessionName: "",
+          windowName: "",
+          currentPath: "",
+          agentType: null,
+          gitRepoRoot: null,
+          gitBranch: null,
+        },
+        notification: n,
+      });
+    }
+
     const result = Array.from(map.values());
 
     // Sort panes within each group: notified panes first (latest notification on top)

@@ -51,6 +51,7 @@ pub struct Notification {
     pub color: String,
     pub icon: String,
     pub metadata: HashMap<String, String>,
+    pub repo: String,
     pub tmux_pane: String,
     pub terminal_bundle_id: String,
     pub force_focus: bool,

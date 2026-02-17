@@ -81,7 +81,7 @@ const main = async () => {
     color,
     "--icon",
     "claude-code",
-    "--group",
+    "--repo",
     repoName,
   ]
 
