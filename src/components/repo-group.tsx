@@ -69,17 +69,9 @@ export function RepoGroup({
           ) : (
             <Folder size={13} className="text-[var(--text-tertiary)]" />
           )}
-          {totalNotifications > 0 && (
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF9500] flex-shrink-0" />
-          )}
           <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
             {repoName}
           </span>
-          {totalNotifications > 0 && (
-            <span className="text-[10px] text-[var(--text-muted)]">
-              {totalNotifications}
-            </span>
-          )}
           <button
             tabIndex={-1}
             onClick={(e) => {
@@ -105,18 +97,28 @@ export function RepoGroup({
             </button>
           )}
         </div>
-        {/* Line 2: branch (left) + agents (right) */}
-        {(gitBranch || activeSessions > 0) && (
+        {/* Line 2: branch */}
+        {gitBranch && (
           <div className="flex items-center pl-[33px] mt-0.5">
-            {gitBranch && (
-              <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] truncate">
-                <GitBranch size={10} className="flex-shrink-0" />
-                {gitBranch}
+            <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] truncate">
+              <GitBranch size={10} className="flex-shrink-0" />
+              {gitBranch}
+            </span>
+          </div>
+        )}
+        {/* Line 3: notification count + agent count */}
+        {(totalNotifications > 0 || activeSessions > 0) && (
+          <div className="flex items-center gap-3 pl-[33px] mt-0.5">
+            {totalNotifications > 0 && (
+              <span className="flex items-center gap-1 text-[10px] text-[#FF9500] font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF9500]" />
+                {totalNotifications}
               </span>
             )}
             {activeSessions > 0 && (
-              <span className="text-[10px] text-green-500 font-medium ml-auto">
-                {activeSessions} agent{activeSessions > 1 ? "s" : ""}
+              <span className="flex items-center gap-1 text-[10px] text-green-500 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                {activeSessions}
               </span>
             )}
           </div>
