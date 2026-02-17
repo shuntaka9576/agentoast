@@ -3,6 +3,8 @@ interface KeybindHelpProps {
 }
 
 const KEYBINDS = [
+  { key: "1", action: "Notifications tab" },
+  { key: "2", action: "Sessions tab" },
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
   { key: "Enter", action: "Open" },

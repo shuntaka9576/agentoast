@@ -2,6 +2,8 @@
 mod app_nap;
 mod panel;
 #[cfg(target_os = "macos")]
+mod sessions;
+#[cfg(target_os = "macos")]
 mod terminal;
 mod toast;
 mod tray;
@@ -14,7 +16,7 @@ use std::sync::Mutex;
 
 use agentoast_shared::config::{self, AppConfig};
 use agentoast_shared::db;
-use agentoast_shared::models::{Notification, NotificationGroup};
+use agentoast_shared::models::{Notification, NotificationGroup, TmuxPaneGroup};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -96,6 +98,18 @@ fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), S
     {
         let _ = (tmux_pane, terminal_bundle_id);
         Err("focus_terminal is only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
+fn get_sessions() -> Result<Vec<TmuxPaneGroup>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        sessions::list_tmux_panes_grouped()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("Sessions are only supported on macOS".to_string())
     }
 }
 
@@ -242,6 +256,7 @@ pub fn run() {
             hide_toast,
             show_panel,
             focus_terminal,
+            get_sessions,
             get_notifications,
             get_notifications_grouped,
             get_unread_count,

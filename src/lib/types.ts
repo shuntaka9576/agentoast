@@ -25,3 +25,18 @@ export interface MuteState {
   globalMuted: boolean;
   mutedGroups: string[];
 }
+
+export interface TmuxPane {
+  paneId: string;
+  panePid: number;
+  sessionName: string;
+  windowName: string;
+  currentPath: string;
+  agentType: Icon | null;
+}
+
+export interface TmuxPaneGroup {
+  repoName: string;
+  currentPath: string;
+  panes: TmuxPane[];
+}

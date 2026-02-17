@@ -66,3 +66,22 @@ pub struct NotificationGroup {
     pub notifications: Vec<Notification>,
     pub unread_count: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmuxPane {
+    pub pane_id: String,
+    pub pane_pid: u32,
+    pub session_name: String,
+    pub window_name: String,
+    pub current_path: String,
+    pub agent_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmuxPaneGroup {
+    pub repo_name: String,
+    pub current_path: String,
+    pub panes: Vec<TmuxPane>,
+}

@@ -1,7 +1,16 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-fn find_tmux() -> Option<PathBuf> {
+const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
+    "com.github.wez.wezterm",
+    "com.mitchellh.ghostty",
+    "com.googlecode.iterm2",
+    "com.apple.Terminal",
+    "org.alacritty",
+    "net.kovidgoyal.kitty",
+];
+
+pub(crate) fn find_tmux() -> Option<PathBuf> {
     let candidates = [
         "/opt/homebrew/bin/tmux", // Homebrew (Apple Silicon)
         "/usr/local/bin/tmux",    // Homebrew (Intel) / manual
@@ -15,16 +24,19 @@ fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
 
     // Switch the attached session to the one containing the target pane
     Command::new(&tmux_path)
+        .env_remove("TMPDIR")
         .args(["switch-client", "-t", tmux_pane])
         .output()
         .map_err(|e| format!("tmux switch-client failed: {}", e))?;
 
     Command::new(&tmux_path)
+        .env_remove("TMPDIR")
         .args(["select-window", "-t", tmux_pane])
         .output()
         .map_err(|e| format!("tmux select-window failed: {}", e))?;
 
     Command::new(&tmux_path)
+        .env_remove("TMPDIR")
         .args(["select-pane", "-t", tmux_pane])
         .output()
         .map_err(|e| format!("tmux select-pane failed: {}", e))?;
@@ -96,6 +108,7 @@ fn is_tmux_pane_active(tmux_pane: &str) -> bool {
     };
 
     let output = match Command::new(&tmux_path)
+        .env_remove("TMPDIR")
         .args([
             "display-message",
             "-t",
@@ -131,6 +144,15 @@ pub fn is_pane_visible_to_user(terminal_bundle_id: &str, tmux_pane: &str) -> boo
     is_tmux_pane_active(tmux_pane)
 }
 
+fn activate_any_terminal() -> Result<(), String> {
+    for &bid in KNOWN_TERMINAL_BUNDLE_IDS {
+        if activate_terminal(bid).is_ok() {
+            return Ok(());
+        }
+    }
+    Err("No known terminal application found".to_string())
+}
+
 pub fn focus_terminal(tmux_pane: &str, terminal_bundle_id: &str) -> Result<(), String> {
     // 1. Switch tmux pane if specified (failure is non-fatal)
     if !tmux_pane.is_empty() {
@@ -139,6 +161,10 @@ pub fn focus_terminal(tmux_pane: &str, terminal_bundle_id: &str) -> Result<(), S
         }
     }
 
-    // 2. Activate terminal app
-    activate_terminal(terminal_bundle_id)
+    // 2. Activate terminal app (try all known terminals if bundle ID is empty)
+    if terminal_bundle_id.is_empty() {
+        activate_any_terminal()
+    } else {
+        activate_terminal(terminal_bundle_id)
+    }
 }
