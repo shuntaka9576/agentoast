@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.10.0](https://github.com/shuntaka9576/agentoast/compare/v0.9.0...v0.10.0) - 2026-02-17
+- feat: suppress notifications when originating tmux pane is active by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/23
+- fix: explicitly hide panel when activating a notification by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/25
+
 ## [v0.9.0](https://github.com/shuntaka9576/agentoast/compare/v0.8.0...v0.9.0) - 2026-02-16
 - feat: add keybind help overlay toggled by ? key by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/19
 - fix: remove notification count badge from panel header by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/21
