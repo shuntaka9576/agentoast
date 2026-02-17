@@ -77,14 +77,14 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         })
         .collect();
 
-    // Sort: groups with agents first, then alphabetically by repo name
-    groups.sort_by(|a, b| {
-        let a_has_agent = a.panes.iter().any(|p| p.agent_type.is_some());
-        let b_has_agent = b.panes.iter().any(|p| p.agent_type.is_some());
-        b_has_agent
-            .cmp(&a_has_agent)
-            .then(a.repo_name.cmp(&b.repo_name))
-    });
+    // Keep only panes with active agents, remove empty groups
+    for group in &mut groups {
+        group.panes.retain(|p| p.agent_type.is_some());
+    }
+    groups.retain(|g| !g.panes.is_empty());
+
+    // Sort alphabetically by repo name
+    groups.sort_by(|a, b| a.repo_name.cmp(&b.repo_name));
 
     Ok(groups)
 }

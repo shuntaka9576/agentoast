@@ -1,25 +1,32 @@
 import { useState } from "react";
 import { Bell, BellOff, ChevronDown, ChevronRight, Folder, Trash2 } from "lucide-react";
-import type { Notification, NotificationGroup } from "@/lib/types";
+import type { Notification, TmuxPane, FlatItem } from "@/lib/types";
 import { NotificationCard } from "./notification-card";
+import { SessionIndicator } from "./session-card";
 
 interface RepoGroupProps {
-  group: NotificationGroup;
+  groupName: string;
+  activeSessions: TmuxPane[];
+  notifications: Notification[];
   isMuted: boolean;
   newIds: Set<number>;
   selectedId: number | null;
-  flatNotifications: Notification[];
+  selectedPaneId: string | null;
+  flatItems: FlatItem[];
   onDelete: (id: number) => void;
   onDeleteGroup: (groupName: string) => void;
   onToggleGroupMute: (groupName: string) => void;
 }
 
 export function RepoGroup({
-  group,
+  groupName,
+  activeSessions,
+  notifications,
   isMuted,
   newIds,
   selectedId,
-  flatNotifications,
+  selectedPaneId,
+  flatItems,
   onDelete,
   onDeleteGroup,
   onToggleGroupMute,
@@ -39,38 +46,64 @@ export function RepoGroup({
         )}
         <Folder size={13} className="text-[var(--text-tertiary)]" />
         <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
-          {group.groupName}
+          {groupName}
         </span>
-        <span className="text-[10px] text-[var(--text-muted)]">
-          {group.notifications.length}
-        </span>
-        <button
-          tabIndex={-1}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleGroupMute(group.groupName);
-          }}
-          className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-          title={isMuted ? "Unmute group" : "Mute group"}
-        >
-          {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
-        </button>
-        <button
-          tabIndex={-1}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteGroup(group.groupName);
-          }}
-          className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-        >
-          <Trash2 size={11} />
-        </button>
+        {activeSessions.length > 0 && (
+          <span className="text-[10px] text-green-500 font-medium">
+            {activeSessions.length} agent{activeSessions.length > 1 ? "s" : ""}
+          </span>
+        )}
+        {notifications.length > 0 && (
+          <span className="text-[10px] text-[var(--text-muted)]">
+            {notifications.length}
+          </span>
+        )}
+        {notifications.length > 0 && (
+          <>
+            <button
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleGroupMute(groupName);
+              }}
+              className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+              title={isMuted ? "Unmute group" : "Mute group"}
+            >
+              {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
+            </button>
+            <button
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteGroup(groupName);
+              }}
+              className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              <Trash2 size={11} />
+            </button>
+          </>
+        )}
       </button>
 
       {expanded && (
         <div>
-          {group.notifications.map((n) => {
-            const navIndex = flatNotifications.findIndex((f) => f.id === n.id);
+          {activeSessions.map((pane) => {
+            const navIndex = flatItems.findIndex(
+              (f) => f.type === "session" && f.pane.paneId === pane.paneId,
+            );
+            return (
+              <SessionIndicator
+                key={`session-${pane.paneId}`}
+                pane={pane}
+                isSelected={pane.paneId === selectedPaneId}
+                navIndex={navIndex}
+              />
+            );
+          })}
+          {notifications.map((n) => {
+            const navIndex = flatItems.findIndex(
+              (f) => f.type === "notification" && f.notification.id === n.id,
+            );
             return (
               <NotificationCard
                 key={n.id}

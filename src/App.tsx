@@ -6,11 +6,9 @@ import { useMute } from "@/hooks/use-mute";
 import { useSessions } from "@/hooks/use-sessions";
 import { PanelHeader } from "@/components/panel-header";
 import { RepoGroup } from "@/components/repo-group";
-import { SessionGroup } from "@/components/session-group";
-import { TabBar, type TabId } from "@/components/tab-bar";
 import { KeybindHelp } from "@/components/keybind-help";
-import { Bell, Terminal } from "lucide-react";
-import type { Notification, TmuxPane } from "@/lib/types";
+import { Bell } from "lucide-react";
+import type { Notification, UnifiedGroup, FlatItem } from "@/lib/types";
 
 export function App() {
   const {
@@ -29,79 +27,115 @@ export function App() {
     toggleGroupMute,
   } = useMute();
 
-  const [activeTab, setActiveTab] = useState<TabId>("notifications");
+  const { groups: sessionGroups } = useSessions();
+
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [sessionSelectedIndex, setSessionSelectedIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const {
-    groups: sessionGroups,
-    loading: sessionsLoading,
-  } = useSessions(activeTab === "sessions");
+  // Merge notification groups and session groups into unified groups
+  const unifiedGroups = useMemo(() => {
+    const map = new Map<string, UnifiedGroup>();
 
-  // Flatten all visible notifications into a single list for keyboard navigation
-  const flatNotifications = useMemo(() => {
-    const result: Notification[] = [];
-    for (const group of groups) {
-      for (const n of group.notifications) {
-        result.push(n);
+    // 1. Expand notification groups
+    for (const g of groups) {
+      map.set(g.groupName, {
+        groupName: g.groupName,
+        activeSessions: [],
+        notifications: g.notifications,
+      });
+    }
+
+    // 2. Merge session panes
+    for (const sg of sessionGroups) {
+      for (const pane of sg.panes) {
+        // Try to match by tmux_pane in existing notification groups
+        let matched = false;
+        for (const [, ug] of map) {
+          if (ug.notifications.some((n) => n.tmuxPane === pane.paneId)) {
+            ug.activeSessions.push(pane);
+            matched = true;
+            break;
+          }
+        }
+        if (matched) continue;
+
+        // Try to match by repoName == groupName
+        if (map.has(sg.repoName)) {
+          map.get(sg.repoName)!.activeSessions.push(pane);
+          continue;
+        }
+
+        // Create new group for session-only pane
+        if (!map.has(sg.repoName)) {
+          map.set(sg.repoName, {
+            groupName: sg.repoName,
+            activeSessions: [],
+            notifications: [],
+          });
+        }
+        map.get(sg.repoName)!.activeSessions.push(pane);
+      }
+    }
+
+    // 3. Sort: groups with notifications first (by latest createdAt desc), then session-only groups alphabetically
+    const result = Array.from(map.values());
+    result.sort((a, b) => {
+      const aHasNotif = a.notifications.length > 0;
+      const bHasNotif = b.notifications.length > 0;
+      if (aHasNotif && bHasNotif) {
+        const aLatest = a.notifications[0]?.createdAt ?? "";
+        const bLatest = b.notifications[0]?.createdAt ?? "";
+        return bLatest.localeCompare(aLatest);
+      }
+      if (aHasNotif && !bHasNotif) return -1;
+      if (!aHasNotif && bHasNotif) return 1;
+      return a.groupName.localeCompare(b.groupName);
+    });
+
+    return result;
+  }, [groups, sessionGroups]);
+
+  // Build flat list of all items for keyboard navigation
+  const flatItems = useMemo(() => {
+    const result: FlatItem[] = [];
+    for (const ug of unifiedGroups) {
+      for (const pane of ug.activeSessions) {
+        result.push({ type: "session", groupName: ug.groupName, pane });
+      }
+      for (const n of ug.notifications) {
+        result.push({ type: "notification", groupName: ug.groupName, notification: n });
       }
     }
     return result;
-  }, [groups]);
+  }, [unifiedGroups]);
 
-  // Flatten session panes for keyboard navigation
-  const flatPanes = useMemo(() => {
-    const result: TmuxPane[] = [];
-    for (const group of sessionGroups) {
-      for (const pane of group.panes) {
-        result.push(pane);
-      }
-    }
-    return result;
-  }, [sessionGroups]);
-
-  // Count active agents for tab badge
-  const sessionActiveCount = useMemo(() => {
-    return flatPanes.filter((p) => p.agentType !== null).length;
-  }, [flatPanes]);
-
-  // Reset selection when panel is shown (notifications:refresh is emitted on panel show)
+  // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
       setSelectedIndex(0);
-      setSessionSelectedIndex(0);
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
     };
   }, []);
 
-  // Clamp selectedIndex when notifications change
+  // Clamp selectedIndex when items change
   useEffect(() => {
     setSelectedIndex((prev) =>
-      flatNotifications.length === 0 ? 0 : Math.min(prev, flatNotifications.length - 1)
+      flatItems.length === 0 ? 0 : Math.min(prev, flatItems.length - 1)
     );
-  }, [flatNotifications]);
+  }, [flatItems]);
 
-  // Clamp sessionSelectedIndex when sessions change
-  useEffect(() => {
-    setSessionSelectedIndex((prev) =>
-      flatPanes.length === 0 ? 0 : Math.min(prev, flatPanes.length - 1)
-    );
-  }, [flatPanes]);
-
-  // Scroll selected card into view
+  // Scroll selected item into view
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    const idx = activeTab === "notifications" ? selectedIndex : sessionSelectedIndex;
-    const el = container.querySelector(`[data-nav-index="${idx}"]`);
+    const el = container.querySelector(`[data-nav-index="${selectedIndex}"]`);
     if (el) {
       el.scrollIntoView({ block: "nearest" });
     }
-  }, [selectedIndex, sessionSelectedIndex, activeTab]);
+  }, [selectedIndex]);
 
   const activateNotification = useCallback(
     (notification: Notification) => {
@@ -121,17 +155,6 @@ export function App() {
     [deleteNotification],
   );
 
-  const activateSession = useCallback(
-    (pane: TmuxPane) => {
-      void invoke("focus_terminal", {
-        tmuxPane: pane.paneId,
-        terminalBundleId: "",
-      });
-      void invoke("hide_panel");
-    },
-    [],
-  );
-
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -148,78 +171,55 @@ export function App() {
             void invoke("hide_panel");
           }
           break;
-        case "1":
-          if (showHelp) break;
-          e.preventDefault();
-          setActiveTab("notifications");
-          break;
-        case "2":
-          if (showHelp) break;
-          e.preventDefault();
-          setActiveTab("sessions");
-          break;
         case "j":
           if (showHelp) break;
           e.preventDefault();
-          if (activeTab === "notifications") {
-            if (flatNotifications.length > 0) {
-              setSelectedIndex((prev) => Math.min(prev + 1, flatNotifications.length - 1));
-            }
-          } else {
-            if (flatPanes.length > 0) {
-              setSessionSelectedIndex((prev) => Math.min(prev + 1, flatPanes.length - 1));
-            }
+          if (flatItems.length > 0) {
+            setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
           }
           break;
         case "k":
           if (showHelp) break;
           e.preventDefault();
-          if (activeTab === "notifications") {
-            if (flatNotifications.length > 0) {
-              setSelectedIndex((prev) => Math.max(prev - 1, 0));
-            }
-          } else {
-            if (flatPanes.length > 0) {
-              setSessionSelectedIndex((prev) => Math.max(prev - 1, 0));
-            }
+          if (flatItems.length > 0) {
+            setSelectedIndex((prev) => Math.max(prev - 1, 0));
           }
           break;
         case "Enter": {
           if (showHelp) break;
           e.preventDefault();
-          if (activeTab === "notifications") {
-            const n = flatNotifications[selectedIndex];
-            if (n) {
-              activateNotification(n);
-              void invoke("hide_panel");
-            } else {
-              void invoke("hide_panel");
-            }
+          const item = flatItems[selectedIndex];
+          if (!item) {
+            void invoke("hide_panel");
+            break;
+          }
+          if (item.type === "session") {
+            void invoke("focus_terminal", {
+              tmuxPane: item.pane.paneId,
+              terminalBundleId: "",
+            });
+            void invoke("hide_panel");
           } else {
-            const pane = flatPanes[sessionSelectedIndex];
-            if (pane) {
-              activateSession(pane);
-            }
+            activateNotification(item.notification);
+            void invoke("hide_panel");
           }
           break;
         }
         case "d": {
           if (showHelp || e.shiftKey) break;
-          if (activeTab !== "notifications") break;
           e.preventDefault();
-          const n = flatNotifications[selectedIndex];
-          if (n) {
-            void deleteNotification(n.id);
+          const item = flatItems[selectedIndex];
+          if (item?.type === "notification") {
+            void deleteNotification(item.notification.id);
           }
           break;
         }
         case "D": {
           if (showHelp) break;
-          if (activeTab !== "notifications") break;
           e.preventDefault();
-          const n = flatNotifications[selectedIndex];
-          if (n) {
-            void deleteGroup(n.groupName);
+          const item = flatItems[selectedIndex];
+          if (item) {
+            void deleteGroup(item.groupName);
           }
           break;
         }
@@ -228,11 +228,14 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flatNotifications, flatPanes, selectedIndex, sessionSelectedIndex, activeTab, activateNotification, activateSession, showHelp]);
+  }, [flatItems, selectedIndex, activateNotification, showHelp, deleteNotification, deleteGroup]);
 
-  // Build a set of selected notification IDs for highlighting
-  const selectedId = flatNotifications[selectedIndex]?.id ?? null;
-  const selectedPaneId = flatPanes[sessionSelectedIndex]?.paneId ?? null;
+  // Derive selected IDs for highlighting
+  const currentItem = flatItems[selectedIndex];
+  const selectedNotificationId = currentItem?.type === "notification" ? currentItem.notification.id : null;
+  const selectedPaneId = currentItem?.type === "session" ? currentItem.pane.paneId : null;
+
+  const isEmpty = unifiedGroups.length === 0;
 
   return (
     <div className="h-screen flex flex-col items-center px-4 pb-4 pt-0.5 bg-transparent">
@@ -243,56 +246,33 @@ export function App() {
           onDeleteAll={() => void deleteAll()}
           onToggleGlobalMute={() => void toggleGlobalMute()}
         />
-        <TabBar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          notificationCount={flatNotifications.length}
-          sessionActiveCount={sessionActiveCount}
-        />
 
         <div className="relative flex-1 min-h-0">
           <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
-            {activeTab === "notifications" ? (
-              loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-xs text-[var(--text-muted)]">Loading...</div>
-                </div>
-              ) : groups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3">
-                  <Bell size={32} className="text-[var(--text-faint)]" />
-                  <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
-                </div>
-              ) : (
-                groups.map((group) => (
-                  <RepoGroup
-                    key={group.groupName}
-                    group={group}
-                    isMuted={isGroupMuted(group.groupName)}
-                    newIds={newIds}
-                    selectedId={selectedId}
-                    flatNotifications={flatNotifications}
-                    onDelete={(id) => void deleteNotification(id)}
-                    onDeleteGroup={(name) => void deleteGroup(name)}
-                    onToggleGroupMute={(name) => void toggleGroupMute(name)}
-                  />
-                ))
-              )
-            ) : sessionsLoading ? (
+            {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-xs text-[var(--text-muted)]">Loading...</div>
               </div>
-            ) : sessionGroups.length === 0 ? (
+            ) : isEmpty ? (
               <div className="flex flex-col items-center justify-center h-full gap-3">
-                <Terminal size={32} className="text-[var(--text-faint)]" />
-                <p className="text-xs text-[var(--text-muted)]">No tmux sessions</p>
+                <Bell size={32} className="text-[var(--text-faint)]" />
+                <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
               </div>
             ) : (
-              sessionGroups.map((group) => (
-                <SessionGroup
-                  key={group.currentPath}
-                  group={group}
+              unifiedGroups.map((ug) => (
+                <RepoGroup
+                  key={ug.groupName}
+                  groupName={ug.groupName}
+                  activeSessions={ug.activeSessions}
+                  notifications={ug.notifications}
+                  isMuted={isGroupMuted(ug.groupName)}
+                  newIds={newIds}
+                  selectedId={selectedNotificationId}
                   selectedPaneId={selectedPaneId}
-                  flatPanes={flatPanes}
+                  flatItems={flatItems}
+                  onDelete={(id) => void deleteNotification(id)}
+                  onDeleteGroup={(name) => void deleteGroup(name)}
+                  onToggleGroupMute={(name) => void toggleGroupMute(name)}
                 />
               ))
             )}

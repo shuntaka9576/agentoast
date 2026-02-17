@@ -40,3 +40,13 @@ export interface TmuxPaneGroup {
   currentPath: string;
   panes: TmuxPane[];
 }
+
+export interface UnifiedGroup {
+  groupName: string;
+  activeSessions: TmuxPane[];
+  notifications: Notification[];
+}
+
+export type FlatItem =
+  | { type: "session"; groupName: string; pane: TmuxPane }
+  | { type: "notification"; groupName: string; notification: Notification };

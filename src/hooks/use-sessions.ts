@@ -5,7 +5,7 @@ import type { TmuxPaneGroup } from "@/lib/types";
 
 const POLL_INTERVAL = 3000;
 
-export function useSessions(active: boolean) {
+export function useSessions() {
   const [groups, setGroups] = useState<TmuxPaneGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +33,6 @@ export function useSessions(active: boolean) {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!active) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
     void refresh();
 
     if (intervalRef.current) {
@@ -57,18 +49,16 @@ export function useSessions(active: boolean) {
         intervalRef.current = null;
       }
     };
-  }, [active, refresh]);
+  }, [refresh]);
 
   useEffect(() => {
-    if (!active) return;
-
     const unlisten = listen("notifications:refresh", () => {
       void refresh();
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
     };
-  }, [active, refresh]);
+  }, [refresh]);
 
   return { groups, loading, error, refresh };
 }
