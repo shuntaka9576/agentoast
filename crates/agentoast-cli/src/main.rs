@@ -19,9 +19,9 @@ struct Cli {
 enum Commands {
     /// Send a notification
     Send {
-        /// Notification title (displayed as badge)
+        /// Badge text displayed on notification card
         #[arg(long, default_value = "")]
-        title: String,
+        badge: String,
 
         /// Notification body text
         #[arg(long, default_value = "")]
@@ -29,7 +29,7 @@ enum Commands {
 
         /// Badge color: green, blue, red, gray
         #[arg(long, default_value = "gray")]
-        color: String,
+        badge_color: String,
 
         /// Icon preset: claude-code, codex, or agentoast
         #[arg(long, default_value = "agentoast")]
@@ -204,8 +204,8 @@ fn run_claude_hook() -> Result<(), String> {
     }
 
     let is_stop = data.hook_event_name == "Stop";
-    let title = if is_stop { "Stop" } else { "Notification" };
-    let color = if is_stop { "green" } else { "blue" };
+    let badge = if is_stop { "Stop" } else { "Notification" };
+    let badge_color = if is_stop { "green" } else { "blue" };
     let body = data.message.as_deref().unwrap_or("");
     let force_focus = hook_config.focus_events.iter().any(|e| e == event_key);
 
@@ -232,9 +232,9 @@ fn run_claude_hook() -> Result<(), String> {
 
     db::insert_notification(
         &conn,
-        title,
+        badge,
         body,
-        color,
+        badge_color,
         &IconType::ClaudeCode,
         &metadata,
         &repo_name,
@@ -270,9 +270,9 @@ fn main() {
 
     match cli.command {
         Commands::Send {
-            title,
+            badge,
             body,
-            color,
+            badge_color,
             icon,
             repo,
             tmux_pane,
@@ -301,9 +301,9 @@ fn main() {
 
             match db::insert_notification(
                 &conn,
-                &title,
+                &badge,
                 &body,
-                &color,
+                &badge_color,
                 &icon_type,
                 &metadata,
                 &repo,
@@ -374,7 +374,7 @@ fn main() {
                         };
                         println!(
                             "{} [{}] {} [{}]{} {}{}",
-                            read_mark, n.id, n.title, n.icon, pane_str, n.body, meta_str
+                            read_mark, n.id, n.badge, n.icon, pane_str, n.body, meta_str
                         );
                     }
                 }

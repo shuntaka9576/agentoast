@@ -46,9 +46,9 @@ impl std::fmt::Display for IconType {
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
     pub id: i64,
-    pub title: String,
+    pub badge: String,
     pub body: String,
-    pub color: String,
+    pub badge_color: String,
     pub icon: String,
     pub metadata: HashMap<String, String>,
     pub repo: String,

@@ -176,7 +176,12 @@ export function App() {
   // Filter groups based on notification filter toggle
   const displayGroups = useMemo(() => {
     if (!filterNotifiedOnly) return unifiedGroups;
-    return unifiedGroups.filter((ug) => groupHasNotifications(ug));
+    return unifiedGroups
+      .map((ug) => ({
+        ...ug,
+        paneItems: ug.paneItems.filter((pi) => pi.notification !== null),
+      }))
+      .filter((ug) => ug.paneItems.length > 0);
   }, [unifiedGroups, filterNotifiedOnly]);
 
   // Auto-collapse groups without notifications (respect manual toggles)

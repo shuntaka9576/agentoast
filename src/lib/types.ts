@@ -2,9 +2,9 @@ export type Icon = "agentoast" | "claude-code" | "codex" | "opencode";
 
 export interface Notification {
   id: number;
-  title: string;
+  badge: string;
   body: string;
-  color: string;
+  badgeColor: string;
   icon: Icon;
   metadata: Record<string, string>;
   repo: string;

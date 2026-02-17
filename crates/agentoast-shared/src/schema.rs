@@ -7,9 +7,9 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
 
         CREATE TABLE notifications (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            title         TEXT NOT NULL DEFAULT '',
+            badge         TEXT NOT NULL DEFAULT '',
             body          TEXT NOT NULL DEFAULT '',
-            color         TEXT NOT NULL DEFAULT 'gray',
+            badge_color   TEXT NOT NULL DEFAULT 'gray',
             icon          TEXT NOT NULL DEFAULT 'agentoast',
             metadata      TEXT NOT NULL DEFAULT '{}',
             repo          TEXT NOT NULL DEFAULT '',

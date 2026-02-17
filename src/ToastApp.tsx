@@ -188,7 +188,7 @@ export function ToastApp() {
     return <div className="h-screen bg-transparent" />;
   }
 
-  const badgeClass = badgeColorClasses[current.color] || badgeColorClasses.gray;
+  const badgeClass = badgeColorClasses[current.badgeColor] || badgeColorClasses.gray;
   const metaEntries = Object.entries(current.metadata).filter(
     ([, v]) => v !== "",
   );
@@ -217,14 +217,14 @@ export function ToastApp() {
           <div className="flex-1 min-w-0">
             {/* Title badge + pane */}
             <div className="flex items-center gap-2">
-              {current.title && (
+              {current.badge && (
                 <span
                   className={cn(
                     "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
                     badgeClass,
                   )}
                 >
-                  {current.title}
+                  {current.badge}
                 </span>
               )}
               {current.tmuxPane && (

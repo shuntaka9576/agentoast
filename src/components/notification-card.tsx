@@ -29,7 +29,7 @@ export function NotificationCard({
   const metaEntries = Object.entries(notification.metadata).filter(
     ([, v]) => v !== "",
   );
-  const badgeClass = badgeColorClasses[notification.color] || badgeColorClasses.gray;
+  const badgeClass = badgeColorClasses[notification.badgeColor] || badgeColorClasses.gray;
   return (
     <div
       data-nav-index={navIndex}
@@ -67,14 +67,14 @@ export function NotificationCard({
           {/* Title badge + time */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              {notification.title && (
+              {notification.badge && (
                 <span
                   className={cn(
                     "px-1.5 py-0.5 text-[10px] font-medium rounded",
                     badgeClass,
                   )}
                 >
-                  {notification.title}
+                  {notification.badge}
                 </span>
               )}
             </div>

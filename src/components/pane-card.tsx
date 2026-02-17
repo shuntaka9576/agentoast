@@ -46,7 +46,7 @@ export function PaneCard({
 
   const icon = pane.agentType ?? notification?.icon ?? "agentoast";
   const badgeClass = notification
-    ? badgeColorClasses[notification.color] || badgeColorClasses.gray
+    ? badgeColorClasses[notification.badgeColor] || badgeColorClasses.gray
     : null;
 
   return (
@@ -79,14 +79,14 @@ export function PaneCard({
                 </span>
               </span>
             )}
-            {notification?.title && badgeClass && (
+            {notification?.badge && badgeClass && (
               <span
                 className={cn(
                   "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
                   badgeClass,
                 )}
               >
-                {notification.title}
+                {notification.badge}
               </span>
             )}
             {notification && (

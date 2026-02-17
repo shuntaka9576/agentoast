@@ -118,9 +118,9 @@ Supported events
 
 ```bash
 agentoast send \
-  --title "Stop" \
+  --badge "Stop" \
   --body "Task Completed" \
-  --color green \
+  --badge-color green \
   --icon claude-code \
   --repo my-repo \
   --tmux-pane %0 \
@@ -129,9 +129,9 @@ agentoast send \
 
 | Option | Required | Default | Description |
 |---|---|---|---|
-| `--title` | No | `""` | Notification title (displayed as badge) |
+| `--badge` | No | `""` | Badge text displayed on notification card |
 | `--body` | No | `""` | Notification body text |
-| `--color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
+| `--badge-color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
 | `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
 | `--repo` | No | `""` | Repository name for grouping notifications |
 | `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
@@ -149,8 +149,8 @@ Claude Code
 
 ```bash
 agentoast send \
-  --title "Stop" \
-  --color green \
+  --badge "Stop" \
+  --badge-color green \
   --icon claude-code \
   --repo your-repo \
   --tmux-pane %0 \
@@ -161,8 +161,8 @@ Codex (OpenAI)
 
 ```bash
 agentoast send \
-  --title "Notification" \
-  --color blue \
+  --badge "Notification" \
+  --badge-color blue \
   --icon codex \
   --repo your-repo \
   --meta branch=your-branch
@@ -172,8 +172,8 @@ opencode
 
 ```bash
 agentoast send \
-  --title "Stop" \
-  --color red \
+  --badge "Stop" \
+  --badge-color red \
   --icon opencode \
   --repo your-repo \
   --tmux-pane %0 \
@@ -216,7 +216,7 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 Set up a shell alias for command completion notifications.
 
 ```bash
-alias an='agentoast send --title Done --color green --repo default'
+alias an='agentoast send --badge Done --badge-color green --repo default'
 ```
 
 ```bash
@@ -226,6 +226,6 @@ sleep 10; an
 With tmux, add `--tmux-pane` to jump back to the pane on click.
 
 ```bash
-alias an='agentoast send --title Done --color green --repo default --tmux-pane $(tmux display-message -p "#{pane_id}")'
+alias an='agentoast send --badge Done --badge-color green --repo default --tmux-pane $(tmux display-message -p "#{pane_id}")'
 ```
 

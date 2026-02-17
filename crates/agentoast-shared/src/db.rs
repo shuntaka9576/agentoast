@@ -32,9 +32,9 @@ pub fn open_reader(db_path: &Path) -> rusqlite::Result<Connection> {
 #[allow(clippy::too_many_arguments)]
 pub fn insert_notification(
     conn: &Connection,
-    title: &str,
+    badge: &str,
     body: &str,
-    color: &str,
+    badge_color: &str,
     icon: &IconType,
     metadata: &HashMap<String, String>,
     repo: &str,
@@ -53,9 +53,9 @@ pub fn insert_notification(
     }
 
     conn.execute(
-        "INSERT INTO notifications (title, body, color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus)
+        "INSERT INTO notifications (badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![title, body, color, icon.as_str(), metadata_json, repo, tmux_pane, terminal_bundle_id, force_focus as i32],
+        params![badge, body, badge_color, icon.as_str(), metadata_json, repo, tmux_pane, terminal_bundle_id, force_focus as i32],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -66,9 +66,9 @@ fn row_to_notification(row: &rusqlite::Row) -> rusqlite::Result<Notification> {
 
     Ok(Notification {
         id: row.get(0)?,
-        title: row.get(1)?,
+        badge: row.get(1)?,
         body: row.get(2)?,
-        color: row.get(3)?,
+        badge_color: row.get(3)?,
         icon: row.get(4)?,
         metadata,
         repo: row.get(6)?,
@@ -82,7 +82,7 @@ fn row_to_notification(row: &rusqlite::Row) -> rusqlite::Result<Notification> {
 
 pub fn get_notifications(conn: &Connection, limit: i64) -> rusqlite::Result<Vec<Notification>> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, body, color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus, is_read, created_at
+        "SELECT id, badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus, is_read, created_at
          FROM notifications ORDER BY created_at DESC LIMIT ?1",
     )?;
     let rows = stmt.query_map(params![limit], row_to_notification)?;
@@ -150,7 +150,7 @@ pub fn get_notifications_after_id(
     after_id: i64,
 ) -> rusqlite::Result<Vec<Notification>> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, body, color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus, is_read, created_at
+        "SELECT id, badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus, is_read, created_at
          FROM notifications WHERE id > ?1 ORDER BY id ASC",
     )?;
     let rows = stmt.query_map(params![after_id], row_to_notification)?;

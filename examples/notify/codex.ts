@@ -58,18 +58,18 @@ const main = async () => {
   const data: CodexPayload = JSON.parse(jsonArg)
 
   const cwd = data.cwd || Deno.cwd()
-  const title = "Notification"
-  const color = "blue"
+  const badge = "Notification"
+  const badgeColor = "blue"
 
   const { repoName, branchName } = await getGitInfo(cwd)
   const tmuxPane = Deno.env.get("TMUX_PANE") || ""
 
   const args = [
     "send",
-    "--title",
-    title,
-    "--color",
-    color,
+    "--badge",
+    badge,
+    "--badge-color",
+    badgeColor,
     "--icon",
     "codex",
     "--repo",

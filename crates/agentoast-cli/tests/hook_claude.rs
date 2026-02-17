@@ -65,8 +65,8 @@ fn stop_event() {
 
     let notifications = get_notifications(data_dir.path());
     assert_eq!(notifications.len(), 1);
-    assert_eq!(notifications[0].title, "Stop");
-    assert_eq!(notifications[0].color, "green");
+    assert_eq!(notifications[0].badge, "Stop");
+    assert_eq!(notifications[0].badge_color, "green");
     assert_eq!(notifications[0].icon, "claude-code");
     assert!(!notifications[0].force_focus);
 }
@@ -94,9 +94,9 @@ fn notification_event_permission_prompt() {
 
     let notifications = get_notifications(data_dir.path());
     assert_eq!(notifications.len(), 1);
-    assert_eq!(notifications[0].title, "Notification");
+    assert_eq!(notifications[0].badge, "Notification");
     assert_eq!(notifications[0].body, "Tool execution requires permission");
-    assert_eq!(notifications[0].color, "blue");
+    assert_eq!(notifications[0].badge_color, "blue");
 }
 
 #[test]
