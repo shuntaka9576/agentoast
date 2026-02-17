@@ -57,6 +57,9 @@ pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStateP
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
     tray::update_mute_menu(app_handle, payload.global_muted);
+    if let Err(e) = config::save_panel_muted(payload.global_muted) {
+        log::warn!("Failed to save mute state to config.toml: {}", e);
+    }
     Ok(payload)
 }
 
@@ -299,6 +302,7 @@ pub fn run() {
             log::info!("Config: {:?}", app_config);
 
             let shortcut_str = app_config.shortcut.toggle_panel.clone();
+            let initial_muted = app_config.panel.muted;
 
             // Ensure DB is initialized
             let _ = db::open(&db_path).expect("Failed to initialize database");
@@ -308,9 +312,15 @@ pub fn run() {
                 config: app_config,
             }));
 
-            app.manage(Mutex::new(MuteState::default()));
+            app.manage(Mutex::new(MuteState {
+                global_muted: initial_muted,
+                muted_repos: HashSet::new(),
+            }));
 
             tray::create(app.handle())?;
+            if initial_muted {
+                tray::update_mute_menu(app.handle(), true);
+            }
 
             // Register global shortcut for panel toggle
             if !shortcut_str.is_empty() {

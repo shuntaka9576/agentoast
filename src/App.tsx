@@ -88,6 +88,18 @@ export function App() {
 
     const result = Array.from(map.values());
 
+    // Sort panes within each group: notified panes first (latest notification on top)
+    for (const ug of result) {
+      ug.paneItems.sort((a, b) => {
+        if (a.notification && b.notification) {
+          return b.notification.createdAt.localeCompare(a.notification.createdAt);
+        }
+        if (a.notification && !b.notification) return -1;
+        if (!a.notification && b.notification) return 1;
+        return 0;
+      });
+    }
+
     // Sort: groups with notifications first (by latest createdAt desc), then no-notification groups alphabetically
     result.sort((a, b) => {
       const aLatestTime = getLatestTime(a);
@@ -238,8 +250,14 @@ export function App() {
         if (showHelp || e.shiftKey) break;
         e.preventDefault();
         const item = flatItems[selectedIndexRef.current];
-        if (!item || item.type === "group-header") break;
-        if (item.type === "pane-item" && item.paneItem.notification) {
+        if (!item) break;
+        if (item.type === "group-header") {
+          const ug = unifiedGroups.find((g) => g.groupKey === item.groupKey);
+          if (ug) {
+            const paneIds = ug.paneItems.map((pi) => pi.pane.paneId);
+            void deleteByPanes(paneIds);
+          }
+        } else if (item.type === "pane-item" && item.paneItem.notification) {
           void deleteNotification(item.paneItem.notification.id);
         }
         break;
@@ -247,13 +265,36 @@ export function App() {
       case "D": {
         if (showHelp) break;
         e.preventDefault();
-        const item = flatItems[selectedIndexRef.current];
-        if (!item) break;
-        const ug = unifiedGroups.find((g) => g.groupKey === item.groupKey);
-        if (ug) {
-          const paneIds = ug.paneItems.map((pi) => pi.pane.paneId);
-          void deleteByPanes(paneIds);
-        }
+        void deleteAll();
+        break;
+      }
+      case "C": {
+        if (showHelp) break;
+        e.preventDefault();
+        setManuallyToggledGroups(() => {
+          const next = new Set<string>();
+          for (const ug of unifiedGroups) {
+            if (groupHasNotifications(ug)) {
+              next.add(ug.groupKey);
+            }
+          }
+          return next;
+        });
+        setSelectedIndex(0);
+        break;
+      }
+      case "E": {
+        if (showHelp) break;
+        e.preventDefault();
+        setManuallyToggledGroups(() => {
+          const next = new Set<string>();
+          for (const ug of unifiedGroups) {
+            if (!groupHasNotifications(ug)) {
+              next.add(ug.groupKey);
+            }
+          }
+          return next;
+        });
         break;
       }
       case "Tab": {

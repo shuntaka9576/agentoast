@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::io;
 use std::path::PathBuf;
+use toml_edit::DocumentMut;
 
 /// XDG_DATA_HOME / agentoast を返す。
 /// macOS の dirs クレートは ~/Library/Application Support を返すため、
@@ -64,12 +65,15 @@ impl Default for ToastConfig {
 pub struct PanelConfig {
     #[serde(default = "default_group_limit")]
     pub group_limit: usize,
+    #[serde(default)]
+    pub muted: bool,
 }
 
 impl Default for PanelConfig {
     fn default() -> Self {
         Self {
             group_limit: default_group_limit(),
+            muted: false,
         }
     }
 }
@@ -117,6 +121,15 @@ pub fn load_config() -> AppConfig {
     }
 }
 
+/// config.toml の [panel] muted を更新する。既存のコメントやフォーマットを保持する。
+pub fn save_panel_muted(muted: bool) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["panel"]["muted"] = toml_edit::value(muted);
+    std::fs::write(&path, doc.to_string())
+}
+
 /// デフォルトの config.toml テンプレート。
 fn default_config_template() -> &'static str {
     r#"# agentoast configuration
@@ -137,6 +150,9 @@ fn default_config_template() -> &'static str {
 [panel]
 # Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
+
+# Mute all notifications (default: false)
+# muted = false
 
 # Global keyboard shortcut
 [shortcut]
