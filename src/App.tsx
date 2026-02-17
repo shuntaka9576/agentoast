@@ -31,11 +31,11 @@ export function App() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleGroupExpanded = useCallback((groupKey: string) => {
-    setCollapsedGroups((prev) => {
+    setManuallyToggledGroups((prev) => {
       const next = new Set(prev);
       if (next.has(groupKey)) {
         next.delete(groupKey);
@@ -129,6 +129,31 @@ export function App() {
 
     return result;
   }, [groups, sessionGroups]);
+
+  // Auto-collapse groups without notifications (respect manual toggles)
+  const collapsedGroups = useMemo(() => {
+    const collapsed = new Set<string>();
+    for (const ug of unifiedGroups) {
+      if (manuallyToggledGroups.has(ug.groupKey)) continue;
+      if (!groupHasNotifications(ug)) {
+        collapsed.add(ug.groupKey);
+      }
+    }
+    // Apply manual toggles: toggled groups flip from their auto state
+    for (const key of manuallyToggledGroups) {
+      const ug = unifiedGroups.find((g) => g.groupKey === key);
+      if (!ug) continue;
+      const autoCollapsed = !groupHasNotifications(ug);
+      // Manual toggle flips the auto state
+      if (autoCollapsed) {
+        // Auto would collapse → manual toggle means expanded (don't add)
+      } else {
+        // Auto would expand → manual toggle means collapsed
+        collapsed.add(key);
+      }
+    }
+    return collapsed;
+  }, [unifiedGroups, manuallyToggledGroups]);
 
   // Build flat list of all items for keyboard navigation
   const flatItems = useMemo(() => {
@@ -282,6 +307,24 @@ export function App() {
           }
           break;
         }
+        case "Tab": {
+          if (showHelp) break;
+          e.preventDefault();
+          const direction = e.shiftKey ? -1 : 1;
+          let nextIndex = selectedIndex + direction;
+          while (nextIndex >= 0 && nextIndex < flatItems.length) {
+            const fi = flatItems[nextIndex];
+            const hasNotif =
+              (fi.type === "pane-item" && fi.paneItem.notification !== null) ||
+              fi.type === "orphan-notification";
+            if (hasNotif) {
+              setSelectedIndex(nextIndex);
+              break;
+            }
+            nextIndex += direction;
+          }
+          break;
+        }
       }
     };
 
@@ -366,6 +409,10 @@ export function App() {
       </div>
     </div>
   );
+}
+
+function groupHasNotifications(ug: UnifiedGroup): boolean {
+  return ug.paneItems.some((pi) => pi.notification !== null) || ug.orphanNotifications.length > 0;
 }
 
 function getLatestTime(ug: UnifiedGroup): string | null {
