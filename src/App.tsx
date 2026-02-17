@@ -122,6 +122,7 @@ export function App() {
           const n = flatNotifications[selectedIndex];
           if (n) {
             activateNotification(n);
+            void invoke("hide_panel");
           } else {
             void invoke("hide_panel");
           }

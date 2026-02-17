@@ -51,6 +51,7 @@ export function NotificationCard({
           tmuxPane: notification.tmuxPane,
           terminalBundleId: notification.terminalBundleId,
         });
+        void invoke("hide_panel");
       }}
     >
       <div className="flex items-start gap-2.5">
