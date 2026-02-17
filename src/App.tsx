@@ -33,6 +33,8 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
 
   const toggleGroupExpanded = useCallback((groupKey: string) => {
     setManuallyToggledGroups((prev) => {
@@ -241,102 +243,104 @@ export function App() {
     [deleteNotification],
   );
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "?":
-          e.preventDefault();
-          setShowHelp((prev) => !prev);
+  // Keyboard navigation — ref callback pattern for stable listener
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  keyHandlerRef.current = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case "?":
+        e.preventDefault();
+        setShowHelp((prev) => !prev);
+        break;
+      case "Escape":
+        e.preventDefault();
+        if (showHelp) {
+          setShowHelp(false);
+        } else {
+          void invoke("hide_panel");
+        }
+        break;
+      case "j":
+        if (showHelp) break;
+        e.preventDefault();
+        if (flatItems.length > 0) {
+          setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
+        }
+        break;
+      case "k":
+        if (showHelp) break;
+        e.preventDefault();
+        if (flatItems.length > 0) {
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        }
+        break;
+      case "Enter": {
+        if (showHelp) break;
+        e.preventDefault();
+        const item = flatItems[selectedIndexRef.current];
+        if (!item) {
+          void invoke("hide_panel");
           break;
-        case "Escape":
-          e.preventDefault();
-          if (showHelp) {
-            setShowHelp(false);
-          } else {
-            void invoke("hide_panel");
-          }
-          break;
-        case "j":
-          if (showHelp) break;
-          e.preventDefault();
-          if (flatItems.length > 0) {
-            setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
-          }
-          break;
-        case "k":
-          if (showHelp) break;
-          e.preventDefault();
-          if (flatItems.length > 0) {
-            setSelectedIndex((prev) => Math.max(prev - 1, 0));
-          }
-          break;
-        case "Enter": {
-          if (showHelp) break;
-          e.preventDefault();
-          const item = flatItems[selectedIndex];
-          if (!item) {
-            void invoke("hide_panel");
+        }
+        if (item.type === "group-header") {
+          toggleGroupExpanded(item.groupKey);
+        } else if (item.type === "pane-item") {
+          activatePaneItem(item.paneItem);
+          void invoke("hide_panel");
+        } else {
+          activateNotification(item.notification);
+          void invoke("hide_panel");
+        }
+        break;
+      }
+      case "d": {
+        if (showHelp || e.shiftKey) break;
+        e.preventDefault();
+        const item = flatItems[selectedIndexRef.current];
+        if (!item || item.type === "group-header") break;
+        if (item.type === "pane-item" && item.paneItem.notification) {
+          void deleteNotification(item.paneItem.notification.id);
+        } else if (item.type === "orphan-notification") {
+          void deleteNotification(item.notification.id);
+        }
+        break;
+      }
+      case "D": {
+        if (showHelp) break;
+        e.preventDefault();
+        const item = flatItems[selectedIndexRef.current];
+        if (item) {
+          void deleteGroup(item.groupKey);
+        }
+        break;
+      }
+      case "Tab": {
+        if (showHelp) break;
+        e.preventDefault();
+        const direction = e.shiftKey ? -1 : 1;
+        const curIdx = selectedIndexRef.current;
+        let nextIndex = curIdx < 0
+          ? (direction === 1 ? 0 : flatItems.length - 1)
+          : curIdx + direction;
+        while (nextIndex >= 0 && nextIndex < flatItems.length) {
+          const fi = flatItems[nextIndex];
+          const hasNotif =
+            (fi.type === "pane-item" && fi.paneItem.notification !== null) ||
+            fi.type === "orphan-notification";
+          if (hasNotif) {
+            setSelectedIndex(nextIndex);
             break;
           }
-          if (item.type === "group-header") {
-            toggleGroupExpanded(item.groupKey);
-          } else if (item.type === "pane-item") {
-            activatePaneItem(item.paneItem);
-            void invoke("hide_panel");
-          } else {
-            activateNotification(item.notification);
-            void invoke("hide_panel");
-          }
-          break;
+          nextIndex += direction;
         }
-        case "d": {
-          if (showHelp || e.shiftKey) break;
-          e.preventDefault();
-          const item = flatItems[selectedIndex];
-          if (!item || item.type === "group-header") break;
-          if (item.type === "pane-item" && item.paneItem.notification) {
-            void deleteNotification(item.paneItem.notification.id);
-          } else if (item.type === "orphan-notification") {
-            void deleteNotification(item.notification.id);
-          }
-          break;
-        }
-        case "D": {
-          if (showHelp) break;
-          e.preventDefault();
-          const item = flatItems[selectedIndex];
-          if (item) {
-            void deleteGroup(item.groupKey);
-          }
-          break;
-        }
-        case "Tab": {
-          if (showHelp) break;
-          e.preventDefault();
-          const direction = e.shiftKey ? -1 : 1;
-          let nextIndex = selectedIndex < 0
-            ? (direction === 1 ? 0 : flatItems.length - 1)
-            : selectedIndex + direction;
-          while (nextIndex >= 0 && nextIndex < flatItems.length) {
-            const fi = flatItems[nextIndex];
-            const hasNotif =
-              (fi.type === "pane-item" && fi.paneItem.notification !== null) ||
-              fi.type === "orphan-notification";
-            if (hasNotif) {
-              setSelectedIndex(nextIndex);
-              break;
-            }
-            nextIndex += direction;
-          }
-          break;
-        }
+        break;
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flatItems, selectedIndex, activatePaneItem, activateNotification, showHelp, deleteNotification, deleteGroup, toggleGroupExpanded]);
+    }
+  };
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => keyHandlerRef.current(e);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Derive selected IDs for highlighting
   const currentItem = flatItems[selectedIndex];
