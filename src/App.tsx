@@ -29,7 +29,7 @@ export function App() {
 
   const { groups: sessionGroups } = useSessions();
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +175,7 @@ export function App() {
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
-      setSelectedIndex(0);
+      setSelectedIndex(-1);
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -184,9 +184,14 @@ export function App() {
 
   // Clamp selectedIndex when items change
   useEffect(() => {
-    setSelectedIndex((prev) =>
-      flatItems.length === 0 ? 0 : Math.min(prev, flatItems.length - 1)
-    );
+    setSelectedIndex((prev) => {
+      if (flatItems.length === 0) return -1;
+      if (prev < 0) {
+        const idx = flatItems.findIndex((f) => f.type !== "group-header");
+        return idx >= 0 ? idx : 0;
+      }
+      return Math.min(prev, flatItems.length - 1);
+    });
   }, [flatItems]);
 
   // Scroll selected item into view
@@ -311,7 +316,9 @@ export function App() {
           if (showHelp) break;
           e.preventDefault();
           const direction = e.shiftKey ? -1 : 1;
-          let nextIndex = selectedIndex + direction;
+          let nextIndex = selectedIndex < 0
+            ? (direction === 1 ? 0 : flatItems.length - 1)
+            : selectedIndex + direction;
           while (nextIndex >= 0 && nextIndex < flatItems.length) {
             const fi = flatItems[nextIndex];
             const hasNotif =

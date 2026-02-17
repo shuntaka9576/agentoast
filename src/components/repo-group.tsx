@@ -53,55 +53,49 @@ export function RepoGroup({
   return (
     <div className="border-b border-[var(--border-subtle)] last:border-b-0">
       <button
+        tabIndex={-1}
         data-nav-index={headerNavIndex}
         onClick={onToggleExpand}
         className={cn(
-          "w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-[var(--hover-bg)] transition-colors",
+          "w-full px-4 py-2 text-left hover:bg-[var(--hover-bg)] transition-colors",
           isHeaderSelected && "bg-[var(--hover-bg)]",
         )}
       >
-        {expanded ? (
-          <ChevronDown size={12} className="text-[var(--text-muted)]" />
-        ) : (
-          <ChevronRight size={12} className="text-[var(--text-muted)]" />
-        )}
-        {gitBranch ? (
-          <FolderGit2 size={13} className="text-[var(--text-tertiary)]" />
-        ) : (
-          <Folder size={13} className="text-[var(--text-tertiary)]" />
-        )}
-        <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
-          {repoName}
-        </span>
-        {gitBranch && (
-          <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] flex-shrink-0">
-            <GitBranch size={10} />
-            <span className="max-w-[80px] truncate">{gitBranch}</span>
+        {/* Line 1: chevron + icon + repoName + notification actions */}
+        <div className="flex items-center gap-2">
+          {expanded ? (
+            <ChevronDown size={12} className="text-[var(--text-muted)]" />
+          ) : (
+            <ChevronRight size={12} className="text-[var(--text-muted)]" />
+          )}
+          {gitBranch ? (
+            <FolderGit2 size={13} className="text-[var(--text-tertiary)]" />
+          ) : (
+            <Folder size={13} className="text-[var(--text-tertiary)]" />
+          )}
+          {totalNotifications > 0 && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF9500] flex-shrink-0" />
+          )}
+          <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
+            {repoName}
           </span>
-        )}
-        {activeSessions > 0 && (
-          <span className="text-[10px] text-green-500 font-medium">
-            {activeSessions} agent{activeSessions > 1 ? "s" : ""}
-          </span>
-        )}
-        {totalNotifications > 0 && (
-          <span className="text-[10px] text-[var(--text-muted)]">
-            {totalNotifications}
-          </span>
-        )}
-        {totalNotifications > 0 && (
-          <>
-            <button
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleGroupMute(groupKey);
-              }}
-              className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-              title={isMuted ? "Unmute group" : "Mute group"}
-            >
-              {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
-            </button>
+          {totalNotifications > 0 && (
+            <span className="text-[10px] text-[var(--text-muted)]">
+              {totalNotifications}
+            </span>
+          )}
+          <button
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleGroupMute(groupKey);
+            }}
+            className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            title={isMuted ? "Unmute group" : "Mute group"}
+          >
+            {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
+          </button>
+          {totalNotifications > 0 && (
             <button
               tabIndex={-1}
               onClick={(e) => {
@@ -112,12 +106,28 @@ export function RepoGroup({
             >
               <Trash2 size={11} />
             </button>
-          </>
+          )}
+        </div>
+        {/* Line 2: branch (left) + agents (right) */}
+        {(gitBranch || activeSessions > 0) && (
+          <div className="flex items-center pl-[33px] mt-0.5">
+            {gitBranch && (
+              <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] truncate">
+                <GitBranch size={10} className="flex-shrink-0" />
+                {gitBranch}
+              </span>
+            )}
+            {activeSessions > 0 && (
+              <span className="text-[10px] text-green-500 font-medium ml-auto">
+                {activeSessions} agent{activeSessions > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
         )}
       </button>
 
       {expanded && (
-        <div>
+        <div className="py-0.5">
           {paneItems.map((pi) => {
             const navIndex = flatItems.findIndex(
               (f) => f.type === "pane-item" && f.paneItem.pane.paneId === pi.pane.paneId,
