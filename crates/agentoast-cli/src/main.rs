@@ -20,27 +20,27 @@ enum Commands {
     /// Send a notification
     Send {
         /// Badge text displayed on notification card
-        #[arg(long, default_value = "")]
+        #[arg(short = 'B', long, default_value = "")]
         badge: String,
 
         /// Notification body text
-        #[arg(long, default_value = "")]
+        #[arg(short = 'b', long, default_value = "")]
         body: String,
 
         /// Badge color: green, blue, red, gray
-        #[arg(long, default_value = "gray")]
+        #[arg(short = 'c', long, default_value = "gray")]
         badge_color: String,
 
         /// Icon preset: claude-code, codex, or agentoast
-        #[arg(long, default_value = "agentoast")]
+        #[arg(short = 'i', long, default_value = "agentoast")]
         icon: String,
 
         /// Repository name for grouping notifications (auto-detected from git if omitted)
-        #[arg(long)]
+        #[arg(short = 'r', long)]
         repo: Option<String>,
 
         /// tmux pane ID (e.g. %5)
-        #[arg(long, default_value = "")]
+        #[arg(short = 't', long, default_value = "")]
         tmux_pane: String,
 
         /// Terminal bundle ID for focus-on-click (e.g. com.github.wez.wezterm).
@@ -49,11 +49,11 @@ enum Commands {
         bundle_id: Option<String>,
 
         /// Focus terminal automatically when notification is sent
-        #[arg(long)]
+        #[arg(short = 'f', long)]
         focus: bool,
 
         /// Metadata key=value pairs (can be specified multiple times)
-        #[arg(long = "meta", value_name = "KEY=VALUE")]
+        #[arg(short = 'm', long = "meta", value_name = "KEY=VALUE")]
         meta: Vec<String>,
     },
 
