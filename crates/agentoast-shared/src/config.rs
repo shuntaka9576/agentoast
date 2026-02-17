@@ -3,9 +3,9 @@ use std::io;
 use std::path::PathBuf;
 use toml_edit::DocumentMut;
 
-/// XDG_DATA_HOME / agentoast を返す。
-/// macOS の dirs クレートは ~/Library/Application Support を返すため、
-/// XDG 準拠で ~/.local/share を直接構築する。
+/// Return XDG_DATA_HOME/agentoast.
+/// The `dirs` crate returns ~/Library/Application Support on macOS,
+/// so we construct ~/.local/share directly for XDG compliance.
 pub fn data_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
         PathBuf::from(xdg).join("agentoast")
@@ -18,12 +18,12 @@ pub fn data_dir() -> PathBuf {
     }
 }
 
-/// SQLite DB ファイルのパスを返す。
+/// Return the path to the SQLite DB file.
 pub fn db_path() -> PathBuf {
     data_dir().join("notifications.db")
 }
 
-/// XDG_CONFIG_HOME / agentoast を返す。
+/// Return XDG_CONFIG_HOME/agentoast.
 pub fn config_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
         PathBuf::from(xdg).join("agentoast")
@@ -69,6 +69,8 @@ pub struct PanelConfig {
     pub group_limit: usize,
     #[serde(default)]
     pub muted: bool,
+    #[serde(default)]
+    pub filter_notified_only: bool,
 }
 
 impl Default for PanelConfig {
@@ -76,6 +78,7 @@ impl Default for PanelConfig {
         Self {
             group_limit: default_group_limit(),
             muted: false,
+            filter_notified_only: false,
         }
     }
 }
@@ -139,12 +142,12 @@ fn default_claude_events() -> Vec<String> {
     ]
 }
 
-/// config.toml のパスを返す。
+/// Return the path to config.toml.
 pub fn config_path() -> PathBuf {
     config_dir().join("config.toml")
 }
 
-/// config.toml を読み込む。ファイルが存在しない場合やパースエラーの場合はデフォルト値を返す。
+/// Load config.toml. Return defaults if the file is missing or fails to parse.
 pub fn load_config() -> AppConfig {
     let path = config_path();
     match std::fs::read_to_string(&path) {
@@ -156,7 +159,7 @@ pub fn load_config() -> AppConfig {
     }
 }
 
-/// config.toml の [panel] muted を更新する。既存のコメントやフォーマットを保持する。
+/// Update [panel] muted in config.toml, preserving existing comments and formatting.
 pub fn save_panel_muted(muted: bool) -> io::Result<()> {
     let path = config_path();
     let content = std::fs::read_to_string(&path).unwrap_or_default();
@@ -165,7 +168,16 @@ pub fn save_panel_muted(muted: bool) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
-/// デフォルトの config.toml テンプレート。
+/// Update [panel] filter_notified_only in config.toml, preserving existing comments and formatting.
+pub fn save_panel_filter_notified_only(value: bool) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["panel"]["filter_notified_only"] = toml_edit::value(value);
+    std::fs::write(&path, doc.to_string())
+}
+
+/// Default config.toml template.
 fn default_config_template() -> &'static str {
     r#"# agentoast configuration
 
@@ -189,6 +201,9 @@ fn default_config_template() -> &'static str {
 # Mute all notifications (default: false)
 # muted = false
 
+# Show only groups with notifications (default: false)
+# filter_notified_only = false
+
 # Global keyboard shortcut
 [shortcut]
 # Shortcut to toggle the notification panel (default: ctrl+alt+n)
@@ -209,7 +224,7 @@ fn default_config_template() -> &'static str {
 "#
 }
 
-/// config.toml が存在しなければデフォルトテンプレートで作成する。パスを返す。
+/// Create config.toml with the default template if it does not exist. Return its path.
 pub fn ensure_config_file() -> io::Result<PathBuf> {
     let path = config_path();
     if !path.exists() {
@@ -280,8 +295,8 @@ duration_ms = 5000
     }
 }
 
-/// 使用するエディタを決定する。
-/// 優先順位: config.toml の editor → $EDITOR 環境変数 → vim
+/// Resolve the editor to use.
+/// Priority: config.toml `editor` -> $EDITOR env var -> vim.
 pub fn resolve_editor() -> String {
     let config = load_config();
     if let Some(ref editor) = config.editor {

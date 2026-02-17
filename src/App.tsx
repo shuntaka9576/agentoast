@@ -31,7 +31,13 @@ export function App() {
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
+  const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
+
+  // Load filter setting from config on mount
+  useEffect(() => {
+    invoke<boolean>("get_filter_notified_only").then((v) => setFilterNotifiedOnly(v)).catch(() => {});
+  }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedIndexRef = useRef(selectedIndex);
   selectedIndexRef.current = selectedIndex;
@@ -167,10 +173,16 @@ export function App() {
     return result;
   }, [notifications, sessionGroups]);
 
+  // Filter groups based on notification filter toggle
+  const displayGroups = useMemo(() => {
+    if (!filterNotifiedOnly) return unifiedGroups;
+    return unifiedGroups.filter((ug) => groupHasNotifications(ug));
+  }, [unifiedGroups, filterNotifiedOnly]);
+
   // Auto-collapse groups without notifications (respect manual toggles)
   const collapsedGroups = useMemo(() => {
     const collapsed = new Set<string>();
-    for (const ug of unifiedGroups) {
+    for (const ug of displayGroups) {
       if (manuallyToggledGroups.has(ug.groupKey)) continue;
       if (!groupHasNotifications(ug)) {
         collapsed.add(ug.groupKey);
@@ -178,7 +190,7 @@ export function App() {
     }
     // Apply manual toggles: toggled groups flip from their auto state
     for (const key of manuallyToggledGroups) {
-      const ug = unifiedGroups.find((g) => g.groupKey === key);
+      const ug = displayGroups.find((g) => g.groupKey === key);
       if (!ug) continue;
       const autoCollapsed = !groupHasNotifications(ug);
       if (autoCollapsed) {
@@ -189,12 +201,12 @@ export function App() {
       }
     }
     return collapsed;
-  }, [unifiedGroups, manuallyToggledGroups]);
+  }, [displayGroups, manuallyToggledGroups]);
 
   // Build flat list of all items for keyboard navigation
   const flatItems = useMemo(() => {
     const result: FlatItem[] = [];
-    for (const ug of unifiedGroups) {
+    for (const ug of displayGroups) {
       result.push({ type: "group-header", groupKey: ug.groupKey });
       if (!collapsedGroups.has(ug.groupKey)) {
         for (const pi of ug.paneItems) {
@@ -203,7 +215,7 @@ export function App() {
       }
     }
     return result;
-  }, [unifiedGroups, collapsedGroups]);
+  }, [displayGroups, collapsedGroups]);
 
   // Reset selection when panel is shown
   useEffect(() => {
@@ -349,6 +361,17 @@ export function App() {
         });
         break;
       }
+      case "F": {
+        if (showHelp) break;
+        e.preventDefault();
+        setFilterNotifiedOnly((prev) => {
+          const next = !prev;
+          void invoke("save_filter_notified_only", { value: next });
+          return next;
+        });
+        setSelectedIndex(0);
+        break;
+      }
       case "Tab": {
         if (showHelp) break;
         e.preventDefault();
@@ -386,7 +409,7 @@ export function App() {
   const selectedGroupHeaderKey =
     currentItem?.type === "group-header" ? currentItem.groupKey : null;
 
-  const isEmpty = unifiedGroups.length === 0;
+  const isEmpty = displayGroups.length === 0;
 
   return (
     <div className="h-screen flex flex-col items-center px-4 pb-4 pt-0.5 bg-transparent">
@@ -394,6 +417,14 @@ export function App() {
       <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
         <PanelHeader
           globalMuted={globalMuted}
+          filterNotifiedOnly={filterNotifiedOnly}
+          onToggleFilter={() => {
+            setFilterNotifiedOnly((prev) => {
+              const next = !prev;
+              void invoke("save_filter_notified_only", { value: next });
+              return next;
+            });
+          }}
           onDeleteAll={() => void deleteAll()}
           onToggleGlobalMute={() => void toggleGlobalMute()}
         />
@@ -410,7 +441,7 @@ export function App() {
                 <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
               </div>
             ) : (
-              unifiedGroups.map((ug) => (
+              displayGroups.map((ug) => (
                 <RepoGroup
                   key={ug.groupKey}
                   groupKey={ug.groupKey}

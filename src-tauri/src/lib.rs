@@ -216,6 +216,27 @@ fn toggle_repo_mute(
 }
 
 #[tauri::command]
+fn get_filter_notified_only(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.panel.filter_notified_only)
+}
+
+#[tauri::command]
+fn save_filter_notified_only(
+    state: tauri::State<'_, Mutex<AppState>>,
+    value: bool,
+) -> Result<(), String> {
+    {
+        let mut state = state.lock().map_err(|e| e.to_string())?;
+        state.config.panel.filter_notified_only = value;
+    }
+    if let Err(e) = config::save_panel_filter_notified_only(value) {
+        log::warn!("Failed to save filter_notified_only to config.toml: {}", e);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn get_toast_duration(state: tauri::State<'_, Mutex<AppState>>) -> Result<u64, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     Ok(state.config.toast.duration_ms)
@@ -282,6 +303,8 @@ pub fn run() {
             delete_all_notifications,
             get_toast_duration,
             get_toast_persistent,
+            get_filter_notified_only,
+            save_filter_notified_only,
             get_mute_state,
             toggle_global_mute,
             toggle_repo_mute,
