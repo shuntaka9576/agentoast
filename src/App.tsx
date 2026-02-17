@@ -8,7 +8,7 @@ import { PanelHeader } from "@/components/panel-header";
 import { RepoGroup } from "@/components/repo-group";
 import { KeybindHelp } from "@/components/keybind-help";
 import { Bell } from "lucide-react";
-import type { Notification, UnifiedGroup, FlatItem } from "@/lib/types";
+import type { Notification, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
 
 export function App() {
   const {
@@ -31,66 +31,100 @@ export function App() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const toggleGroupExpanded = useCallback((groupKey: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  }, []);
 
   // Merge notification groups and session groups into unified groups
   const unifiedGroups = useMemo(() => {
-    const map = new Map<string, UnifiedGroup>();
+    // Build tmuxPane -> Notification map (latest notification per pane)
+    const paneNotifMap = new Map<string, Notification>();
+    const matchedNotifIds = new Set<number>();
 
-    // 1. Expand notification groups
     for (const g of groups) {
-      map.set(g.groupName, {
-        groupName: g.groupName,
-        activeSessions: [],
-        notifications: g.notifications,
-      });
-    }
-
-    // 2. Merge session panes
-    for (const sg of sessionGroups) {
-      for (const pane of sg.panes) {
-        // Try to match by tmux_pane in existing notification groups
-        let matched = false;
-        for (const [, ug] of map) {
-          if (ug.notifications.some((n) => n.tmuxPane === pane.paneId)) {
-            ug.activeSessions.push(pane);
-            matched = true;
-            break;
+      for (const n of g.notifications) {
+        if (n.tmuxPane) {
+          const existing = paneNotifMap.get(n.tmuxPane);
+          if (!existing || n.createdAt > existing.createdAt) {
+            paneNotifMap.set(n.tmuxPane, n);
           }
         }
-        if (matched) continue;
-
-        // Try to match by repoName == groupName
-        if (map.has(sg.repoName)) {
-          map.get(sg.repoName)!.activeSessions.push(pane);
-          continue;
-        }
-
-        // Create new group for session-only pane
-        if (!map.has(sg.repoName)) {
-          map.set(sg.repoName, {
-            groupName: sg.repoName,
-            activeSessions: [],
-            notifications: [],
-          });
-        }
-        map.get(sg.repoName)!.activeSessions.push(pane);
       }
     }
 
-    // 3. Sort: groups with notifications first (by latest createdAt desc), then session-only groups alphabetically
+    const map = new Map<string, UnifiedGroup>();
+
+    // Process session groups: create pane items with matched notifications
+    for (const sg of sessionGroups) {
+      // Use git repo root from panes as group key
+      const groupKey = sg.currentPath;
+      const repoName = sg.repoName;
+      const gitBranch = sg.gitBranch;
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          groupKey,
+          repoName,
+          gitBranch,
+          paneItems: [],
+          orphanNotifications: [],
+        });
+      }
+      const ug = map.get(groupKey)!;
+
+      for (const pane of sg.panes) {
+        const notif = paneNotifMap.get(pane.paneId) ?? null;
+        if (notif) {
+          matchedNotifIds.add(notif.id);
+        }
+        ug.paneItems.push({ pane, notification: notif });
+      }
+    }
+
+    // Collect orphan notifications (not matched to any pane)
+    for (const g of groups) {
+      for (const n of g.notifications) {
+        if (matchedNotifIds.has(n.id)) continue;
+
+        const groupKey = g.groupName;
+        if (!map.has(groupKey)) {
+          map.set(groupKey, {
+            groupKey,
+            repoName: groupKey,
+            gitBranch: null,
+            paneItems: [],
+            orphanNotifications: [],
+          });
+        }
+        map.get(groupKey)!.orphanNotifications.push(n);
+      }
+    }
+
+    // Sort: groups with notifications first (by latest createdAt desc), then no-notification groups alphabetically
     const result = Array.from(map.values());
     result.sort((a, b) => {
-      const aHasNotif = a.notifications.length > 0;
-      const bHasNotif = b.notifications.length > 0;
+      const aLatestTime = getLatestTime(a);
+      const bLatestTime = getLatestTime(b);
+      const aHasNotif = aLatestTime !== null;
+      const bHasNotif = bLatestTime !== null;
+
       if (aHasNotif && bHasNotif) {
-        const aLatest = a.notifications[0]?.createdAt ?? "";
-        const bLatest = b.notifications[0]?.createdAt ?? "";
-        return bLatest.localeCompare(aLatest);
+        return bLatestTime!.localeCompare(aLatestTime!);
       }
       if (aHasNotif && !bHasNotif) return -1;
       if (!aHasNotif && bHasNotif) return 1;
-      return a.groupName.localeCompare(b.groupName);
+      return a.repoName.localeCompare(b.repoName);
     });
 
     return result;
@@ -100,15 +134,18 @@ export function App() {
   const flatItems = useMemo(() => {
     const result: FlatItem[] = [];
     for (const ug of unifiedGroups) {
-      for (const pane of ug.activeSessions) {
-        result.push({ type: "session", groupName: ug.groupName, pane });
-      }
-      for (const n of ug.notifications) {
-        result.push({ type: "notification", groupName: ug.groupName, notification: n });
+      result.push({ type: "group-header", groupKey: ug.groupKey });
+      if (!collapsedGroups.has(ug.groupKey)) {
+        for (const pi of ug.paneItems) {
+          result.push({ type: "pane-item", groupKey: ug.groupKey, paneItem: pi });
+        }
+        for (const n of ug.orphanNotifications) {
+          result.push({ type: "orphan-notification", groupKey: ug.groupKey, notification: n });
+        }
       }
     }
     return result;
-  }, [unifiedGroups]);
+  }, [unifiedGroups, collapsedGroups]);
 
   // Reset selection when panel is shown
   useEffect(() => {
@@ -136,6 +173,26 @@ export function App() {
       el.scrollIntoView({ block: "nearest" });
     }
   }, [selectedIndex]);
+
+  const activatePaneItem = useCallback(
+    (paneItem: PaneItem) => {
+      if (paneItem.notification) {
+        if (paneItem.notification.tmuxPane) {
+          void invoke("delete_notifications_by_group_tmux", {
+            groupName: paneItem.notification.groupName,
+            tmuxPane: paneItem.notification.tmuxPane,
+          });
+        } else {
+          void deleteNotification(paneItem.notification.id);
+        }
+      }
+      void invoke("focus_terminal", {
+        tmuxPane: paneItem.pane.paneId,
+        terminalBundleId: paneItem.notification?.terminalBundleId ?? "",
+      });
+    },
+    [deleteNotification],
+  );
 
   const activateNotification = useCallback(
     (notification: Notification) => {
@@ -193,11 +250,10 @@ export function App() {
             void invoke("hide_panel");
             break;
           }
-          if (item.type === "session") {
-            void invoke("focus_terminal", {
-              tmuxPane: item.pane.paneId,
-              terminalBundleId: "",
-            });
+          if (item.type === "group-header") {
+            toggleGroupExpanded(item.groupKey);
+          } else if (item.type === "pane-item") {
+            activatePaneItem(item.paneItem);
             void invoke("hide_panel");
           } else {
             activateNotification(item.notification);
@@ -209,7 +265,10 @@ export function App() {
           if (showHelp || e.shiftKey) break;
           e.preventDefault();
           const item = flatItems[selectedIndex];
-          if (item?.type === "notification") {
+          if (!item || item.type === "group-header") break;
+          if (item.type === "pane-item" && item.paneItem.notification) {
+            void deleteNotification(item.paneItem.notification.id);
+          } else if (item.type === "orphan-notification") {
             void deleteNotification(item.notification.id);
           }
           break;
@@ -219,7 +278,7 @@ export function App() {
           e.preventDefault();
           const item = flatItems[selectedIndex];
           if (item) {
-            void deleteGroup(item.groupName);
+            void deleteGroup(item.groupKey);
           }
           break;
         }
@@ -228,12 +287,18 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flatItems, selectedIndex, activateNotification, showHelp, deleteNotification, deleteGroup]);
+  }, [flatItems, selectedIndex, activatePaneItem, activateNotification, showHelp, deleteNotification, deleteGroup]);
 
   // Derive selected IDs for highlighting
   const currentItem = flatItems[selectedIndex];
-  const selectedNotificationId = currentItem?.type === "notification" ? currentItem.notification.id : null;
-  const selectedPaneId = currentItem?.type === "session" ? currentItem.pane.paneId : null;
+  const selectedNotificationId =
+    currentItem?.type === "orphan-notification" ? currentItem.notification.id :
+    currentItem?.type === "pane-item" && currentItem.paneItem.notification ? currentItem.paneItem.notification.id :
+    null;
+  const selectedPaneId =
+    currentItem?.type === "pane-item" ? currentItem.paneItem.pane.paneId : null;
+  const selectedGroupHeaderKey =
+    currentItem?.type === "group-header" ? currentItem.groupKey : null;
 
   const isEmpty = unifiedGroups.length === 0;
 
@@ -261,18 +326,26 @@ export function App() {
             ) : (
               unifiedGroups.map((ug) => (
                 <RepoGroup
-                  key={ug.groupName}
-                  groupName={ug.groupName}
-                  activeSessions={ug.activeSessions}
-                  notifications={ug.notifications}
-                  isMuted={isGroupMuted(ug.groupName)}
+                  key={ug.groupKey}
+                  groupKey={ug.groupKey}
+                  repoName={ug.repoName}
+                  gitBranch={ug.gitBranch}
+                  paneItems={ug.paneItems}
+                  orphanNotifications={ug.orphanNotifications}
+                  expanded={!collapsedGroups.has(ug.groupKey)}
+                  isMuted={isGroupMuted(ug.groupKey)}
+                  isHeaderSelected={selectedGroupHeaderKey === ug.groupKey}
+                  headerNavIndex={flatItems.findIndex(
+                    (f) => f.type === "group-header" && f.groupKey === ug.groupKey,
+                  )}
                   newIds={newIds}
                   selectedId={selectedNotificationId}
                   selectedPaneId={selectedPaneId}
                   flatItems={flatItems}
-                  onDelete={(id) => void deleteNotification(id)}
-                  onDeleteGroup={(name) => void deleteGroup(name)}
-                  onToggleGroupMute={(name) => void toggleGroupMute(name)}
+                  onDeleteNotification={(id) => void deleteNotification(id)}
+                  onDeleteGroup={(key) => void deleteGroup(key)}
+                  onToggleGroupMute={(key) => void toggleGroupMute(key)}
+                  onToggleExpand={() => toggleGroupExpanded(ug.groupKey)}
                 />
               ))
             )}
@@ -293,4 +366,19 @@ export function App() {
       </div>
     </div>
   );
+}
+
+function getLatestTime(ug: UnifiedGroup): string | null {
+  let latest: string | null = null;
+  for (const pi of ug.paneItems) {
+    if (pi.notification && (!latest || pi.notification.createdAt > latest)) {
+      latest = pi.notification.createdAt;
+    }
+  }
+  for (const n of ug.orphanNotifications) {
+    if (!latest || n.createdAt > latest) {
+      latest = n.createdAt;
+    }
+  }
+  return latest;
 }

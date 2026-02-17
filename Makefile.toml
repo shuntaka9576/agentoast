@@ -40,7 +40,14 @@ args = ["install", "--path", "crates/agentoast-cli"]
 
 [tasks.install-app]
 description = "Copy built .app to /Applications/"
-script = ["cp -r target/release/bundle/macos/Agentoast.app /Applications/"]
+script = [
+    "pkill -x agentoast-app || true",
+    "sleep 1",
+    "rm -rf /Applications/Agentoast.app",
+    "cp -r target/release/bundle/macos/Agentoast.app /Applications/",
+    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u /Applications/Agentoast.app || true",
+    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister /Applications/Agentoast.app",
+]
 
 [tasks.install]
 description = "Build and install CLI + app"

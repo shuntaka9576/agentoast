@@ -76,6 +76,8 @@ pub struct TmuxPane {
     pub window_name: String,
     pub current_path: String,
     pub agent_type: Option<String>,
+    pub git_repo_root: Option<String>,
+    pub git_branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,5 +85,6 @@ pub struct TmuxPane {
 pub struct TmuxPaneGroup {
     pub repo_name: String,
     pub current_path: String,
+    pub git_branch: Option<String>,
     pub panes: Vec<TmuxPane>,
 }

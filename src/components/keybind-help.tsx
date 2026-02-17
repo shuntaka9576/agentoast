@@ -5,7 +5,7 @@ interface KeybindHelpProps {
 const KEYBINDS = [
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
-  { key: "Enter", action: "Open" },
+  { key: "Enter", action: "Open / Fold" },
   { key: "d", action: "Delete" },
   { key: "D", action: "Delete group" },
   { key: "Esc", action: "Close" },

@@ -245,7 +245,27 @@ fn delete_all_notifications(
 }
 
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let log_dir = config::data_dir();
+    let _ = std::fs::create_dir_all(&log_dir);
+    let log_path = log_dir.join("agentoast.log");
+
+    let file_logger = fern::log_file(&log_path).expect("Failed to create log file");
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{} [{}] {}",
+                humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .level_for("agentoast_app_lib::sessions", log::LevelFilter::Debug)
+        .chain(std::io::stderr())
+        .chain(file_logger)
+        .apply()
+        .expect("Failed to initialize logger");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

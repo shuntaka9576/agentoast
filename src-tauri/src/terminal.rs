@@ -19,6 +19,15 @@ pub(crate) fn find_tmux() -> Option<PathBuf> {
     candidates.iter().map(PathBuf::from).find(|p| p.exists())
 }
 
+pub(crate) fn find_git() -> Option<PathBuf> {
+    let candidates = [
+        "/usr/bin/git",
+        "/opt/homebrew/bin/git",
+        "/usr/local/bin/git",
+    ];
+    candidates.iter().map(PathBuf::from).find(|p| p.exists())
+}
+
 fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
     let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
 

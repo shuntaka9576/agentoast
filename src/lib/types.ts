@@ -33,20 +33,31 @@ export interface TmuxPane {
   windowName: string;
   currentPath: string;
   agentType: Icon | null;
+  gitRepoRoot: string | null;
+  gitBranch: string | null;
 }
 
 export interface TmuxPaneGroup {
   repoName: string;
   currentPath: string;
+  gitBranch: string | null;
   panes: TmuxPane[];
 }
 
+export interface PaneItem {
+  pane: TmuxPane;
+  notification: Notification | null;
+}
+
 export interface UnifiedGroup {
-  groupName: string;
-  activeSessions: TmuxPane[];
-  notifications: Notification[];
+  groupKey: string;
+  repoName: string;
+  gitBranch: string | null;
+  paneItems: PaneItem[];
+  orphanNotifications: Notification[];
 }
 
 export type FlatItem =
-  | { type: "session"; groupName: string; pane: TmuxPane }
-  | { type: "notification"; groupName: string; notification: Notification };
+  | { type: "group-header"; groupKey: string }
+  | { type: "pane-item"; groupKey: string; paneItem: PaneItem }
+  | { type: "orphan-notification"; groupKey: string; notification: Notification };
