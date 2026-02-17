@@ -50,21 +50,12 @@ pub struct Notification {
     pub body: String,
     pub color: String,
     pub icon: String,
-    pub group_name: String,
     pub metadata: HashMap<String, String>,
     pub tmux_pane: String,
     pub terminal_bundle_id: String,
     pub force_focus: bool,
     pub is_read: bool,
     pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NotificationGroup {
-    pub group_name: String,
-    pub notifications: Vec<Notification>,
-    pub unread_count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

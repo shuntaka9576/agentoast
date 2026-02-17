@@ -12,19 +12,19 @@ import type { Notification, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types
 
 export function App() {
   const {
-    groups,
+    notifications,
     loading,
     deleteNotification,
-    deleteGroup,
+    deleteByPanes,
     deleteAll,
     newIds,
   } = useNotifications();
 
   const {
     globalMuted,
-    isGroupMuted,
+    isRepoMuted,
     toggleGlobalMute,
-    toggleGroupMute,
+    toggleRepoMute,
   } = useMute();
 
   const { groups: sessionGroups } = useSessions();
@@ -48,19 +48,16 @@ export function App() {
     });
   }, []);
 
-  // Merge notification groups and session groups into unified groups
+  // Merge notifications and session groups into unified groups
   const unifiedGroups = useMemo(() => {
     // Build tmuxPane -> Notification map (latest notification per pane)
     const paneNotifMap = new Map<string, Notification>();
-    const matchedNotifIds = new Set<number>();
 
-    for (const g of groups) {
-      for (const n of g.notifications) {
-        if (n.tmuxPane) {
-          const existing = paneNotifMap.get(n.tmuxPane);
-          if (!existing || n.createdAt > existing.createdAt) {
-            paneNotifMap.set(n.tmuxPane, n);
-          }
+    for (const n of notifications) {
+      if (n.tmuxPane) {
+        const existing = paneNotifMap.get(n.tmuxPane);
+        if (!existing || n.createdAt > existing.createdAt) {
+          paneNotifMap.set(n.tmuxPane, n);
         }
       }
     }
@@ -69,7 +66,6 @@ export function App() {
 
     // Process session groups: create pane items with matched notifications
     for (const sg of sessionGroups) {
-      // Use git repo root from panes as group key
       const groupKey = sg.currentPath;
       const repoName = sg.repoName;
       const gitBranch = sg.gitBranch;
@@ -80,57 +76,32 @@ export function App() {
           repoName,
           gitBranch,
           paneItems: [],
-          orphanNotifications: [],
         });
       }
       const ug = map.get(groupKey)!;
 
       for (const pane of sg.panes) {
         const notif = paneNotifMap.get(pane.paneId) ?? null;
-        if (notif) {
-          matchedNotifIds.add(notif.id);
-        }
         ug.paneItems.push({ pane, notification: notif });
       }
     }
 
-    // Collect orphan notifications (not matched to any pane)
-    for (const g of groups) {
-      for (const n of g.notifications) {
-        if (matchedNotifIds.has(n.id)) continue;
-
-        const groupKey = g.groupName;
-        if (!map.has(groupKey)) {
-          map.set(groupKey, {
-            groupKey,
-            repoName: groupKey,
-            gitBranch: null,
-            paneItems: [],
-            orphanNotifications: [],
-          });
-        }
-        map.get(groupKey)!.orphanNotifications.push(n);
-      }
-    }
+    const result = Array.from(map.values());
 
     // Sort: groups with notifications first (by latest createdAt desc), then no-notification groups alphabetically
-    const result = Array.from(map.values());
     result.sort((a, b) => {
       const aLatestTime = getLatestTime(a);
       const bLatestTime = getLatestTime(b);
-      const aHasNotif = aLatestTime !== null;
-      const bHasNotif = bLatestTime !== null;
-
-      if (aHasNotif && bHasNotif) {
-        return bLatestTime!.localeCompare(aLatestTime!);
+      if (aLatestTime && bLatestTime) {
+        return bLatestTime.localeCompare(aLatestTime);
       }
-      if (aHasNotif && !bHasNotif) return -1;
-      if (!aHasNotif && bHasNotif) return 1;
+      if (aLatestTime && !bLatestTime) return -1;
+      if (!aLatestTime && bLatestTime) return 1;
       return a.repoName.localeCompare(b.repoName);
     });
 
     return result;
-  }, [groups, sessionGroups]);
+  }, [notifications, sessionGroups]);
 
   // Auto-collapse groups without notifications (respect manual toggles)
   const collapsedGroups = useMemo(() => {
@@ -146,7 +117,6 @@ export function App() {
       const ug = unifiedGroups.find((g) => g.groupKey === key);
       if (!ug) continue;
       const autoCollapsed = !groupHasNotifications(ug);
-      // Manual toggle flips the auto state
       if (autoCollapsed) {
         // Auto would collapse → manual toggle means expanded (don't add)
       } else {
@@ -166,13 +136,11 @@ export function App() {
         for (const pi of ug.paneItems) {
           result.push({ type: "pane-item", groupKey: ug.groupKey, paneItem: pi });
         }
-        for (const n of ug.orphanNotifications) {
-          result.push({ type: "orphan-notification", groupKey: ug.groupKey, notification: n });
-        }
       }
     }
     return result;
   }, [unifiedGroups, collapsedGroups]);
+
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
@@ -208,39 +176,16 @@ export function App() {
   const activatePaneItem = useCallback(
     (paneItem: PaneItem) => {
       if (paneItem.notification) {
-        if (paneItem.notification.tmuxPane) {
-          void invoke("delete_notifications_by_group_tmux", {
-            groupName: paneItem.notification.groupName,
-            tmuxPane: paneItem.notification.tmuxPane,
-          });
-        } else {
-          void deleteNotification(paneItem.notification.id);
-        }
+        void invoke("delete_notifications_by_pane", {
+          tmuxPane: paneItem.notification.tmuxPane,
+        });
       }
       void invoke("focus_terminal", {
         tmuxPane: paneItem.pane.paneId,
         terminalBundleId: paneItem.notification?.terminalBundleId ?? "",
       });
     },
-    [deleteNotification],
-  );
-
-  const activateNotification = useCallback(
-    (notification: Notification) => {
-      if (notification.tmuxPane) {
-        void invoke("delete_notifications_by_group_tmux", {
-          groupName: notification.groupName,
-          tmuxPane: notification.tmuxPane,
-        });
-      } else {
-        void deleteNotification(notification.id);
-      }
-      void invoke("focus_terminal", {
-        tmuxPane: notification.tmuxPane,
-        terminalBundleId: notification.terminalBundleId,
-      });
-    },
-    [deleteNotification],
+    [],
   );
 
   // Keyboard navigation — ref callback pattern for stable listener
@@ -286,9 +231,6 @@ export function App() {
         } else if (item.type === "pane-item") {
           activatePaneItem(item.paneItem);
           void invoke("hide_panel");
-        } else {
-          activateNotification(item.notification);
-          void invoke("hide_panel");
         }
         break;
       }
@@ -299,8 +241,6 @@ export function App() {
         if (!item || item.type === "group-header") break;
         if (item.type === "pane-item" && item.paneItem.notification) {
           void deleteNotification(item.paneItem.notification.id);
-        } else if (item.type === "orphan-notification") {
-          void deleteNotification(item.notification.id);
         }
         break;
       }
@@ -308,8 +248,11 @@ export function App() {
         if (showHelp) break;
         e.preventDefault();
         const item = flatItems[selectedIndexRef.current];
-        if (item) {
-          void deleteGroup(item.groupKey);
+        if (!item) break;
+        const ug = unifiedGroups.find((g) => g.groupKey === item.groupKey);
+        if (ug) {
+          const paneIds = ug.paneItems.map((pi) => pi.pane.paneId);
+          void deleteByPanes(paneIds);
         }
         break;
       }
@@ -323,9 +266,7 @@ export function App() {
           : curIdx + direction;
         while (nextIndex >= 0 && nextIndex < flatItems.length) {
           const fi = flatItems[nextIndex];
-          const hasNotif =
-            (fi.type === "pane-item" && fi.paneItem.notification !== null) ||
-            fi.type === "orphan-notification";
+          const hasNotif = fi.type === "pane-item" && fi.paneItem.notification !== null;
           if (hasNotif) {
             setSelectedIndex(nextIndex);
             break;
@@ -345,7 +286,6 @@ export function App() {
   // Derive selected IDs for highlighting
   const currentItem = flatItems[selectedIndex];
   const selectedNotificationId =
-    currentItem?.type === "orphan-notification" ? currentItem.notification.id :
     currentItem?.type === "pane-item" && currentItem.paneItem.notification ? currentItem.paneItem.notification.id :
     null;
   const selectedPaneId =
@@ -384,9 +324,8 @@ export function App() {
                   repoName={ug.repoName}
                   gitBranch={ug.gitBranch}
                   paneItems={ug.paneItems}
-                  orphanNotifications={ug.orphanNotifications}
                   expanded={!collapsedGroups.has(ug.groupKey)}
-                  isMuted={isGroupMuted(ug.groupKey)}
+                  isMuted={isRepoMuted(ug.groupKey)}
                   isHeaderSelected={selectedGroupHeaderKey === ug.groupKey}
                   headerNavIndex={flatItems.findIndex(
                     (f) => f.type === "group-header" && f.groupKey === ug.groupKey,
@@ -396,8 +335,8 @@ export function App() {
                   selectedPaneId={selectedPaneId}
                   flatItems={flatItems}
                   onDeleteNotification={(id) => void deleteNotification(id)}
-                  onDeleteGroup={(key) => void deleteGroup(key)}
-                  onToggleGroupMute={(key) => void toggleGroupMute(key)}
+                  onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
+                  onToggleRepoMute={(path) => void toggleRepoMute(path)}
                   onToggleExpand={() => toggleGroupExpanded(ug.groupKey)}
                 />
               ))
@@ -422,7 +361,7 @@ export function App() {
 }
 
 function groupHasNotifications(ug: UnifiedGroup): boolean {
-  return ug.paneItems.some((pi) => pi.notification !== null) || ug.orphanNotifications.length > 0;
+  return ug.paneItems.some((pi) => pi.notification !== null);
 }
 
 function getLatestTime(ug: UnifiedGroup): string | null {
@@ -430,11 +369,6 @@ function getLatestTime(ug: UnifiedGroup): string | null {
   for (const pi of ug.paneItems) {
     if (pi.notification && (!latest || pi.notification.createdAt > latest)) {
       latest = pi.notification.createdAt;
-    }
-  }
-  for (const n of ug.orphanNotifications) {
-    if (!latest || n.createdAt > latest) {
-      latest = n.createdAt;
     }
   }
   return latest;

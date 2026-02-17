@@ -95,9 +95,9 @@ export function ToastApp() {
         // Keep only pending notifications (from current index onward)
         const remaining = oldQueue.slice(currentIdx);
 
-        // Remove duplicates (same group+tmuxPane as incoming) from remaining
+        // Remove duplicates (same tmuxPane as incoming) from remaining
         const remainingDeduped = remaining.filter((q) =>
-          !notifications.some((n) => n.tmuxPane && q.groupName === n.groupName && q.tmuxPane === n.tmuxPane)
+          !notifications.some((n) => n.tmuxPane && q.tmuxPane === n.tmuxPane)
         );
 
         // LIFO: newest notifications first, then remaining pending
@@ -215,7 +215,7 @@ export function ToastApp() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            {/* Title badge + group name */}
+            {/* Title badge + pane */}
             <div className="flex items-center gap-2">
               {current.title && (
                 <span
@@ -227,9 +227,12 @@ export function ToastApp() {
                   {current.title}
                 </span>
               )}
-              <span className="text-[12px] font-medium text-[var(--text-primary)] truncate">
-                {current.groupName}
-              </span>
+              {current.tmuxPane && (
+                <span className="flex items-center gap-1 text-[12px] font-medium text-[var(--text-primary)] truncate">
+                  <TmuxIcon size={11} className="flex-shrink-0" />
+                  {current.tmuxPane}
+                </span>
+              )}
             </div>
 
             {/* Metadata + tmux */}

@@ -1,7 +1,6 @@
 import { Bell, BellOff, ChevronDown, ChevronRight, GitBranch, Folder, FolderGit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Notification, PaneItem, FlatItem } from "@/lib/types";
-import { NotificationCard } from "./notification-card";
+import type { PaneItem, FlatItem } from "@/lib/types";
 import { PaneCard } from "./pane-card";
 
 interface RepoGroupProps {
@@ -9,7 +8,6 @@ interface RepoGroupProps {
   repoName: string;
   gitBranch: string | null;
   paneItems: PaneItem[];
-  orphanNotifications: Notification[];
   expanded: boolean;
   isMuted: boolean;
   isHeaderSelected: boolean;
@@ -19,8 +17,8 @@ interface RepoGroupProps {
   selectedPaneId: string | null;
   flatItems: FlatItem[];
   onDeleteNotification: (id: number) => void;
-  onDeleteGroup: (groupKey: string) => void;
-  onToggleGroupMute: (groupKey: string) => void;
+  onDeleteByPanes: (paneIds: string[]) => void;
+  onToggleRepoMute: (repoPath: string) => void;
   onToggleExpand: () => void;
 }
 
@@ -29,7 +27,6 @@ export function RepoGroup({
   repoName,
   gitBranch,
   paneItems,
-  orphanNotifications,
   expanded,
   isMuted,
   isHeaderSelected,
@@ -39,14 +36,13 @@ export function RepoGroup({
   selectedPaneId,
   flatItems,
   onDeleteNotification,
-  onDeleteGroup,
-  onToggleGroupMute,
+  onDeleteByPanes,
+  onToggleRepoMute,
   onToggleExpand,
 }: RepoGroupProps) {
 
   const totalNotifications =
-    paneItems.filter((pi) => pi.notification !== null).length +
-    orphanNotifications.length;
+    paneItems.filter((pi) => pi.notification !== null).length;
 
   const activeSessions = paneItems.filter((pi) => pi.pane.agentType !== null).length;
 
@@ -88,10 +84,10 @@ export function RepoGroup({
             tabIndex={-1}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleGroupMute(groupKey);
+              onToggleRepoMute(groupKey);
             }}
             className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-            title={isMuted ? "Unmute group" : "Mute group"}
+            title={isMuted ? "Unmute repo" : "Mute repo"}
           >
             {isMuted ? <BellOff size={11} /> : <Bell size={11} />}
           </button>
@@ -100,7 +96,8 @@ export function RepoGroup({
               tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
-                onDeleteGroup(groupKey);
+                const paneIds = paneItems.map((pi) => pi.pane.paneId);
+                onDeleteByPanes(paneIds);
               }}
               className="p-0.5 rounded hover:bg-[var(--hover-bg-strong)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
             >
@@ -143,21 +140,6 @@ export function RepoGroup({
                 isSelected={isSelected}
                 navIndex={navIndex}
                 onDeleteNotification={onDeleteNotification}
-              />
-            );
-          })}
-          {orphanNotifications.map((n) => {
-            const navIndex = flatItems.findIndex(
-              (f) => f.type === "orphan-notification" && f.notification.id === n.id,
-            );
-            return (
-              <NotificationCard
-                key={n.id}
-                notification={n}
-                isNew={newIds.has(n.id)}
-                isSelected={n.id === selectedId}
-                navIndex={navIndex}
-                onDelete={onDeleteNotification}
               />
             );
           })}

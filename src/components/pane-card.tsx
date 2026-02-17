@@ -33,14 +33,9 @@ export function PaneCard({
 
   const handleClick = () => {
     if (notification) {
-      if (notification.tmuxPane) {
-        void invoke("delete_notifications_by_group_tmux", {
-          groupName: notification.groupName,
-          tmuxPane: notification.tmuxPane,
-        });
-      } else {
-        onDeleteNotification(notification.id);
-      }
+      void invoke("delete_notifications_by_pane", {
+        tmuxPane: notification.tmuxPane,
+      });
     }
     void invoke("focus_terminal", {
       tmuxPane: pane.paneId,
@@ -79,7 +74,7 @@ export function PaneCard({
             {pane.agentType && (
               <span className="flex items-center gap-1 flex-shrink-0">
                 <Circle size={5} className="text-green-500 fill-green-500" />
-                <span className="text-[10px] text-green-500 font-medium">
+                <span className="text-[10px] text-[var(--text-secondary)] font-medium">
                   {pane.agentType}
                 </span>
               </span>

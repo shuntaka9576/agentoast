@@ -114,6 +114,49 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
     });
 }
 
+/// Resolve the repository path for a tmux pane.
+/// Uses `tmux display-message` to get the pane's cwd, then `git rev-parse --show-toplevel`
+/// to find the git repo root. Falls back to cwd if not a git repo.
+#[cfg(target_os = "macos")]
+fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
+    use std::process::Command;
+
+    let tmux_path = crate::terminal::find_tmux()?;
+
+    let output = Command::new(&tmux_path)
+        .env_remove("TMPDIR")
+        .args(["display-message", "-p", "-t", tmux_pane, "#{pane_current_path}"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let cwd = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if cwd.is_empty() {
+        return None;
+    }
+
+    // Try git rev-parse to get repo root
+    if let Some(git_path) = crate::terminal::find_git() {
+        if let Ok(git_output) = Command::new(&git_path)
+            .args(["rev-parse", "--show-toplevel"])
+            .current_dir(&cwd)
+            .output()
+        {
+            if git_output.status.success() {
+                let repo_root = String::from_utf8_lossy(&git_output.stdout).trim().to_string();
+                if !repo_root.is_empty() {
+                    return Some(repo_root);
+                }
+            }
+        }
+    }
+
+    Some(cwd)
+}
+
 fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     let last_id = LAST_KNOWN_ID.load(Ordering::SeqCst);
 
@@ -168,8 +211,8 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
 
     // Get mute state once for all filtering decisions
     let mute_state = app_handle.state::<Mutex<MuteState>>();
-    let (is_global_muted, muted_groups) = match mute_state.lock() {
-        Ok(mute) => (mute.global_muted, mute.muted_groups.clone()),
+    let (is_global_muted, muted_repos) = match mute_state.lock() {
+        Ok(mute) => (mute.global_muted, mute.muted_repos.clone()),
         Err(e) => {
             log::error!("Failed to lock MuteState: {}", e);
             (false, Default::default())
@@ -177,7 +220,25 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     };
 
     let is_muted = |n: &agentoast_shared::models::Notification| -> bool {
-        is_global_muted || muted_groups.contains(&n.group_name)
+        if is_global_muted {
+            return true;
+        }
+        // Short-circuit: if no repos are muted, skip expensive repo resolution
+        if muted_repos.is_empty() {
+            return false;
+        }
+        // Resolve the pane's repo and check if it's muted
+        #[cfg(target_os = "macos")]
+        {
+            if !n.tmux_pane.is_empty() {
+                if let Some(repo) = resolve_pane_repo(&n.tmux_pane) {
+                    return muted_repos.contains(&repo);
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = n;
+        false
     };
 
     // Separate force_focus and normal notifications

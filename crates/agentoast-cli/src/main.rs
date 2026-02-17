@@ -32,10 +32,6 @@ enum Commands {
         #[arg(long, default_value = "agentoast")]
         icon: String,
 
-        /// Group name (e.g. repository name, project name)
-        #[arg(long, default_value = "")]
-        group: String,
-
         /// tmux pane ID (e.g. %5)
         #[arg(long, default_value = "")]
         tmux_pane: String,
@@ -89,7 +85,6 @@ fn main() {
             body,
             color,
             icon,
-            group,
             tmux_pane,
             bundle_id,
             focus,
@@ -120,7 +115,6 @@ fn main() {
                 &body,
                 &color,
                 &icon_type,
-                &group,
                 &metadata,
                 &tmux_pane,
                 &terminal_bundle_id,
@@ -179,9 +173,14 @@ fn main() {
                                 .collect();
                             format!(" [{}]", pairs.join(", "))
                         };
+                        let pane_str = if n.tmux_pane.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" (pane:{})", n.tmux_pane)
+                        };
                         println!(
-                            "{} [{}] {} [{}] ({}) {}{}",
-                            read_mark, n.id, n.title, n.icon, n.group_name, n.body, meta_str
+                            "{} [{}] {} [{}]{} {}{}",
+                            read_mark, n.id, n.title, n.icon, pane_str, n.body, meta_str
                         );
                     }
                 }

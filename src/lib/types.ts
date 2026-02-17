@@ -6,7 +6,6 @@ export interface Notification {
   body: string;
   color: string;
   icon: Icon;
-  groupName: string;
   metadata: Record<string, string>;
   tmuxPane: string;
   terminalBundleId: string;
@@ -15,15 +14,9 @@ export interface Notification {
   createdAt: string;
 }
 
-export interface NotificationGroup {
-  groupName: string;
-  notifications: Notification[];
-  unreadCount: number;
-}
-
 export interface MuteState {
   globalMuted: boolean;
-  mutedGroups: string[];
+  mutedRepos: string[];
 }
 
 export interface TmuxPane {
@@ -54,10 +47,8 @@ export interface UnifiedGroup {
   repoName: string;
   gitBranch: string | null;
   paneItems: PaneItem[];
-  orphanNotifications: Notification[];
 }
 
 export type FlatItem =
   | { type: "group-header"; groupKey: string }
-  | { type: "pane-item"; groupKey: string; paneItem: PaneItem }
-  | { type: "orphan-notification"; groupKey: string; notification: Notification };
+  | { type: "pane-item"; groupKey: string; paneItem: PaneItem };

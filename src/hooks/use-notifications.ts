@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Notification, NotificationGroup } from "@/lib/types";
+import type { Notification } from "@/lib/types";
 
 export function useNotifications() {
-  const [groups, setGroups] = useState<NotificationGroup[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
@@ -12,11 +12,11 @@ export function useNotifications() {
 
   const refresh = useCallback(async () => {
     try {
-      const [grouped, count] = await Promise.all([
-        invoke<NotificationGroup[]>("get_notifications_grouped", { limit: 100 }),
+      const [notifs, count] = await Promise.all([
+        invoke<Notification[]>("get_notifications", { limit: 100 }),
         invoke<number>("get_unread_count"),
       ]);
-      setGroups(grouped);
+      setNotifications(notifs);
       setUnreadCount(count);
     } catch (e) {
       console.error("Failed to fetch notifications:", e);
@@ -69,9 +69,9 @@ export function useNotifications() {
     [refresh],
   );
 
-  const deleteGroup = useCallback(
-    async (groupName: string) => {
-      await invoke("delete_notifications_by_group", { groupName });
+  const deleteByPanes = useCallback(
+    async (paneIds: string[]) => {
+      await invoke("delete_notifications_by_panes", { paneIds });
       await refresh();
     },
     [refresh],
@@ -83,12 +83,12 @@ export function useNotifications() {
   }, [refresh]);
 
   return {
-    groups,
+    notifications,
     unreadCount,
     loading,
     refresh,
     deleteNotification,
-    deleteGroup,
+    deleteByPanes,
     deleteAll,
     newIds,
   };

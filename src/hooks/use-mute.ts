@@ -6,7 +6,7 @@ import type { MuteState } from "@/lib/types";
 export function useMute() {
   const [muteState, setMuteState] = useState<MuteState>({
     globalMuted: false,
-    mutedGroups: [],
+    mutedRepos: [],
   });
   const mountedRef = useRef(true);
 
@@ -44,29 +44,29 @@ export function useMute() {
     }
   }, []);
 
-  const toggleGroupMute = useCallback(async (groupName: string) => {
+  const toggleRepoMute = useCallback(async (repoPath: string) => {
     try {
-      const newState = await invoke<MuteState>("toggle_group_mute", {
-        groupName,
+      const newState = await invoke<MuteState>("toggle_repo_mute", {
+        repoPath,
       });
       setMuteState(newState);
     } catch (e) {
-      console.error("Failed to toggle group mute:", e);
+      console.error("Failed to toggle repo mute:", e);
     }
   }, []);
 
-  const isGroupMuted = useCallback(
-    (groupName: string) => {
-      return muteState.mutedGroups.includes(groupName);
+  const isRepoMuted = useCallback(
+    (repoPath: string) => {
+      return muteState.mutedRepos.includes(repoPath);
     },
-    [muteState.mutedGroups],
+    [muteState.mutedRepos],
   );
 
   return {
     globalMuted: muteState.globalMuted,
-    mutedGroups: muteState.mutedGroups,
-    isGroupMuted,
+    mutedRepos: muteState.mutedRepos,
+    isRepoMuted,
     toggleGlobalMute,
-    toggleGroupMute,
+    toggleRepoMute,
   };
 }

@@ -16,7 +16,7 @@ use std::sync::Mutex;
 
 use agentoast_shared::config::{self, AppConfig};
 use agentoast_shared::db;
-use agentoast_shared::models::{Notification, NotificationGroup, TmuxPaneGroup};
+use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -29,23 +29,23 @@ pub struct AppState {
 #[derive(Default)]
 pub struct MuteState {
     pub global_muted: bool,
-    pub muted_groups: HashSet<String>,
+    pub muted_repos: HashSet<String>,
 }
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MuteStatePayload {
     pub global_muted: bool,
-    pub muted_groups: Vec<String>,
+    pub muted_repos: Vec<String>,
 }
 
 impl MuteState {
     pub fn to_payload(&self) -> MuteStatePayload {
-        let mut groups: Vec<String> = self.muted_groups.iter().cloned().collect();
-        groups.sort();
+        let mut repos: Vec<String> = self.muted_repos.iter().cloned().collect();
+        repos.sort();
         MuteStatePayload {
             global_muted: self.global_muted,
-            muted_groups: groups,
+            muted_repos: repos,
         }
     }
 }
@@ -124,14 +124,9 @@ fn get_notifications(
 }
 
 #[tauri::command]
-fn get_notifications_grouped(
-    state: tauri::State<'_, Mutex<AppState>>,
-    limit: Option<i64>,
-) -> Result<Vec<NotificationGroup>, String> {
+fn get_group_limit(state: tauri::State<'_, Mutex<AppState>>) -> Result<usize, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::get_notifications_grouped(&conn, limit.unwrap_or(100), state.config.panel.group_limit)
-        .map_err(|e| e.to_string())
+    Ok(state.config.panel.group_limit)
 }
 
 #[tauri::command]
@@ -158,16 +153,14 @@ fn delete_notification(
 }
 
 #[tauri::command]
-fn delete_notifications_by_group_tmux(
+fn delete_notifications_by_pane(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
-    group_name: String,
     tmux_pane: String,
 ) -> Result<(), String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::delete_notifications_by_group_tmux(&conn, &group_name, &tmux_pane)
-        .map_err(|e| e.to_string())?;
+    db::delete_notifications_by_pane(&conn, &tmux_pane).map_err(|e| e.to_string())?;
     if let Ok(count) = db::get_unread_count(&conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
@@ -176,14 +169,14 @@ fn delete_notifications_by_group_tmux(
 }
 
 #[tauri::command]
-fn delete_notifications_by_group(
+fn delete_notifications_by_panes(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
-    group_name: String,
+    pane_ids: Vec<String>,
 ) -> Result<(), String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::delete_notifications_by_group(&conn, &group_name).map_err(|e| e.to_string())?;
+    db::delete_notifications_by_panes(&conn, &pane_ids).map_err(|e| e.to_string())?;
     if let Ok(count) = db::get_unread_count(&conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
@@ -203,16 +196,16 @@ fn toggle_global_mute(app_handle: tauri::AppHandle) -> Result<MuteStatePayload, 
 }
 
 #[tauri::command]
-fn toggle_group_mute(
+fn toggle_repo_mute(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<MuteState>>,
-    group_name: String,
+    repo_path: String,
 ) -> Result<MuteStatePayload, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.muted_groups.contains(&group_name) {
-        state.muted_groups.remove(&group_name);
+    if state.muted_repos.contains(&repo_path) {
+        state.muted_repos.remove(&repo_path);
     } else {
-        state.muted_groups.insert(group_name);
+        state.muted_repos.insert(repo_path);
     }
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
@@ -278,17 +271,17 @@ pub fn run() {
             focus_terminal,
             get_sessions,
             get_notifications,
-            get_notifications_grouped,
+            get_group_limit,
             get_unread_count,
             delete_notification,
-            delete_notifications_by_group_tmux,
-            delete_notifications_by_group,
+            delete_notifications_by_pane,
+            delete_notifications_by_panes,
             delete_all_notifications,
             get_toast_duration,
             get_toast_persistent,
             get_mute_state,
             toggle_global_mute,
-            toggle_group_mute,
+            toggle_repo_mute,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]

@@ -40,8 +40,7 @@ export function NotificationCard({
       )}
       onClick={() => {
         if (notification.tmuxPane) {
-          void invoke("delete_notifications_by_group_tmux", {
-            groupName: notification.groupName,
+          void invoke("delete_notifications_by_pane", {
             tmuxPane: notification.tmuxPane,
           });
         } else {
