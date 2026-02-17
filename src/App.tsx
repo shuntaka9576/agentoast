@@ -96,24 +96,26 @@ export function App() {
 
     // Add orphaned notifications (not matched to any session pane) grouped by repo
     for (const n of notifications) {
-      if (!n.repo) continue;
       if (n.tmuxPane && matchedPanes.has(n.tmuxPane)) continue;
+
+      const repoKey = n.repo || "__no_repo__";
+      const repoLabel = n.repo || "Notifications";
 
       // Try to find existing group with same repoName
       let targetGroup: UnifiedGroup | undefined;
       for (const ug of map.values()) {
-        if (ug.repoName === n.repo) {
+        if (ug.repoName === repoLabel) {
           targetGroup = ug;
           break;
         }
       }
 
       if (!targetGroup) {
-        const groupKey = `orphan:${n.repo}`;
+        const groupKey = `orphan:${repoKey}`;
         if (!map.has(groupKey)) {
           map.set(groupKey, {
             groupKey,
-            repoName: n.repo,
+            repoName: repoLabel,
             gitBranch: null,
             paneItems: [],
           });
@@ -123,7 +125,7 @@ export function App() {
 
       targetGroup.paneItems.push({
         pane: {
-          paneId: n.tmuxPane,
+          paneId: n.tmuxPane || `notif-${n.id}`,
           panePid: 0,
           sessionName: "",
           windowName: "",

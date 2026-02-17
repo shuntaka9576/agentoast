@@ -42,6 +42,8 @@ pub struct AppConfig {
     pub panel: PanelConfig,
     #[serde(default)]
     pub shortcut: ShortcutConfig,
+    #[serde(default)]
+    pub hook: HookConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -104,6 +106,39 @@ fn default_toggle_panel() -> String {
     "ctrl+alt+n".to_string()
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct HookConfig {
+    #[serde(default)]
+    pub claude: ClaudeHookConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ClaudeHookConfig {
+    #[serde(default = "default_claude_events")]
+    pub events: Vec<String>,
+    #[serde(default)]
+    pub focus_events: Vec<String>,
+}
+
+impl Default for ClaudeHookConfig {
+    fn default() -> Self {
+        Self {
+            events: default_claude_events(),
+            focus_events: Vec::new(),
+        }
+    }
+}
+
+fn default_claude_events() -> Vec<String> {
+    vec![
+        "Stop".to_string(),
+        "permission_prompt".to_string(),
+        "idle_prompt".to_string(),
+        "auth_success".to_string(),
+        "elicitation_dialog".to_string(),
+    ]
+}
+
 /// config.toml のパスを返す。
 pub fn config_path() -> PathBuf {
     config_dir().join("config.toml")
@@ -161,6 +196,16 @@ fn default_config_template() -> &'static str {
 # Set to "" to disable
 # toggle_panel = "ctrl+alt+n"
 
+# Claude Code hook settings
+[hook.claude]
+# Events that trigger notifications (default: all)
+# Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
+# events = ["Stop", "permission_prompt", "idle_prompt", "auth_success", "elicitation_dialog"]
+
+# Events that auto-focus the terminal (default: none)
+# These events set force_focus=true, causing silent terminal focus without toast (when not muted)
+# focus_events = []
+
 "#
 }
 
@@ -174,6 +219,65 @@ pub fn ensure_config_file() -> io::Result<PathBuf> {
         std::fs::write(&path, default_config_template())?;
     }
     Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_claude_hook_config() {
+        let config = ClaudeHookConfig::default();
+        assert_eq!(
+            config.events,
+            vec![
+                "Stop",
+                "permission_prompt",
+                "idle_prompt",
+                "auth_success",
+                "elicitation_dialog",
+            ]
+        );
+        assert!(config.focus_events.is_empty());
+    }
+
+    #[test]
+    fn parse_custom_events() {
+        let toml_str = r#"
+[hook.claude]
+events = ["Stop"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.hook.claude.events, vec!["Stop"]);
+        assert!(config.hook.claude.focus_events.is_empty());
+    }
+
+    #[test]
+    fn parse_focus_events() {
+        let toml_str = r#"
+[hook.claude]
+focus_events = ["Stop", "permission_prompt"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            config.hook.claude.focus_events,
+            vec!["Stop", "permission_prompt"]
+        );
+        // Events should still have defaults
+        assert_eq!(config.hook.claude.events.len(), 5);
+    }
+
+    #[test]
+    fn parse_empty_hook_section() {
+        let toml_str = r#"
+[toast]
+duration_ms = 5000
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        // Hook.claude should use defaults
+        assert_eq!(config.hook.claude.events.len(), 5);
+        assert!(config.hook.claude.focus_events.is_empty());
+    }
 }
 
 /// 使用するエディタを決定する。

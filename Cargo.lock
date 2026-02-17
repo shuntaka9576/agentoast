@@ -36,6 +36,9 @@ version = "0.10.0"
 dependencies = [
  "agentoast-shared",
  "clap",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

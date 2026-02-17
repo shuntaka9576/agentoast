@@ -1,5 +1,8 @@
 #!/usr/bin/env -S deno run --allow-run --allow-env --allow-read
 
+// NOTE: `agentoast hook claude` is the recommended approach (no Deno dependency).
+// This script is kept as a reference implementation.
+
 interface HookData {
   session_id: string
   transcript_path: string
