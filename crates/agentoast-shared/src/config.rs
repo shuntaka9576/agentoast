@@ -69,7 +69,7 @@ pub struct PanelConfig {
     pub group_limit: usize,
     #[serde(default)]
     pub muted: bool,
-    #[serde(default)]
+    #[serde(default = "default_filter_notified_only")]
     pub filter_notified_only: bool,
 }
 
@@ -78,9 +78,13 @@ impl Default for PanelConfig {
         Self {
             group_limit: default_group_limit(),
             muted: false,
-            filter_notified_only: false,
+            filter_notified_only: default_filter_notified_only(),
         }
     }
+}
+
+fn default_filter_notified_only() -> bool {
+    true
 }
 
 fn default_group_limit() -> usize {
@@ -201,8 +205,8 @@ fn default_config_template() -> &'static str {
 # Mute all notifications (default: false)
 # muted = false
 
-# Show only groups with notifications (default: false)
-# filter_notified_only = false
+# Show only groups with notifications (default: true)
+# filter_notified_only = true
 
 # Global keyboard shortcut
 [shortcut]
