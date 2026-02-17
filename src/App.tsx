@@ -171,7 +171,6 @@ export function App() {
     }
     return result;
   }, [unifiedGroups, collapsedGroups]);
-
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
@@ -337,7 +336,7 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flatItems, selectedIndex, activatePaneItem, activateNotification, showHelp, deleteNotification, deleteGroup]);
+  }, [flatItems, selectedIndex, activatePaneItem, activateNotification, showHelp, deleteNotification, deleteGroup, toggleGroupExpanded]);
 
   // Derive selected IDs for highlighting
   const currentItem = flatItems[selectedIndex];

@@ -34,7 +34,7 @@ export function NotificationCard({
     <div
       data-nav-index={navIndex}
       className={cn(
-        "group relative mx-2 my-0.5 px-2.5 py-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors cursor-pointer",
+        "group relative mx-2 my-0.5 px-2.5 py-2 rounded-lg hover:bg-[var(--hover-bg)] cursor-pointer",
         isNew && "animate-new-highlight",
         isSelected && "bg-[var(--hover-bg)]",
       )}

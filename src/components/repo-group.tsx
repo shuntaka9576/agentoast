@@ -57,7 +57,7 @@ export function RepoGroup({
         data-nav-index={headerNavIndex}
         onClick={onToggleExpand}
         className={cn(
-          "w-full px-4 py-2 text-left hover:bg-[var(--hover-bg)] transition-colors",
+          "w-full px-4 py-2 text-left hover:bg-[var(--hover-bg)]",
           isHeaderSelected && "bg-[var(--hover-bg)]",
         )}
       >
