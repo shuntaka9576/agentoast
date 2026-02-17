@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
-import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { IconPreset } from "@/components/icons/source-icon";
 import { X, Trash2 } from "lucide-react";
 
 const DEFAULT_TOAST_DURATION = 4000;
@@ -227,12 +227,6 @@ export function ToastApp() {
                   {current.badge}
                 </span>
               )}
-              {current.tmuxPane && (
-                <span className="flex items-center gap-1 text-[12px] font-medium text-[var(--text-primary)] truncate">
-                  <TmuxIcon size={11} className="flex-shrink-0" />
-                  {current.tmuxPane}
-                </span>
-              )}
             </div>
 
             {/* Metadata + tmux */}
@@ -244,14 +238,10 @@ export function ToastApp() {
                     {value}
                   </span>
                 ))}
-                {metaEntries.length > 0 && current.tmuxPane && (
-                  <span className="ml-1" />
-                )}
                 {current.tmuxPane && (
-                  <>
-                    <TmuxIcon size={10} className="flex-shrink-0" />
-                    {current.tmuxPane}
-                  </>
+                  <span className={metaEntries.length > 0 ? "ml-1" : ""}>
+                    <span>pane:</span> {current.tmuxPane}
+                  </span>
                 )}
               </div>
             )}

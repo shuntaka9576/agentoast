@@ -44,20 +44,33 @@ pub fn insert_notification(
 ) -> rusqlite::Result<i64> {
     let metadata_json = serde_json::to_string(metadata).unwrap_or_else(|_| "{}".to_string());
 
+    // Wrap DELETE+INSERT in a transaction so they produce a single WAL write,
+    // preventing the file-watcher debounce from missing the INSERT.
+    conn.execute_batch("BEGIN")?;
+
     // Overwrite: remove existing notifications from the same tmux pane
     if !tmux_pane.is_empty() {
-        conn.execute(
+        if let Err(e) = conn.execute(
             "DELETE FROM notifications WHERE tmux_pane = ?1",
             params![tmux_pane],
-        )?;
+        ) {
+            conn.execute_batch("ROLLBACK").ok();
+            return Err(e);
+        }
     }
 
-    conn.execute(
+    if let Err(e) = conn.execute(
         "INSERT INTO notifications (badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![badge, body, badge_color, icon.as_str(), metadata_json, repo, tmux_pane, terminal_bundle_id, force_focus as i32],
-    )?;
-    Ok(conn.last_insert_rowid())
+    ) {
+        conn.execute_batch("ROLLBACK").ok();
+        return Err(e);
+    }
+
+    let id = conn.last_insert_rowid();
+    conn.execute_batch("COMMIT")?;
+    Ok(id)
 }
 
 fn row_to_notification(row: &rusqlite::Row) -> rusqlite::Result<Notification> {

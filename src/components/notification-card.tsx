@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
-import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { IconPreset } from "@/components/icons/source-icon";
 
 interface NotificationCardProps {
   notification: Notification;
@@ -92,14 +92,10 @@ export function NotificationCard({
                   {value}
                 </span>
               ))}
-              {metaEntries.length > 0 && notification.tmuxPane && (
-                <span className="ml-1" />
-              )}
               {notification.tmuxPane && (
-                <>
-                  <TmuxIcon size={10} className="flex-shrink-0" />
-                  {notification.tmuxPane}
-                </>
+                <span className={metaEntries.length > 0 ? "ml-1" : ""}>
+                  <span>pane:</span> {notification.tmuxPane}
+                </span>
               )}
             </div>
           )}

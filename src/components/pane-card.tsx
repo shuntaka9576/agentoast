@@ -2,7 +2,7 @@ import { X, Circle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { PaneItem } from "@/lib/types";
-import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { IconPreset } from "@/components/icons/source-icon";
 
 interface PaneCardProps {
   paneItem: PaneItem;
@@ -111,9 +111,11 @@ export function PaneCard({
                   <span>{key}:</span> {value}
                 </span>
               ))}
-              {metaEntries.length > 0 && <span className="ml-1" />}
-              <TmuxIcon size={10} className="flex-shrink-0" />
-              {pane.paneId}
+              {pane.paneId && (
+                <span className={metaEntries.length > 0 ? "ml-1" : ""}>
+                  <span>pane:</span> {pane.paneId}
+                </span>
+              )}
             </div>
           )}
         </div>

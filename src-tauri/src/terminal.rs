@@ -83,6 +83,7 @@ fn activate_terminal(bundle_id: &str) -> Result<(), String> {
 /// Check if a terminal with the given bundle ID is currently the active (focused) application.
 fn is_terminal_focused(bundle_id: &str) -> bool {
     if bundle_id.is_empty() {
+        log::info!("is_terminal_focused: bundle_id is empty, returning false");
         return false;
     }
 
@@ -96,11 +97,21 @@ fn is_terminal_focused(bundle_id: &str) -> bool {
     for app in &apps {
         if let Some(bid) = app.bundleIdentifier() {
             if bid.isEqualToString(&target_ns) {
-                return app.isActive();
+                let active = app.isActive();
+                log::info!(
+                    "is_terminal_focused: bundle_id={} active={}",
+                    bundle_id,
+                    active
+                );
+                return active;
             }
         }
     }
 
+    log::info!(
+        "is_terminal_focused: bundle_id={} not found in running apps",
+        bundle_id
+    );
     false
 }
 
@@ -108,12 +119,16 @@ fn is_terminal_focused(bundle_id: &str) -> bool {
 /// Returns true when pane_active=1, window_active=1, session_attached=1.
 fn is_tmux_pane_active(tmux_pane: &str) -> bool {
     if tmux_pane.is_empty() {
+        log::info!("is_tmux_pane_active: tmux_pane is empty, returning false");
         return false;
     }
 
     let tmux_path = match find_tmux() {
         Some(p) => p,
-        None => return false,
+        None => {
+            log::info!("is_tmux_pane_active: tmux not found, returning false");
+            return false;
+        }
     };
 
     let output = match Command::new(&tmux_path)
@@ -128,29 +143,66 @@ fn is_tmux_pane_active(tmux_pane: &str) -> bool {
         .output()
     {
         Ok(o) => o,
-        Err(_) => return false,
+        Err(e) => {
+            log::info!(
+                "is_tmux_pane_active: tmux command failed for pane={}: {}",
+                tmux_pane,
+                e
+            );
+            return false;
+        }
     };
 
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        log::info!(
+            "is_tmux_pane_active: tmux exited with error for pane={}: {}",
+            tmux_pane,
+            stderr.trim()
+        );
         return false;
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.trim() == "1 1 1"
+    let result = stdout.trim();
+    let active = result == "1 1 1";
+    log::info!(
+        "is_tmux_pane_active: pane={} result='{}' active={}",
+        tmux_pane,
+        result,
+        active
+    );
+    active
 }
 
 /// Check if the notification's originating terminal pane is currently visible to the user.
 /// Short-circuits: only checks tmux if the terminal app is focused first.
 pub fn is_pane_visible_to_user(terminal_bundle_id: &str, tmux_pane: &str) -> bool {
     if terminal_bundle_id.is_empty() || tmux_pane.is_empty() {
+        log::info!(
+            "is_pane_visible_to_user: skipped (bundle_id='{}', pane='{}')",
+            terminal_bundle_id,
+            tmux_pane
+        );
         return false;
     }
 
-    if !is_terminal_focused(terminal_bundle_id) {
+    let terminal_focused = is_terminal_focused(terminal_bundle_id);
+    if !terminal_focused {
+        log::info!(
+            "is_pane_visible_to_user: terminal not focused (bundle_id='{}'), returning false",
+            terminal_bundle_id
+        );
         return false;
     }
 
-    is_tmux_pane_active(tmux_pane)
+    let pane_active = is_tmux_pane_active(tmux_pane);
+    log::info!(
+        "is_pane_visible_to_user: terminal focused, pane_active={} (pane='{}')",
+        pane_active,
+        tmux_pane
+    );
+    pane_active
 }
 
 fn activate_any_terminal() -> Result<(), String> {

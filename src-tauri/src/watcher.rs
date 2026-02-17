@@ -190,7 +190,18 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     let new_notifications = {
         let (suppressed, remaining): (Vec<_>, Vec<_>) =
             new_notifications.into_iter().partition(|n| {
-                crate::terminal::is_pane_visible_to_user(&n.terminal_bundle_id, &n.tmux_pane)
+                let visible = crate::terminal::is_pane_visible_to_user(
+                    &n.terminal_bundle_id,
+                    &n.tmux_pane,
+                );
+                log::info!(
+                    "Suppression check: id={} pane={} bundle_id={} visible={}",
+                    n.id,
+                    n.tmux_pane,
+                    n.terminal_bundle_id,
+                    visible
+                );
+                visible
             });
 
         for n in &suppressed {
@@ -200,7 +211,7 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         }
 
         if !suppressed.is_empty() {
-            log::debug!(
+            log::info!(
                 "Suppressed {} notification(s) (active pane)",
                 suppressed.len()
             );
