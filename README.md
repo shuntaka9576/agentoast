@@ -52,11 +52,9 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ## Usage
 
-Hook scripts for Claude Code and Codex require [Deno](https://deno.land/). Grab the right script from [`examples/notify/`](examples/notify/) and `chmod +x` it. opencode has its own plugin system instead.
+Hook scripts for Codex require [Deno](https://deno.land/). Grab the script from [`examples/notify/`](examples/notify/) and `chmod +x` it. Claude Code uses the built-in CLI subcommand instead. opencode has its own plugin system.
 
 ### Claude Code
-
-Script [`examples/notify/claude.ts`](examples/notify/claude.ts)
 
 `~/.claude/settings.json`
 
@@ -65,21 +63,31 @@ Script [`examples/notify/claude.ts`](examples/notify/claude.ts)
   "hooks": {
     "Stop": [
       {
-        "type": "command",
-        "command": "/path/to/notify/claude.ts"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentoast hook claude"
+          }
+        ]
       }
     ],
     "Notification": [
       {
-        "type": "command",
-        "command": "/path/to/notify/claude.ts"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentoast hook claude"
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-Update the path to match where you saved the script.
+No Deno dependency required. The CLI reads hook data from stdin and writes directly to the notification database. See [`examples/notify/claude.ts`](examples/notify/claude.ts) for a Deno-based alternative.
 
 ### Codex
 
@@ -133,7 +141,7 @@ agentoast send \
 | `--body` | No | `""` | Notification body text |
 | `--badge-color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
 | `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
-| `--repo` | No | `""` | Repository name for grouping notifications |
+| `--repo` | No | auto | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted |
 | `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
 | `--bundle-id` | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
 | `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
@@ -216,7 +224,7 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 Set up a shell alias for command completion notifications.
 
 ```bash
-alias an='agentoast send --badge Done --badge-color green --repo default'
+alias an='agentoast send --badge Done --badge-color green'
 ```
 
 ```bash
@@ -226,6 +234,6 @@ sleep 10; an
 With tmux, add `--tmux-pane` to jump back to the pane on click.
 
 ```bash
-alias an='agentoast send --badge Done --badge-color green --repo default --tmux-pane $(tmux display-message -p "#{pane_id}")'
+alias an='agentoast send --badge Done --badge-color green --tmux-pane $(tmux display-message -p "#{pane_id}")'
 ```
 

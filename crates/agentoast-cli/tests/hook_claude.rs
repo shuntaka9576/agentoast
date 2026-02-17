@@ -106,12 +106,18 @@ fn invalid_json() {
     setup_db(data_dir.path());
 
     let output = run_hook_claude("not valid json{", data_dir.path(), config_dir.path());
-    assert!(output.status.success(), "should exit 0 even on invalid JSON");
+    assert!(
+        output.status.success(),
+        "should exit 0 even on invalid JSON"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
     assert_eq!(result["success"], false);
-    assert!(result["error"].as_str().unwrap().contains("Failed to parse JSON"));
+    assert!(result["error"]
+        .as_str()
+        .unwrap()
+        .contains("Failed to parse JSON"));
 
     let notifications = get_notifications(data_dir.path());
     assert!(notifications.is_empty());
@@ -148,7 +154,10 @@ events = ["Stop"]
     assert_eq!(result["success"], true);
 
     let notifications = get_notifications(data_dir.path());
-    assert!(notifications.is_empty(), "permission_prompt should be filtered out");
+    assert!(
+        notifications.is_empty(),
+        "permission_prompt should be filtered out"
+    );
 }
 
 #[test]
@@ -176,7 +185,10 @@ focus_events = ["Stop"]
 
     let notifications = get_notifications(data_dir.path());
     assert_eq!(notifications.len(), 1);
-    assert!(notifications[0].force_focus, "Stop should have force_focus=true");
+    assert!(
+        notifications[0].force_focus,
+        "Stop should have force_focus=true"
+    );
 }
 
 #[test]

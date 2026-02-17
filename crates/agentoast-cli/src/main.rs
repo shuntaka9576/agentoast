@@ -35,9 +35,9 @@ enum Commands {
         #[arg(long, default_value = "agentoast")]
         icon: String,
 
-        /// Repository name for grouping notifications
+        /// Repository name for grouping notifications (auto-detected from git if omitted)
         #[arg(long)]
-        repo: String,
+        repo: Option<String>,
 
         /// tmux pane ID (e.g. %5)
         #[arg(long, default_value = "")]
@@ -142,11 +142,7 @@ fn get_git_info(cwd: &Path) -> GitInfo {
             if output.status.success() {
                 let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 // Extract repo name from URL like git@github.com:user/repo.git or https://...
-                if let Some(caps) = url
-                    .rsplit('/')
-                    .next()
-                    .or_else(|| url.rsplit(':').next())
-                {
+                if let Some(caps) = url.rsplit('/').next().or_else(|| url.rsplit(':').next()) {
                     repo_name = caps.trim_end_matches(".git").to_string();
                 }
             }
@@ -227,8 +223,7 @@ fn run_claude_hook() -> Result<(), String> {
     let terminal_bundle_id = std::env::var("__CFBundleIdentifier").unwrap_or_default();
 
     let db_path = config::db_path();
-    let conn =
-        db::open_reader(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+    let conn = db::open_reader(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
 
     db::insert_notification(
         &conn,
@@ -289,6 +284,22 @@ fn main() {
             });
 
             let metadata = parse_metadata(&meta);
+
+            let repo = match repo {
+                Some(r) => r,
+                None => {
+                    let cwd = std::env::current_dir().unwrap_or_else(|e| {
+                        eprintln!("Failed to get current directory: {}", e);
+                        std::process::exit(1);
+                    });
+                    let git_info = get_git_info(&cwd);
+                    if git_info.repo_name.is_empty() {
+                        eprintln!("Could not detect repository name. Use --repo to specify it.");
+                        std::process::exit(1);
+                    }
+                    git_info.repo_name
+                }
+            };
 
             let terminal_bundle_id = bundle_id
                 .unwrap_or_else(|| std::env::var("__CFBundleIdentifier").unwrap_or_default());

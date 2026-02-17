@@ -125,7 +125,13 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
 
     let output = Command::new(&tmux_path)
         .env_remove("TMPDIR")
-        .args(["display-message", "-p", "-t", tmux_pane, "#{pane_current_path}"])
+        .args([
+            "display-message",
+            "-p",
+            "-t",
+            tmux_pane,
+            "#{pane_current_path}",
+        ])
         .output()
         .ok()?;
 
@@ -146,7 +152,9 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
             .output()
         {
             if git_output.status.success() {
-                let repo_root = String::from_utf8_lossy(&git_output.stdout).trim().to_string();
+                let repo_root = String::from_utf8_lossy(&git_output.stdout)
+                    .trim()
+                    .to_string();
                 if !repo_root.is_empty() {
                     return Some(repo_root);
                 }

@@ -314,14 +314,14 @@ fn build_process_tree() -> ProcessTree {
     let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
     let mut commands: HashMap<u32, String> = HashMap::new();
 
-    let output = match Command::new("/bin/ps").args(["-eo", "pid,ppid,comm"]).output() {
+    let output = match Command::new("/bin/ps")
+        .args(["-eo", "pid,ppid,comm"])
+        .output()
+    {
         Ok(o) => o,
         Err(e) => {
             log::error!("sessions: /bin/ps exec failed: {}", e);
-            return ProcessTree {
-                children,
-                commands,
-            }
+            return ProcessTree { children, commands };
         }
     };
 

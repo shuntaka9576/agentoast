@@ -102,10 +102,7 @@ pub fn delete_notification(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     Ok(())
 }
 
-pub fn delete_notifications_by_pane(
-    conn: &Connection,
-    tmux_pane: &str,
-) -> rusqlite::Result<usize> {
+pub fn delete_notifications_by_pane(conn: &Connection, tmux_pane: &str) -> rusqlite::Result<usize> {
     conn.execute(
         "DELETE FROM notifications WHERE tmux_pane = ?1",
         params![tmux_pane],
@@ -126,8 +123,10 @@ pub fn delete_notifications_by_panes(
         placeholders.join(", ")
     );
 
-    let params: Vec<&dyn rusqlite::types::ToSql> =
-        panes.iter().map(|p| p as &dyn rusqlite::types::ToSql).collect();
+    let params: Vec<&dyn rusqlite::types::ToSql> = panes
+        .iter()
+        .map(|p| p as &dyn rusqlite::types::ToSql)
+        .collect();
 
     conn.execute(&sql, params.as_slice())
 }
