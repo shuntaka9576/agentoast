@@ -234,6 +234,6 @@ sleep 10; an
 With tmux, add `--tmux-pane` to jump back to the pane on click.
 
 ```bash
-alias an='agentoast send --badge Done --badge-color green --tmux-pane $(tmux display-message -p "#{pane_id}")'
+alias an='agentoast send --badge Done --badge-color green --tmux-pane "$TMUX_PANE"'
 ```
 

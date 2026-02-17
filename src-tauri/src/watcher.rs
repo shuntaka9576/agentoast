@@ -27,7 +27,12 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
     let handle_for_fs = app_handle.clone();
     let db_path_for_fs = db_path.clone();
 
-    // File system watcher
+    // File system watcher (trailing-edge debounce)
+    //
+    // Uses recv_timeout to wait 300ms after the last DB file event before checking.
+    // This ensures the check runs AFTER the CLI's transaction has committed,
+    // preventing the watcher from reading uncommitted WAL data and missing
+    // the new notification.
     std::thread::spawn(move || {
         let conn = match db::open_reader(&db_path_for_fs) {
             Ok(c) => c,
@@ -53,11 +58,26 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
             .file_name()
             .map(|n| n.to_string_lossy().to_string());
 
-        let mut last_check = Instant::now() - Duration::from_secs(1);
+        let debounce = Duration::from_millis(300);
+        let mut last_event: Option<Instant> = None;
 
-        for event in rx {
-            match event {
-                Ok(event) => {
+        loop {
+            let timeout = match last_event {
+                Some(t) => {
+                    let elapsed = t.elapsed();
+                    if elapsed >= debounce {
+                        check_new_notifications(&handle_for_fs, &conn, "file-watcher");
+                        last_event = None;
+                        Duration::from_secs(3600)
+                    } else {
+                        debounce - elapsed
+                    }
+                }
+                None => Duration::from_secs(3600),
+            };
+
+            match rx.recv_timeout(timeout) {
+                Ok(Ok(event)) => {
                     let is_db_event = match &db_file_name {
                         Some(name) => event.paths.iter().any(|p| {
                             p.file_name()
@@ -76,21 +96,22 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
                     if is_db_event {
                         match event.kind {
                             EventKind::Create(_) | EventKind::Modify(_) => {
-                                // Debounce: skip if checked within 200ms
-                                let now = Instant::now();
-                                if now.duration_since(last_check) < Duration::from_millis(200) {
-                                    continue;
-                                }
-                                last_check = now;
-                                check_new_notifications(&handle_for_fs, &conn);
+                                last_event = Some(Instant::now());
                             }
                             _ => {}
                         }
                     }
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     log::error!("File watch error: {}", e);
                 }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    if last_event.is_some() {
+                        check_new_notifications(&handle_for_fs, &conn, "file-watcher");
+                        last_event = None;
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
     });
@@ -109,7 +130,7 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
 
         loop {
             std::thread::sleep(Duration::from_secs(5));
-            check_new_notifications(&handle_for_poll, &conn);
+            check_new_notifications(&handle_for_poll, &conn, "polling");
         }
     });
 }
@@ -165,7 +186,7 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
     Some(cwd)
 }
 
-fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
+fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &str) {
     let last_id = LAST_KNOWN_ID.load(Ordering::SeqCst);
 
     let new_notifications = match db::get_notifications_after_id(conn, last_id) {
@@ -179,6 +200,12 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     if new_notifications.is_empty() {
         return;
     }
+
+    log::info!(
+        "Detected {} new notification(s) via {}",
+        new_notifications.len(),
+        source
+    );
 
     // Update last known ID
     if let Some(last) = new_notifications.last() {
@@ -194,7 +221,7 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
                     &n.terminal_bundle_id,
                     &n.tmux_pane,
                 );
-                log::info!(
+                log::debug!(
                     "Suppression check: id={} pane={} bundle_id={} visible={}",
                     n.id,
                     n.tmux_pane,
@@ -211,7 +238,7 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         }
 
         if !suppressed.is_empty() {
-            log::info!(
+            log::debug!(
                 "Suppressed {} notification(s) (active pane)",
                 suppressed.len()
             );
