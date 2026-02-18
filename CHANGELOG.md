@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.11.0](https://github.com/shuntaka9576/agentoast/compare/v0.10.0...v0.11.0) - 2026-02-18
+- feat: unified tmux session view with hook integration and keyboard navigation by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/27
+
 ## [v0.10.0](https://github.com/shuntaka9576/agentoast/compare/v0.9.0...v0.10.0) - 2026-02-17
 - feat: suppress notifications when originating tmux pane is active by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/23
 - fix: explicitly hide panel when activating a notification by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/25
