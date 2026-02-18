@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.12.1](https://github.com/shuntaka9576/agentoast/compare/v0.12.0...v0.12.1) - 2026-02-18
+
 ## [v0.12.0](https://github.com/shuntaka9576/agentoast/compare/v0.11.0...v0.12.0) - 2026-02-18
 - feat: replace text labels with SVG icons for pane and branch metadata by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/28
 
