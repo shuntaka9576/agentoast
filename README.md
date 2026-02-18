@@ -52,7 +52,7 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ## Usage
 
-Hook scripts for Codex require [Deno](https://deno.land/). Grab the script from [`examples/notify/`](examples/notify/) and `chmod +x` it. Claude Code uses the built-in CLI subcommand instead. opencode has its own plugin system.
+Integration samples for each agent are in [`examples/notify/`](examples/notify/). Claude Code uses the built-in CLI subcommand (`agentoast hook claude`). Codex uses a [Deno](https://deno.land/) hook script. opencode uses its plugin system.
 
 ### Claude Code
 
