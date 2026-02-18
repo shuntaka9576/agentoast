@@ -135,17 +135,17 @@ agentoast send \
   --meta branch=main
 ```
 
-| Option | Required | Default | Description |
-|---|---|---|---|
-| `--badge` | No | `""` | Badge text displayed on notification card |
-| `--body` | No | `""` | Notification body text |
-| `--badge-color` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
-| `--icon` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
-| `--repo` | No | auto | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted |
-| `--tmux-pane` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
-| `--bundle-id` | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
-| `--focus` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
-| `--meta` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
+| Option | Short | Required | Default | Description |
+|---|---|---|---|---|
+| `--badge` | `-B` | No | `""` | Badge text displayed on notification card |
+| `--body` | `-b` | No | `""` | Notification body text |
+| `--badge-color` | `-c` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
+| `--icon` | `-i` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
+| `--repo` | `-r` | No | auto | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted |
+| `--tmux-pane` | `-t` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
+| `--bundle-id` | — | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
+| `--focus` | `-f` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
+| `--meta` | `-m` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
 
 Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--tmux-pane` are dismissed at once. Sending a new notification with the same `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
 
@@ -217,23 +217,58 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 [panel]
 # Maximum number of notifications per group (default: 3, 0 = unlimited)
 # group_limit = 3
+
+# Mute all notifications (default: false)
+# muted = false
+
+# Show only groups with notifications (default: true)
+# filter_notified_only = true
+
+# Global keyboard shortcut
+[shortcut]
+# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
+# Set to "" to disable
+# toggle_panel = "ctrl+alt+n"
+
+# Claude Code hook settings
+[hook.claude]
+# Events that trigger notifications (default: all)
+# Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
+# events = ["Stop", "permission_prompt", "idle_prompt", "auth_success", "elicitation_dialog"]
+
+# Events that auto-focus the terminal (default: none)
+# These events set force_focus=true, causing silent terminal focus without toast (when not muted)
+# focus_events = []
 ```
+
+### Keyboard Shortcuts
+
+Panel shortcuts (press `?` in the panel to see this list).
+
+| Key | Action |
+|---|---|
+| `j` / `k` | Next / Previous |
+| `Enter` | Open / Fold |
+| `d` | Delete notif |
+| `D` | Delete all notifs |
+| `C` / `E` | Collapse all / Expand all |
+| `F` | Filter notified |
+| `Tab` / `Shift+Tab` | Jump to next / prev notified pane |
+| `Esc` | Close |
+| `?` | Help |
+
+The global shortcut to toggle the panel is `Ctrl+Alt+N` (configurable in `config.toml`).
 
 ### Tips
 
-Set up a shell alias for command completion notifications.
-
-```bash
-alias an='agentoast send --badge Done --badge-color green'
-```
-
-```bash
-sleep 10; an
-```
-
-With tmux, add `--tmux-pane` to jump back to the pane on click.
+Set up a shell alias for command completion notifications. With `--tmux-pane`, clicking the notification jumps back to the pane.
 
 ```bash
 alias an='agentoast send --badge Done --badge-color green --tmux-pane "$TMUX_PANE"'
+```
+
+```bash
+sleep 10; an -b "body"
 ```
 
