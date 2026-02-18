@@ -266,6 +266,15 @@ pub fn run() {
     let _ = std::fs::create_dir_all(&log_dir);
     let log_path = log_dir.join("agentoast.log");
 
+    // Rotate log file if it exceeds 5 MB
+    const MAX_LOG_SIZE: u64 = 5 * 1024 * 1024;
+    if let Ok(meta) = std::fs::metadata(&log_path) {
+        if meta.len() > MAX_LOG_SIZE {
+            let old_path = log_dir.join("agentoast.log.old");
+            let _ = std::fs::rename(&log_path, &old_path);
+        }
+    }
+
     let file_logger = fern::log_file(&log_path).expect("Failed to create log file");
 
     fern::Dispatch::new()
