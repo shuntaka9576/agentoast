@@ -127,12 +127,6 @@ fn get_notifications(
 }
 
 #[tauri::command]
-fn get_group_limit(state: tauri::State<'_, Mutex<AppState>>) -> Result<usize, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(state.config.panel.group_limit)
-}
-
-#[tauri::command]
 fn get_unread_count(state: tauri::State<'_, Mutex<AppState>>) -> Result<i64, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
@@ -304,7 +298,6 @@ pub fn run() {
             focus_terminal,
             get_sessions,
             get_notifications,
-            get_group_limit,
             get_unread_count,
             delete_notification,
             delete_notifications_by_pane,

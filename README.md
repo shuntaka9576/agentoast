@@ -215,9 +215,6 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 # Menu bar notification panel
 [panel]
-# Maximum number of notifications per group (default: 3, 0 = unlimited)
-# group_limit = 3
-
 # Mute all notifications (default: false)
 # muted = false
 

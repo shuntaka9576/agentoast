@@ -65,8 +65,6 @@ impl Default for ToastConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PanelConfig {
-    #[serde(default = "default_group_limit")]
-    pub group_limit: usize,
     #[serde(default)]
     pub muted: bool,
     #[serde(default = "default_filter_notified_only")]
@@ -76,7 +74,6 @@ pub struct PanelConfig {
 impl Default for PanelConfig {
     fn default() -> Self {
         Self {
-            group_limit: default_group_limit(),
             muted: false,
             filter_notified_only: default_filter_notified_only(),
         }
@@ -85,10 +82,6 @@ impl Default for PanelConfig {
 
 fn default_filter_notified_only() -> bool {
     true
-}
-
-fn default_group_limit() -> usize {
-    3
 }
 
 fn default_toast_duration() -> u64 {
@@ -199,9 +192,6 @@ fn default_config_template() -> &'static str {
 
 # Menu bar notification panel
 [panel]
-# Maximum number of notifications per group (default: 3, 0 = unlimited)
-# group_limit = 3
-
 # Mute all notifications (default: false)
 # muted = false
 
