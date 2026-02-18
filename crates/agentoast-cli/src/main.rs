@@ -283,10 +283,19 @@ fn main() {
                 std::process::exit(1);
             });
 
-            let metadata = parse_metadata(&meta);
+            let mut metadata = parse_metadata(&meta);
 
             let repo = match repo {
-                Some(r) => r,
+                Some(r) => {
+                    let cwd = std::env::current_dir().unwrap_or_default();
+                    let git_info = get_git_info(&cwd);
+                    if !git_info.branch_name.is_empty() {
+                        metadata
+                            .entry("branch".to_string())
+                            .or_insert(git_info.branch_name);
+                    }
+                    r
+                }
                 None => {
                     let cwd = std::env::current_dir().unwrap_or_else(|e| {
                         eprintln!("Failed to get current directory: {}", e);
@@ -296,6 +305,11 @@ fn main() {
                     if git_info.repo_name.is_empty() {
                         eprintln!("Could not detect repository name. Use --repo to specify it.");
                         std::process::exit(1);
+                    }
+                    if !git_info.branch_name.is_empty() {
+                        metadata
+                            .entry("branch".to_string())
+                            .or_insert(git_info.branch_name);
                     }
                     git_info.repo_name
                 }

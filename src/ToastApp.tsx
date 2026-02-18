@@ -3,8 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
-import { IconPreset } from "@/components/icons/source-icon";
-import { X, Trash2 } from "lucide-react";
+import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { X, Trash2, FolderGit2, GitBranch } from "lucide-react";
 
 const DEFAULT_TOAST_DURATION = 4000;
 const FADE_DURATION = 300;
@@ -215,16 +215,22 @@ export function ToastApp() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            {/* Title badge + pane */}
+            {/* Title badge + repo name */}
             <div className="flex items-center gap-2">
               {current.badge && (
                 <span
                   className={cn(
-                    "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
+                    "px-1.5 py-0.5 text-[10px] font-medium rounded leading-none flex-shrink-0",
                     badgeClass,
                   )}
                 >
                   {current.badge}
+                </span>
+              )}
+              {current.repo && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded leading-none bg-[var(--hover-bg)] text-[10px] font-medium text-[var(--text-secondary)] truncate">
+                  <FolderGit2 size={10} className="flex-shrink-0 text-[var(--text-tertiary)]" />
+                  {current.repo}
                 </span>
               )}
             </div>
@@ -234,13 +240,23 @@ export function ToastApp() {
               <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--text-muted)] truncate">
                 {metaEntries.map(([key, value], i) => (
                   <span key={key} className={i > 0 ? "ml-1" : ""}>
-                    <span>{key}:</span>{" "}
-                    {value}
+                    {key === "branch" ? (
+                      <span className="inline-flex items-center gap-0.5">
+                        <GitBranch size={9} className="inline" />
+                        {value}
+                      </span>
+                    ) : (
+                      <>
+                        <span>{key}:</span>{" "}
+                        {value}
+                      </>
+                    )}
                   </span>
                 ))}
                 {current.tmuxPane && (
-                  <span className={metaEntries.length > 0 ? "ml-1" : ""}>
-                    <span>pane:</span> {current.tmuxPane}
+                  <span className={`inline-flex items-center gap-0.5${metaEntries.length > 0 ? " ml-1" : ""}`}>
+                    <TmuxIcon size={9} className="inline" />
+                    {current.tmuxPane}
                   </span>
                 )}
               </div>
