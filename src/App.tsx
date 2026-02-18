@@ -405,7 +405,7 @@ export function App() {
   }, []);
 
   // Derive selected IDs for highlighting
-  const currentItem = flatItems[selectedIndex];
+  const currentItem = flatItems[selectedIndexRef.current];
   const selectedNotificationId =
     currentItem?.type === "pane-item" && currentItem.paneItem.notification ? currentItem.paneItem.notification.id :
     null;

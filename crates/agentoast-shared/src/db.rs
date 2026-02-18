@@ -46,30 +46,24 @@ pub fn insert_notification(
 
     // Wrap DELETE+INSERT in a transaction so they produce a single WAL write,
     // preventing the file-watcher debounce from missing the INSERT.
-    conn.execute_batch("BEGIN")?;
+    let tx = conn.unchecked_transaction()?;
 
     // Overwrite: remove existing notifications from the same tmux pane
     if !tmux_pane.is_empty() {
-        if let Err(e) = conn.execute(
+        tx.execute(
             "DELETE FROM notifications WHERE tmux_pane = ?1",
             params![tmux_pane],
-        ) {
-            conn.execute_batch("ROLLBACK").ok();
-            return Err(e);
-        }
+        )?;
     }
 
-    if let Err(e) = conn.execute(
+    tx.execute(
         "INSERT INTO notifications (badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![badge, body, badge_color, icon.as_str(), metadata_json, repo, tmux_pane, terminal_bundle_id, force_focus as i32],
-    ) {
-        conn.execute_batch("ROLLBACK").ok();
-        return Err(e);
-    }
+    )?;
 
     let id = conn.last_insert_rowid();
-    conn.execute_batch("COMMIT")?;
+    tx.commit()?;
     Ok(id)
 }
 

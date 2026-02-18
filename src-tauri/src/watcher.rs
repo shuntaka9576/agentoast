@@ -168,6 +168,7 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
     // Try git rev-parse to get repo root
     if let Some(git_path) = crate::terminal::find_git() {
         if let Ok(git_output) = Command::new(&git_path)
+            .env_remove("TMPDIR")
             .args(["rev-parse", "--show-toplevel"])
             .current_dir(&cwd)
             .output()

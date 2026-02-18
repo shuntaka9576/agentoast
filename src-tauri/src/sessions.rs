@@ -349,9 +349,13 @@ fn build_process_tree() -> ProcessTree {
 }
 
 fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
-    // BFS through descendants of pane_pid
-    let mut queue = vec![pane_pid];
-    while let Some(current) = queue.pop() {
+    // DFS through descendants of pane_pid
+    let mut stack = vec![pane_pid];
+    let mut visited = std::collections::HashSet::new();
+    while let Some(current) = stack.pop() {
+        if !visited.insert(current) {
+            continue;
+        }
         if let Some(child_pids) = tree.children.get(&current) {
             for &child in child_pids {
                 if let Some(comm) = tree.commands.get(&child) {
@@ -362,7 +366,7 @@ fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
                         }
                     }
                 }
-                queue.push(child);
+                stack.push(child);
             }
         }
     }
