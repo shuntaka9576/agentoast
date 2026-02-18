@@ -1,8 +1,8 @@
-import { X } from "lucide-react";
+import { X, GitBranch } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
-import { IconPreset } from "@/components/icons/source-icon";
+import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 
 interface NotificationCardProps {
   notification: Notification;
@@ -87,14 +87,18 @@ export function NotificationCard({
           {(metaEntries.length > 0 || notification.tmuxPane) && (
             <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--text-muted)] truncate">
               {metaEntries.map(([key, value], i) => (
-                <span key={key} className={i > 0 ? "ml-1" : ""}>
-                  <span>{key}:</span>{" "}
-                  {value}
+                <span key={key} className={cn("flex items-center gap-0.5", i > 0 ? "ml-1" : "")}>
+                  {key === "branch" ? (
+                    <GitBranch size={10} className="flex-shrink-0" />
+                  ) : (
+                    <span>{key}:</span>
+                  )}
+                  {" "}{value}
                 </span>
               ))}
               {notification.tmuxPane && (
-                <span className={metaEntries.length > 0 ? "ml-1" : ""}>
-                  <span>pane:</span> {notification.tmuxPane}
+                <span className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}>
+                  <TmuxIcon size={10} className="flex-shrink-0" /> {notification.tmuxPane}
                 </span>
               )}
             </div>
