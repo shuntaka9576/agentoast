@@ -1,5 +1,8 @@
 #!/usr/bin/env -S deno run --allow-run --allow-env --allow-read
 
+// NOTE: `agentoast hook claude` is the recommended approach (no Deno dependency).
+// This script is kept as a reference implementation.
+
 interface HookData {
   session_id: string
   transcript_path: string
@@ -64,8 +67,8 @@ const main = async () => {
   const data: HookData = JSON.parse(input)
 
   const isStop = data.hook_event_name === "Stop"
-  const title = data.hook_event_name
-  const color = isStop ? "green" : "blue"
+  const badge = data.hook_event_name
+  const badgeColor = isStop ? "green" : "blue"
   const eventKey = data.notification_type || data.hook_event_name
   const focus = ENABLE_FOCUS && FOCUS_EVENTS.has(eventKey)
 
@@ -75,13 +78,13 @@ const main = async () => {
 
   const args = [
     "send",
-    "--title",
-    title,
-    "--color",
-    color,
+    "--badge",
+    badge,
+    "--badge-color",
+    badgeColor,
     "--icon",
     "claude-code",
-    "--group",
+    "--repo",
     repoName,
   ]
 

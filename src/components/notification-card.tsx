@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
-import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
+import { IconPreset } from "@/components/icons/source-icon";
 
 interface NotificationCardProps {
   notification: Notification;
@@ -29,19 +29,18 @@ export function NotificationCard({
   const metaEntries = Object.entries(notification.metadata).filter(
     ([, v]) => v !== "",
   );
-  const badgeClass = badgeColorClasses[notification.color] || badgeColorClasses.gray;
+  const badgeClass = badgeColorClasses[notification.badgeColor] || badgeColorClasses.gray;
   return (
     <div
       data-nav-index={navIndex}
       className={cn(
-        "group relative px-3 py-2.5 hover:bg-[var(--hover-bg)] transition-colors cursor-pointer",
+        "group relative mx-2 my-0.5 px-2.5 py-2 rounded-lg hover:bg-[var(--hover-bg)] cursor-pointer",
         isNew && "animate-new-highlight",
         isSelected && "bg-[var(--hover-bg)]",
       )}
       onClick={() => {
         if (notification.tmuxPane) {
-          void invoke("delete_notifications_by_group_tmux", {
-            groupName: notification.groupName,
+          void invoke("delete_notifications_by_pane", {
             tmuxPane: notification.tmuxPane,
           });
         } else {
@@ -68,14 +67,14 @@ export function NotificationCard({
           {/* Title badge + time */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              {notification.title && (
+              {notification.badge && (
                 <span
                   className={cn(
                     "px-1.5 py-0.5 text-[10px] font-medium rounded",
                     badgeClass,
                   )}
                 >
-                  {notification.title}
+                  {notification.badge}
                 </span>
               )}
             </div>
@@ -93,14 +92,10 @@ export function NotificationCard({
                   {value}
                 </span>
               ))}
-              {metaEntries.length > 0 && notification.tmuxPane && (
-                <span className="ml-1" />
-              )}
               {notification.tmuxPane && (
-                <>
-                  <TmuxIcon size={10} className="flex-shrink-0" />
-                  {notification.tmuxPane}
-                </>
+                <span className={metaEntries.length > 0 ? "ml-1" : ""}>
+                  <span>pane:</span> {notification.tmuxPane}
+                </span>
               )}
             </div>
           )}

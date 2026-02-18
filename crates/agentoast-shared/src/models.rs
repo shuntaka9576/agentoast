@@ -46,12 +46,12 @@ impl std::fmt::Display for IconType {
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
     pub id: i64,
-    pub title: String,
+    pub badge: String,
     pub body: String,
-    pub color: String,
+    pub badge_color: String,
     pub icon: String,
-    pub group_name: String,
     pub metadata: HashMap<String, String>,
+    pub repo: String,
     pub tmux_pane: String,
     pub terminal_bundle_id: String,
     pub force_focus: bool,
@@ -61,8 +61,22 @@ pub struct Notification {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NotificationGroup {
-    pub group_name: String,
-    pub notifications: Vec<Notification>,
-    pub unread_count: i64,
+pub struct TmuxPane {
+    pub pane_id: String,
+    pub pane_pid: u32,
+    pub session_name: String,
+    pub window_name: String,
+    pub current_path: String,
+    pub agent_type: Option<String>,
+    pub git_repo_root: Option<String>,
+    pub git_branch: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmuxPaneGroup {
+    pub repo_name: String,
+    pub current_path: String,
+    pub git_branch: Option<String>,
+    pub panes: Vec<TmuxPane>,
 }

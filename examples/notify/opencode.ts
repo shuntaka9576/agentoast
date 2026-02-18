@@ -13,19 +13,19 @@ interface StatusProperties {
 const notify = (
   eventType: string,
   properties: Record<string, unknown>,
-): { title: string; color: string; focus: boolean } | undefined => {
+): { badge: string; badgeColor: string; focus: boolean } | undefined => {
   if (eventType === "session.status") {
     const props = properties as unknown as StatusProperties
     if (props.status?.type === "idle") {
-      return { title: "Stop", color: "red", focus: true }
+      return { badge: "Stop", badgeColor: "red", focus: true }
     }
     return undefined
   }
   if (eventType === "session.error") {
-    return { title: "Error", color: "red", focus: false }
+    return { badge: "Error", badgeColor: "red", focus: false }
   }
   if (eventType === "permission.asked") {
-    return { title: "Permission", color: "blue", focus: true }
+    return { badge: "Permission", badgeColor: "blue", focus: true }
   }
   return undefined
 }
@@ -74,13 +74,13 @@ export const NotifyPlugin = async ({
 
       const args = [
         "send",
-        "--title",
-        config.title,
-        "--color",
-        config.color,
+        "--badge",
+        config.badge,
+        "--badge-color",
+        config.badgeColor,
         "--icon",
         "opencode",
-        "--group",
+        "--repo",
         repoName,
       ]
 

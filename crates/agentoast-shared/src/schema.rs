@@ -7,12 +7,12 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
 
         CREATE TABLE notifications (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            title         TEXT NOT NULL DEFAULT '',
+            badge         TEXT NOT NULL DEFAULT '',
             body          TEXT NOT NULL DEFAULT '',
-            color         TEXT NOT NULL DEFAULT 'gray',
+            badge_color   TEXT NOT NULL DEFAULT 'gray',
             icon          TEXT NOT NULL DEFAULT 'agentoast',
-            group_name    TEXT NOT NULL DEFAULT '',
             metadata      TEXT NOT NULL DEFAULT '{}',
+            repo          TEXT NOT NULL DEFAULT '',
             tmux_pane     TEXT NOT NULL DEFAULT '',
             terminal_bundle_id TEXT NOT NULL DEFAULT '',
             force_focus   INTEGER NOT NULL DEFAULT 0,
@@ -21,7 +21,7 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
         );
 
         CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_notifications_group_name ON notifications(group_name);
+        CREATE INDEX IF NOT EXISTS idx_notifications_tmux_pane ON notifications(tmux_pane);
         ",
     )?;
 

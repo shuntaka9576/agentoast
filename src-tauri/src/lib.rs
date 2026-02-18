@@ -2,6 +2,8 @@
 mod app_nap;
 mod panel;
 #[cfg(target_os = "macos")]
+mod sessions;
+#[cfg(target_os = "macos")]
 mod terminal;
 mod toast;
 mod tray;
@@ -14,7 +16,7 @@ use std::sync::Mutex;
 
 use agentoast_shared::config::{self, AppConfig};
 use agentoast_shared::db;
-use agentoast_shared::models::{Notification, NotificationGroup};
+use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -27,23 +29,23 @@ pub struct AppState {
 #[derive(Default)]
 pub struct MuteState {
     pub global_muted: bool,
-    pub muted_groups: HashSet<String>,
+    pub muted_repos: HashSet<String>,
 }
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MuteStatePayload {
     pub global_muted: bool,
-    pub muted_groups: Vec<String>,
+    pub muted_repos: Vec<String>,
 }
 
 impl MuteState {
     pub fn to_payload(&self) -> MuteStatePayload {
-        let mut groups: Vec<String> = self.muted_groups.iter().cloned().collect();
-        groups.sort();
+        let mut repos: Vec<String> = self.muted_repos.iter().cloned().collect();
+        repos.sort();
         MuteStatePayload {
             global_muted: self.global_muted,
-            muted_groups: groups,
+            muted_repos: repos,
         }
     }
 }
@@ -55,6 +57,9 @@ pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStateP
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
     tray::update_mute_menu(app_handle, payload.global_muted);
+    if let Err(e) = config::save_panel_muted(payload.global_muted) {
+        log::warn!("Failed to save mute state to config.toml: {}", e);
+    }
     Ok(payload)
 }
 
@@ -100,6 +105,18 @@ fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), S
 }
 
 #[tauri::command]
+fn get_sessions() -> Result<Vec<TmuxPaneGroup>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        sessions::list_tmux_panes_grouped()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("Sessions are only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
 fn get_notifications(
     state: tauri::State<'_, Mutex<AppState>>,
     limit: Option<i64>,
@@ -110,14 +127,9 @@ fn get_notifications(
 }
 
 #[tauri::command]
-fn get_notifications_grouped(
-    state: tauri::State<'_, Mutex<AppState>>,
-    limit: Option<i64>,
-) -> Result<Vec<NotificationGroup>, String> {
+fn get_group_limit(state: tauri::State<'_, Mutex<AppState>>) -> Result<usize, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::get_notifications_grouped(&conn, limit.unwrap_or(100), state.config.panel.group_limit)
-        .map_err(|e| e.to_string())
+    Ok(state.config.panel.group_limit)
 }
 
 #[tauri::command]
@@ -144,16 +156,14 @@ fn delete_notification(
 }
 
 #[tauri::command]
-fn delete_notifications_by_group_tmux(
+fn delete_notifications_by_pane(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
-    group_name: String,
     tmux_pane: String,
 ) -> Result<(), String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::delete_notifications_by_group_tmux(&conn, &group_name, &tmux_pane)
-        .map_err(|e| e.to_string())?;
+    db::delete_notifications_by_pane(&conn, &tmux_pane).map_err(|e| e.to_string())?;
     if let Ok(count) = db::get_unread_count(&conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
@@ -162,14 +172,14 @@ fn delete_notifications_by_group_tmux(
 }
 
 #[tauri::command]
-fn delete_notifications_by_group(
+fn delete_notifications_by_panes(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
-    group_name: String,
+    pane_ids: Vec<String>,
 ) -> Result<(), String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
-    db::delete_notifications_by_group(&conn, &group_name).map_err(|e| e.to_string())?;
+    db::delete_notifications_by_panes(&conn, &pane_ids).map_err(|e| e.to_string())?;
     if let Ok(count) = db::get_unread_count(&conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
@@ -189,20 +199,41 @@ fn toggle_global_mute(app_handle: tauri::AppHandle) -> Result<MuteStatePayload, 
 }
 
 #[tauri::command]
-fn toggle_group_mute(
+fn toggle_repo_mute(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<MuteState>>,
-    group_name: String,
+    repo_path: String,
 ) -> Result<MuteStatePayload, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.muted_groups.contains(&group_name) {
-        state.muted_groups.remove(&group_name);
+    if state.muted_repos.contains(&repo_path) {
+        state.muted_repos.remove(&repo_path);
     } else {
-        state.muted_groups.insert(group_name);
+        state.muted_repos.insert(repo_path);
     }
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
     Ok(payload)
+}
+
+#[tauri::command]
+fn get_filter_notified_only(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.panel.filter_notified_only)
+}
+
+#[tauri::command]
+fn save_filter_notified_only(
+    state: tauri::State<'_, Mutex<AppState>>,
+    value: bool,
+) -> Result<(), String> {
+    {
+        let mut state = state.lock().map_err(|e| e.to_string())?;
+        state.config.panel.filter_notified_only = value;
+    }
+    if let Err(e) = config::save_panel_filter_notified_only(value) {
+        log::warn!("Failed to save filter_notified_only to config.toml: {}", e);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -231,7 +262,36 @@ fn delete_all_notifications(
 }
 
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let log_dir = config::data_dir();
+    let _ = std::fs::create_dir_all(&log_dir);
+    let log_path = log_dir.join("agentoast.log");
+
+    // Rotate log file if it exceeds 5 MB
+    const MAX_LOG_SIZE: u64 = 5 * 1024 * 1024;
+    if let Ok(meta) = std::fs::metadata(&log_path) {
+        if meta.len() > MAX_LOG_SIZE {
+            let old_path = log_dir.join("agentoast.log.old");
+            let _ = std::fs::rename(&log_path, &old_path);
+        }
+    }
+
+    let file_logger = fern::log_file(&log_path).expect("Failed to create log file");
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{} [{}] {}",
+                humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .level_for("agentoast_app_lib::sessions", log::LevelFilter::Debug)
+        .chain(std::io::stderr())
+        .chain(file_logger)
+        .apply()
+        .expect("Failed to initialize logger");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -242,18 +302,21 @@ pub fn run() {
             hide_toast,
             show_panel,
             focus_terminal,
+            get_sessions,
             get_notifications,
-            get_notifications_grouped,
+            get_group_limit,
             get_unread_count,
             delete_notification,
-            delete_notifications_by_group_tmux,
-            delete_notifications_by_group,
+            delete_notifications_by_pane,
+            delete_notifications_by_panes,
             delete_all_notifications,
             get_toast_duration,
             get_toast_persistent,
+            get_filter_notified_only,
+            save_filter_notified_only,
             get_mute_state,
             toggle_global_mute,
-            toggle_group_mute,
+            toggle_repo_mute,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -271,6 +334,7 @@ pub fn run() {
             log::info!("Config: {:?}", app_config);
 
             let shortcut_str = app_config.shortcut.toggle_panel.clone();
+            let initial_muted = app_config.panel.muted;
 
             // Ensure DB is initialized
             let _ = db::open(&db_path).expect("Failed to initialize database");
@@ -280,9 +344,15 @@ pub fn run() {
                 config: app_config,
             }));
 
-            app.manage(Mutex::new(MuteState::default()));
+            app.manage(Mutex::new(MuteState {
+                global_muted: initial_muted,
+                muted_repos: HashSet::new(),
+            }));
 
             tray::create(app.handle())?;
+            if initial_muted {
+                tray::update_mute_menu(app.handle(), true);
+            }
 
             // Register global shortcut for panel toggle
             if !shortcut_str.is_empty() {

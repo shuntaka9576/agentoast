@@ -27,7 +27,12 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
     let handle_for_fs = app_handle.clone();
     let db_path_for_fs = db_path.clone();
 
-    // File system watcher
+    // File system watcher (trailing-edge debounce)
+    //
+    // Uses recv_timeout to wait 300ms after the last DB file event before checking.
+    // This ensures the check runs AFTER the CLI's transaction has committed,
+    // preventing the watcher from reading uncommitted WAL data and missing
+    // the new notification.
     std::thread::spawn(move || {
         let conn = match db::open_reader(&db_path_for_fs) {
             Ok(c) => c,
@@ -53,11 +58,26 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
             .file_name()
             .map(|n| n.to_string_lossy().to_string());
 
-        let mut last_check = Instant::now() - Duration::from_secs(1);
+        let debounce = Duration::from_millis(300);
+        let mut last_event: Option<Instant> = None;
 
-        for event in rx {
-            match event {
-                Ok(event) => {
+        loop {
+            let timeout = match last_event {
+                Some(t) => {
+                    let elapsed = t.elapsed();
+                    if elapsed >= debounce {
+                        check_new_notifications(&handle_for_fs, &conn, "file-watcher");
+                        last_event = None;
+                        Duration::from_secs(3600)
+                    } else {
+                        debounce - elapsed
+                    }
+                }
+                None => Duration::from_secs(3600),
+            };
+
+            match rx.recv_timeout(timeout) {
+                Ok(Ok(event)) => {
                     let is_db_event = match &db_file_name {
                         Some(name) => event.paths.iter().any(|p| {
                             p.file_name()
@@ -76,21 +96,22 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
                     if is_db_event {
                         match event.kind {
                             EventKind::Create(_) | EventKind::Modify(_) => {
-                                // Debounce: skip if checked within 200ms
-                                let now = Instant::now();
-                                if now.duration_since(last_check) < Duration::from_millis(200) {
-                                    continue;
-                                }
-                                last_check = now;
-                                check_new_notifications(&handle_for_fs, &conn);
+                                last_event = Some(Instant::now());
                             }
                             _ => {}
                         }
                     }
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     log::error!("File watch error: {}", e);
                 }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    if last_event.is_some() {
+                        check_new_notifications(&handle_for_fs, &conn, "file-watcher");
+                        last_event = None;
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
     });
@@ -109,12 +130,64 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
 
         loop {
             std::thread::sleep(Duration::from_secs(5));
-            check_new_notifications(&handle_for_poll, &conn);
+            check_new_notifications(&handle_for_poll, &conn, "polling");
         }
     });
 }
 
-fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
+/// Resolve the repository path for a tmux pane.
+/// Uses `tmux display-message` to get the pane's cwd, then `git rev-parse --show-toplevel`
+/// to find the git repo root. Falls back to cwd if not a git repo.
+#[cfg(target_os = "macos")]
+fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
+    use std::process::Command;
+
+    let tmux_path = crate::terminal::find_tmux()?;
+
+    let output = Command::new(&tmux_path)
+        .env_remove("TMPDIR")
+        .args([
+            "display-message",
+            "-p",
+            "-t",
+            tmux_pane,
+            "#{pane_current_path}",
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let cwd = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if cwd.is_empty() {
+        return None;
+    }
+
+    // Try git rev-parse to get repo root
+    if let Some(git_path) = crate::terminal::find_git() {
+        if let Ok(git_output) = Command::new(&git_path)
+            .env_remove("TMPDIR")
+            .args(["rev-parse", "--show-toplevel"])
+            .current_dir(&cwd)
+            .output()
+        {
+            if git_output.status.success() {
+                let repo_root = String::from_utf8_lossy(&git_output.stdout)
+                    .trim()
+                    .to_string();
+                if !repo_root.is_empty() {
+                    return Some(repo_root);
+                }
+            }
+        }
+    }
+
+    Some(cwd)
+}
+
+fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &str) {
     let last_id = LAST_KNOWN_ID.load(Ordering::SeqCst);
 
     let new_notifications = match db::get_notifications_after_id(conn, last_id) {
@@ -129,6 +202,12 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
         return;
     }
 
+    log::info!(
+        "Detected {} new notification(s) via {}",
+        new_notifications.len(),
+        source
+    );
+
     // Update last known ID
     if let Some(last) = new_notifications.last() {
         LAST_KNOWN_ID.store(last.id, Ordering::SeqCst);
@@ -139,7 +218,16 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     let new_notifications = {
         let (suppressed, remaining): (Vec<_>, Vec<_>) =
             new_notifications.into_iter().partition(|n| {
-                crate::terminal::is_pane_visible_to_user(&n.terminal_bundle_id, &n.tmux_pane)
+                let visible =
+                    crate::terminal::is_pane_visible_to_user(&n.terminal_bundle_id, &n.tmux_pane);
+                log::debug!(
+                    "Suppression check: id={} pane={} bundle_id={} visible={}",
+                    n.id,
+                    n.tmux_pane,
+                    n.terminal_bundle_id,
+                    visible
+                );
+                visible
             });
 
         for n in &suppressed {
@@ -168,8 +256,8 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
 
     // Get mute state once for all filtering decisions
     let mute_state = app_handle.state::<Mutex<MuteState>>();
-    let (is_global_muted, muted_groups) = match mute_state.lock() {
-        Ok(mute) => (mute.global_muted, mute.muted_groups.clone()),
+    let (is_global_muted, muted_repos) = match mute_state.lock() {
+        Ok(mute) => (mute.global_muted, mute.muted_repos.clone()),
         Err(e) => {
             log::error!("Failed to lock MuteState: {}", e);
             (false, Default::default())
@@ -177,7 +265,25 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection) {
     };
 
     let is_muted = |n: &agentoast_shared::models::Notification| -> bool {
-        is_global_muted || muted_groups.contains(&n.group_name)
+        if is_global_muted {
+            return true;
+        }
+        // Short-circuit: if no repos are muted, skip expensive repo resolution
+        if muted_repos.is_empty() {
+            return false;
+        }
+        // Resolve the pane's repo and check if it's muted
+        #[cfg(target_os = "macos")]
+        {
+            if !n.tmux_pane.is_empty() {
+                if let Some(repo) = resolve_pane_repo(&n.tmux_pane) {
+                    return muted_repos.contains(&repo);
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = n;
+        false
     };
 
     // Separate force_focus and normal notifications

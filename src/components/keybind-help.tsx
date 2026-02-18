@@ -5,9 +5,12 @@ interface KeybindHelpProps {
 const KEYBINDS = [
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
-  { key: "Enter", action: "Open" },
-  { key: "d", action: "Delete" },
-  { key: "D", action: "Delete group" },
+  { key: "Enter", action: "Open / Fold" },
+  { key: "d", action: "Delete notif" },
+  { key: "D", action: "Delete all notifs" },
+  { key: "C", action: "Collapse all" },
+  { key: "E", action: "Expand all" },
+  { key: "F", action: "Filter notified" },
   { key: "Esc", action: "Close" },
   { key: "?", action: "Help" },
 ] as const;

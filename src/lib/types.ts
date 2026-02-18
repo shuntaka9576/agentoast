@@ -2,12 +2,12 @@ export type Icon = "agentoast" | "claude-code" | "codex" | "opencode";
 
 export interface Notification {
   id: number;
-  title: string;
+  badge: string;
   body: string;
-  color: string;
+  badgeColor: string;
   icon: Icon;
-  groupName: string;
   metadata: Record<string, string>;
+  repo: string;
   tmuxPane: string;
   terminalBundleId: string;
   forceFocus: boolean;
@@ -15,13 +15,41 @@ export interface Notification {
   createdAt: string;
 }
 
-export interface NotificationGroup {
-  groupName: string;
-  notifications: Notification[];
-  unreadCount: number;
-}
-
 export interface MuteState {
   globalMuted: boolean;
-  mutedGroups: string[];
+  mutedRepos: string[];
 }
+
+export interface TmuxPane {
+  paneId: string;
+  panePid: number;
+  sessionName: string;
+  windowName: string;
+  currentPath: string;
+  agentType: Icon | null;
+  gitRepoRoot: string | null;
+  gitBranch: string | null;
+}
+
+export interface TmuxPaneGroup {
+  repoName: string;
+  currentPath: string;
+  gitBranch: string | null;
+  panes: TmuxPane[];
+}
+
+export interface PaneItem {
+  pane: TmuxPane;
+  notification: Notification | null;
+}
+
+export interface UnifiedGroup {
+  groupKey: string;
+  repoName: string;
+  gitBranch: string | null;
+  paneItems: PaneItem[];
+}
+
+export type FlatItem =
+  | { type: "group-header"; groupKey: string }
+  | { type: "pane-item"; groupKey: string; paneItem: PaneItem };
