@@ -268,14 +268,28 @@ export function App() {
         }
         needFetchVersionRef.current = -1;
 
+        // If notifications exist, focus the pane with the most recent notification
+        let latestNotifIdx = -1;
+        let latestCreatedAt = "";
+        for (let i = 0; i < flatItems.length; i++) {
+          const f = flatItems[i];
+          if (f.type === "pane-item" && f.paneItem.notification) {
+            if (f.paneItem.notification.createdAt > latestCreatedAt) {
+              latestCreatedAt = f.paneItem.notification.createdAt;
+              latestNotifIdx = i;
+            }
+          }
+        }
+        if (latestNotifIdx >= 0) return latestNotifIdx;
+
         if (!filterNotifiedOnly) {
-          // Not filtering: always focus the active tmux pane
+          // No notifications: focus the active tmux pane
           const activeIdx = flatItems.findIndex(
             (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
           );
           if (activeIdx >= 0) return activeIdx;
         }
-        // Filtering or no active pane: focus first non-header item
+        // No notifications and no active pane: focus first non-header item
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }
