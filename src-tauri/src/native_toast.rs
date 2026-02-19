@@ -619,7 +619,7 @@ fn build_toast_view(
             &body_font,
         );
         body_label.setMaximumNumberOfLines(2);
-        body_label.setLineBreakMode(NSLineBreakMode::ByTruncatingTail);
+        body_label.setLineBreakMode(NSLineBreakMode::ByCharWrapping);
         effect_view.addSubview(&body_label);
     }
 
