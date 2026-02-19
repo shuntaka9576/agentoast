@@ -44,7 +44,11 @@ export function RepoGroup({
   const totalNotifications =
     paneItems.filter((pi) => pi.notification !== null).length;
 
-  const activeSessions = paneItems.filter((pi) => pi.pane.agentType !== null).length;
+  const runningCount = paneItems.filter((pi) => pi.pane.agentStatus === "running").length;
+  const inactiveCount = paneItems.filter(
+    (pi) => pi.pane.agentStatus === "idle" || pi.pane.agentStatus === "waiting"
+  ).length;
+  const modeCount = paneItems.filter((pi) => pi.pane.agentModes.length > 0).length;
 
   return (
     <div className="border-b border-[var(--border-subtle)] last:border-b-0">
@@ -106,19 +110,22 @@ export function RepoGroup({
             </span>
           </div>
         )}
-        {/* Line 3: notification count + agent count */}
-        {(totalNotifications > 0 || activeSessions > 0) && (
+        {/* Line 3: agent status counts */}
+        {(runningCount > 0 || inactiveCount > 0) && (
           <div className="flex items-center gap-3 pl-[33px] mt-0.5">
-            {totalNotifications > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-[#FF9500] font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FF9500]" />
-                {totalNotifications}
-              </span>
-            )}
-            {activeSessions > 0 && (
+            {runningCount > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-green-500 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                {activeSessions}
+                {runningCount}
+              </span>
+            )}
+            {inactiveCount > 0 && (
+              <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]" />
+                {inactiveCount}
+                {modeCount > 0 && (
+                  <span className="ml-0.5">({modeCount} mode)</span>
+                )}
               </span>
             )}
           </div>

@@ -42,6 +42,14 @@ impl std::fmt::Display for IconType {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentStatus {
+    Running,
+    Idle,
+    Waiting,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
@@ -68,6 +76,8 @@ pub struct TmuxPane {
     pub window_name: String,
     pub current_path: String,
     pub agent_type: Option<String>,
+    pub agent_status: Option<AgentStatus>,
+    pub agent_modes: Vec<String>,
     pub git_repo_root: Option<String>,
     pub git_branch: Option<String>,
 }

@@ -1,4 +1,5 @@
 export type Icon = "agentoast" | "claude-code" | "codex" | "opencode";
+export type AgentStatus = "running" | "idle" | "waiting";
 
 export interface Notification {
   id: number;
@@ -27,6 +28,8 @@ export interface TmuxPane {
   windowName: string;
   currentPath: string;
   agentType: Icon | null;
+  agentStatus: AgentStatus | null;
+  agentModes: string[];
   gitRepoRoot: string | null;
   gitBranch: string | null;
 }

@@ -143,6 +143,22 @@ pub fn delete_all_notifications(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+pub fn get_latest_notification_by_pane(
+    conn: &Connection,
+    tmux_pane: &str,
+) -> rusqlite::Result<Option<Notification>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, badge, body, badge_color, icon, metadata, repo, tmux_pane, terminal_bundle_id, force_focus, is_read, created_at
+         FROM notifications WHERE tmux_pane = ?1 ORDER BY id DESC LIMIT 1",
+    )?;
+    let mut rows = stmt.query_map(params![tmux_pane], row_to_notification)?;
+    match rows.next() {
+        Some(Ok(n)) => Ok(Some(n)),
+        Some(Err(e)) => Err(e),
+        None => Ok(None),
+    }
+}
+
 pub fn get_max_id(conn: &Connection) -> rusqlite::Result<i64> {
     conn.query_row(
         "SELECT COALESCE(MAX(id), 0) FROM notifications",

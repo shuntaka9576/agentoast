@@ -137,6 +137,8 @@ export function App() {
           windowName: "",
           currentPath: "",
           agentType: null,
+          agentStatus: null,
+          agentModes: [],
           gitRepoRoot: null,
           gitBranch: null,
         },

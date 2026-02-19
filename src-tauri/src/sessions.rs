@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::process::Command;
 
-use agentoast_shared::models::{TmuxPane, TmuxPaneGroup};
+use agentoast_shared::models::{AgentStatus, TmuxPane, TmuxPaneGroup};
+use agentoast_shared::{config, db};
 
 use crate::terminal::{find_git, find_tmux};
 
@@ -221,6 +222,9 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
     }
     log::debug!("sessions: parsed {} panes total", raw_panes.len());
 
+    // Open DB connection for agent status detection (read-only, no schema init)
+    let db_conn = db::open_reader(&config::db_path()).ok();
+
     // Resolve git info for all unique paths
     let unique_paths: Vec<String> = raw_panes
         .iter()
@@ -230,11 +234,17 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         .collect();
     let git_cache = resolve_git_info(&unique_paths);
 
-    // Build TmuxPane with git info
+    // Build TmuxPane with git info and agent status
     let panes: Vec<TmuxPane> = raw_panes
         .into_iter()
         .map(|rp| {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
+            let (agent_status, agent_modes) = if rp.agent_type.is_some() {
+                let (status, modes) = detect_agent_status(&db_conn, &rp.pane_id);
+                (Some(status), modes)
+            } else {
+                (None, Vec::new())
+            };
             TmuxPane {
                 pane_id: rp.pane_id,
                 pane_pid: rp.pane_pid,
@@ -242,6 +252,8 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
                 window_name: rp.window_name,
                 current_path: rp.current_path,
                 agent_type: rp.agent_type,
+                agent_status,
+                agent_modes,
                 git_repo_root: git_info.map(|g| g.repo_root.clone()),
                 git_branch: git_info.and_then(|g| g.branch.clone()),
             }
@@ -346,6 +358,268 @@ fn build_process_tree() -> ProcessTree {
     }
 
     ProcessTree { children, commands }
+}
+
+struct PaneContentInfo {
+    is_running: bool,
+    at_prompt: bool,
+    agent_modes: Vec<String>,
+}
+
+fn detect_agent_status(
+    db_conn: &Option<db::Connection>,
+    pane_id: &str,
+) -> (AgentStatus, Vec<String>) {
+    let info = check_pane_content(pane_id);
+
+    // Prompt detection takes priority over running indicators.
+    // The status bar "(running)" suffix can be stale after the agent finishes,
+    // but a visible prompt (❯, >, $, %) reliably means the agent is idle.
+    let status = if info.at_prompt {
+        if let Some(conn) = db_conn {
+            if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
+                AgentStatus::Waiting
+            } else {
+                AgentStatus::Idle
+            }
+        } else {
+            AgentStatus::Idle
+        }
+    } else if info.is_running {
+        AgentStatus::Running
+    } else {
+        AgentStatus::Running
+    };
+
+    (status, info.agent_modes)
+}
+
+/// Claude Code spinner characters that appear at the start of running lines.
+const SPINNER_CHARS: &[char] = &['✢', '✽', '✶', '✻', '·'];
+
+/// Check pane content for running indicators, prompt patterns, and mode indicators.
+/// Running: spinner+"…" / spinner+"esc to interrupt" / status bar "(running)".
+/// Idle: footer-skipping prompt detection. Plan mode: status bar "plan mode on".
+/// Mode detection patterns: (substring to match, label for frontend)
+const MODE_PATTERNS: &[(&str, &str)] = &[
+    ("plan mode on", "plan"),
+    ("bypass permissions on", "bypass"),
+    ("accept edits on", "accept"),
+];
+
+fn check_pane_content(pane_id: &str) -> PaneContentInfo {
+    let default = PaneContentInfo {
+        is_running: false,
+        at_prompt: false,
+        agent_modes: Vec::new(),
+    };
+
+    let tmux_path = match find_tmux() {
+        Some(p) => p,
+        None => {
+            log::debug!("check_pane_content: tmux not found");
+            return default;
+        }
+    };
+
+    let output = Command::new(&tmux_path)
+        .env_remove("TMPDIR")
+        .args(["capture-pane", "-t", pane_id, "-p"])
+        .output()
+        .ok();
+
+    let Some(output) = output else {
+        log::debug!(
+            "check_pane_content({}): capture-pane exec failed",
+            pane_id
+        );
+        return default;
+    };
+    if !output.status.success() {
+        log::debug!(
+            "check_pane_content({}): capture-pane exit={} stderr={}",
+            pane_id,
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return default;
+    }
+
+    let content = String::from_utf8_lossy(&output.stdout);
+    let all_lines: Vec<&str> = content.lines().collect();
+
+    // Get last 30 non-empty, non-separator lines for scanning
+    let last_lines: Vec<&str> = all_lines
+        .iter()
+        .rev()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty() && !is_separator_line(trimmed)
+        })
+        .take(30)
+        .copied()
+        .collect();
+
+    log::debug!(
+        "check_pane_content({}): last lines (bottom→up, first 5): {:?}",
+        pane_id,
+        &last_lines[..last_lines.len().min(5)]
+    );
+
+    let mut is_running = false;
+    let mut agent_modes: Vec<String> = Vec::new();
+
+    for line in &last_lines {
+        let trimmed = line.trim();
+
+        // Running detection: spinner char + "esc to interrupt" or "…"
+        if !is_running && is_claude_running_line(trimmed) {
+            log::debug!(
+                "check_pane_content({}): running detected (spinner): {:?}",
+                pane_id,
+                trimmed
+            );
+            is_running = true;
+        }
+
+        // Running detection: status bar "(running)" suffix
+        // e.g., "⏵⏵ bypass permissions on · for dir in auth admin; do… (running)"
+        if !is_running && trimmed.ends_with("(running)") {
+            log::debug!(
+                "check_pane_content({}): running detected (status bar): {:?}",
+                pane_id,
+                trimmed
+            );
+            is_running = true;
+        }
+
+        // Agent mode detection: plan, bypass, accept
+        for &(pattern, label) in MODE_PATTERNS {
+            if !agent_modes.iter().any(|m| m == label) && trimmed.contains(pattern) {
+                log::debug!(
+                    "check_pane_content({}): mode '{}' detected: {:?}",
+                    pane_id,
+                    label,
+                    trimmed
+                );
+                agent_modes.push(label.to_string());
+            }
+        }
+    }
+
+    // Idle detection: walk from bottom, skip TUI footer, check if first
+    // meaningful line is a prompt (❯, $, %, >)
+    let at_prompt = is_prompt_line(&all_lines);
+    if at_prompt {
+        log::debug!("check_pane_content({}): prompt line detected", pane_id);
+    }
+
+    PaneContentInfo {
+        is_running,
+        at_prompt,
+        agent_modes,
+    }
+}
+
+/// Check if a line indicates Claude Code is actively running.
+/// Matches spinner characters followed by "esc to interrupt" or "…" (ellipsis).
+fn is_claude_running_line(line: &str) -> bool {
+    if let Some(c) = line.chars().next() {
+        if SPINNER_CHARS.contains(&c) {
+            // Spinner char + "esc to interrupt"
+            // e.g., "✻ Thinking… (esc to interrupt · 30s · ...)"
+            if line.contains("esc to interrupt") {
+                return true;
+            }
+            // Spinner char + "…" (active progress indicator)
+            // e.g., "✶ Galloping…", "✻ Thinking…", "✢ Compacting…"
+            if line.contains('…') {
+                return true;
+            }
+        }
+    }
+    // "esc to interrupt" in status line suffix
+    // e.g., "4 files +20 -0 · esc to interrupt"
+    if line.contains("· esc to interrupt") {
+        return true;
+    }
+    false
+}
+
+/// Check if the last meaningful line is a prompt, skipping TUI footer lines.
+/// Walks from bottom to top, skipping empty lines, separators, status bar,
+/// token counts, and help text. Returns true if the first non-skipped line
+/// starts with a known prompt character.
+fn is_prompt_line(lines: &[&str]) -> bool {
+    for line in lines.iter().rev() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if is_separator_line(trimmed) {
+            continue;
+        }
+        // Mode indicator: ⏵⏵ bypass permissions, ⏸ plan mode
+        if trimmed.starts_with('⏵') || trimmed.starts_with('⏸') {
+            continue;
+        }
+        // ctrl+ shortcut hints (e.g., "ctrl+b ctrl+b (twice) to run in background")
+        if trimmed.contains("ctrl+") {
+            continue;
+        }
+        // Context auto-compact warning (e.g., "Context left until auto-compact: 8%")
+        if trimmed.contains("Context left until auto-compact") {
+            continue;
+        }
+        // Skip Claude Code TUI footer lines
+        if trimmed.contains("for shortcuts")
+            || trimmed.contains("shift+tab to cycle")
+            || is_token_count_line(trimmed)
+            || is_file_changes_line(trimmed)
+        {
+            continue;
+        }
+        // First meaningful line: strip box border (│ ... │) then check prompt
+        let check = strip_box_border(trimmed);
+        return check.starts_with('❯')         // starship / Claude Code prompt
+            || check.ends_with("$ ")           // bash
+            || check == "$"
+            || check.ends_with("% ")           // zsh
+            || check == "%"
+            || check == ">"                    // REPL prompt
+            || check.starts_with("> ");
+    }
+    false
+}
+
+/// Check if a line consists entirely of box-drawing characters (U+2500..U+257F).
+fn is_separator_line(line: &str) -> bool {
+    !line.is_empty() && line.chars().all(|c| ('\u{2500}'..='\u{257F}').contains(&c))
+}
+
+/// Strip leading/trailing box drawing vertical bar (│ U+2502) and whitespace.
+/// Used to detect prompts inside Claude Code's bordered input box.
+fn strip_box_border(line: &str) -> &str {
+    line.trim_start_matches('│')
+        .trim_start()
+        .trim_end_matches('│')
+        .trim_end()
+}
+
+/// Check if a line is a token count display (e.g., "🟢 114.5K (57%)", "🟡 154.0K (77%)").
+fn is_token_count_line(line: &str) -> bool {
+    line.contains('🟢') || line.contains('🟡') || line.contains('🔴')
+}
+
+/// Check if a line shows file changes (e.g., "4 files +42 -0").
+fn is_file_changes_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    trimmed
+        .chars()
+        .next()
+        .map_or(false, |c| c.is_ascii_digit())
+        && trimmed.contains("file")
+        && (trimmed.contains('+') || trimmed.contains('-'))
 }
 
 fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
