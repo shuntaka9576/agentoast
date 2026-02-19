@@ -11,7 +11,7 @@ use tauri::path::BaseDirectory;
 use tauri::tray::TrayIconId;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::toast;
+use crate::native_toast;
 use crate::MuteState;
 
 static LAST_KNOWN_ID: AtomicI64 = AtomicI64::new(0);
@@ -301,10 +301,9 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
         .collect();
 
     if !filtered_toast.is_empty() {
-        let _ = app_handle.emit_to("toast", "toast:show", &filtered_toast);
-        let handle = app_handle.clone();
+        let notifications = filtered_toast;
         let _ = app_handle.run_on_main_thread(move || {
-            toast::show(&handle);
+            native_toast::show_notifications(notifications);
         });
     }
 

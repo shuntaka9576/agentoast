@@ -33,6 +33,15 @@ ICNS_PATH = os.path.join(SCRIPT_DIR, "icon.icns")
 TRAY_ICON_PATH = os.path.join(SCRIPT_DIR, "tray-icon.png")
 TRAY_ICON_NOTIFICATION_PATH = os.path.join(SCRIPT_DIR, "tray-icon-notification.png")
 
+# Toast icon paths (source SVGs and output PNGs)
+TOAST_DIR = os.path.join(SCRIPT_DIR, "toast")
+TOAST_ICONS = ["claude-code", "codex", "opencode"]
+TOAST_ICON_SIZE = 40  # 20pt @2x Retina
+
+# Toast metadata icons (git-branch, tmux)
+TOAST_META_ICONS = ["git-branch", "tmux", "x", "trash"]
+TOAST_META_ICON_SIZE = 20  # 10pt @2x Retina
+
 # Sizes and filenames required by iconutil
 ICONSET_SIZES = {
     "icon_16x16.png": 16,
@@ -265,6 +274,63 @@ def render_tray_notification_icon() -> Image.Image:
     return img
 
 
+def render_toast_icon(name: str) -> Image.Image:
+    """Render a toast icon from SVG to black-on-transparent PNG at TOAST_ICON_SIZE.
+
+    For agent-specific icons (claude-code, codex, opencode), reads from toast/<name>.svg.
+    For 'agentoast', reuses the main agentoast.svg.
+    """
+    if name == "agentoast":
+        svg_path = SVG_PATH
+    else:
+        svg_path = os.path.join(TOAST_DIR, f"{name}.svg")
+
+    png_data = cairosvg.svg2png(
+        url=svg_path,
+        output_width=TOAST_ICON_SIZE,
+        output_height=TOAST_ICON_SIZE,
+    )
+    img = Image.open(io.BytesIO(png_data)).convert("RGBA")
+
+    # Remove white background (cairosvg may render with white bg)
+    img = _remove_white_background(img)
+
+    # Ensure all opaque pixels are black (for template image usage)
+    arr = np.array(img)
+    opaque = arr[:, :, 3] > 0
+    arr[opaque, 0] = 0  # R
+    arr[opaque, 1] = 0  # G
+    arr[opaque, 2] = 0  # B
+    return Image.fromarray(arr)
+
+
+def render_toast_meta_icon(name: str) -> Image.Image:
+    """Render a toast metadata icon from SVG to black-on-transparent PNG at TOAST_META_ICON_SIZE.
+
+    Reads from toast/<name>.svg. Handles both stroke-based (git-branch) and
+    fill-based (tmux) SVGs.
+    """
+    svg_path = os.path.join(TOAST_DIR, f"{name}.svg")
+
+    png_data = cairosvg.svg2png(
+        url=svg_path,
+        output_width=TOAST_META_ICON_SIZE,
+        output_height=TOAST_META_ICON_SIZE,
+    )
+    img = Image.open(io.BytesIO(png_data)).convert("RGBA")
+
+    # Remove white background (cairosvg may render with white bg)
+    img = _remove_white_background(img)
+
+    # Ensure all opaque pixels are black (for template image usage)
+    arr = np.array(img)
+    opaque = arr[:, :, 3] > 0
+    arr[opaque, 0] = 0  # R
+    arr[opaque, 1] = 0  # G
+    arr[opaque, 2] = 0  # B
+    return Image.fromarray(arr)
+
+
 def main() -> None:
     if not os.path.exists(SVG_PATH):
         print(f"Error: SVG not found: {SVG_PATH}")
@@ -306,6 +372,21 @@ def main() -> None:
     tray_notification = render_tray_notification_icon()
     tray_notification.save(TRAY_ICON_NOTIFICATION_PATH)
     print(f"Generated: {TRAY_ICON_NOTIFICATION_PATH} ({TRAY_SIZE}x{TRAY_SIZE})")
+
+    # Toast icons (agent-specific + agentoast)
+    all_toast_icons = TOAST_ICONS + ["agentoast"]
+    for name in all_toast_icons:
+        img = render_toast_icon(name)
+        output_path = os.path.join(TOAST_DIR, f"{name}.png")
+        img.save(output_path)
+        print(f"Generated: {output_path} ({TOAST_ICON_SIZE}x{TOAST_ICON_SIZE})")
+
+    # Toast metadata icons (git-branch, tmux)
+    for name in TOAST_META_ICONS:
+        img = render_toast_meta_icon(name)
+        output_path = os.path.join(TOAST_DIR, f"{name}.png")
+        img.save(output_path)
+        print(f"Generated: {output_path} ({TOAST_META_ICON_SIZE}x{TOAST_META_ICON_SIZE})")
 
     print("\nDone!")
 

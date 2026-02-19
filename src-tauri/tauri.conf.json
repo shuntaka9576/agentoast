@@ -20,18 +20,6 @@
         "decorations": false,
         "transparent": true,
         "visible": false
-      },
-      {
-        "label": "toast",
-        "title": "Notification",
-        "url": "index.html?window=toast",
-        "width": 380,
-        "height": 120,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
-        "visible": false,
-        "skipTaskbar": true
       }
     ],
     "security": {
