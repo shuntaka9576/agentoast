@@ -72,11 +72,8 @@ export function PaneCard({
           {/* Line 1: Running status + notification badge + session info + time */}
           <div className="flex items-center gap-1.5">
             {pane.agentType && (
-              <span className="flex items-center gap-1 flex-shrink-0">
+              <span className="flex-shrink-0" title={pane.agentType}>
                 <Circle size={5} className="text-green-500 fill-green-500" />
-                <span className="text-[10px] text-[var(--text-secondary)] font-medium">
-                  {pane.agentType}
-                </span>
               </span>
             )}
             {notification?.badge && badgeClass && (
