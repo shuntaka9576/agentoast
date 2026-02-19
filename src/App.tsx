@@ -27,12 +27,16 @@ export function App() {
     toggleRepoMute,
   } = useMute();
 
-  const { groups: sessionGroups } = useSessions();
+  const { groups: sessionGroups, fetchVersion } = useSessions();
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
+
+  const needFetchVersionRef = useRef(-1);
+  const fetchVersionRef = useRef(fetchVersion);
+  fetchVersionRef.current = fetchVersion;
 
   // Load filter setting from config on mount
   useEffect(() => {
@@ -190,13 +194,13 @@ export function App() {
   }, [unifiedGroups, filterNotifiedOnly]);
 
   // Auto-collapse groups without notifications (respect manual toggles)
+  // When not filtering, always expand the active pane's group
   const collapsedGroups = useMemo(() => {
     const collapsed = new Set<string>();
 
-    // When no notifications exist, find the group containing the active pane
-    const hasAnyNotifications = displayGroups.some((ug) => groupHasNotifications(ug));
+    // When not filtering, find the active pane's group to keep it expanded
     let activeGroupKey: string | null = null;
-    if (!hasAnyNotifications) {
+    if (!filterNotifiedOnly) {
       for (const ug of displayGroups) {
         if (ug.paneItems.some((pi) => pi.pane.isActive)) {
           activeGroupKey = ug.groupKey;
@@ -226,7 +230,7 @@ export function App() {
       }
     }
     return collapsed;
-  }, [displayGroups, manuallyToggledGroups]);
+  }, [displayGroups, manuallyToggledGroups, filterNotifiedOnly]);
 
   // Build flat list of all items for keyboard navigation
   const flatItems = useMemo(() => {
@@ -246,6 +250,7 @@ export function App() {
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
       setSelectedIndex(-1);
+      needFetchVersionRef.current = fetchVersionRef.current;
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -257,22 +262,26 @@ export function App() {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
       if (prev < 0) {
-        // When no notifications exist, focus the active tmux pane
-        const hasNotifications = flatItems.some(
-          (f) => f.type === "pane-item" && f.paneItem.notification !== null,
-        );
-        if (!hasNotifications) {
+        // Wait until sessions data is fresh after panel show
+        if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
+          return -1;
+        }
+        needFetchVersionRef.current = -1;
+
+        if (!filterNotifiedOnly) {
+          // Not filtering: always focus the active tmux pane
           const activeIdx = flatItems.findIndex(
             (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
           );
           if (activeIdx >= 0) return activeIdx;
         }
+        // Filtering or no active pane: focus first non-header item
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }
       return Math.min(prev, flatItems.length - 1);
     });
-  }, [flatItems]);
+  }, [flatItems, filterNotifiedOnly, fetchVersion]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -375,6 +384,12 @@ export function App() {
           for (const ug of unifiedGroups) {
             if (groupHasNotifications(ug)) {
               next.add(ug.groupKey);
+            } else if (
+              !filterNotifiedOnly &&
+              ug.paneItems.some((pi) => pi.pane.isActive)
+            ) {
+              // Active group is auto-expanded, so toggle it to collapse
+              next.add(ug.groupKey);
             }
           }
           return next;
@@ -389,6 +404,13 @@ export function App() {
           const next = new Set<string>();
           for (const ug of unifiedGroups) {
             if (!groupHasNotifications(ug)) {
+              // Skip the active group — it's already auto-expanded
+              if (
+                !filterNotifiedOnly &&
+                ug.paneItems.some((pi) => pi.pane.isActive)
+              ) {
+                continue;
+              }
               next.add(ug.groupKey);
             }
           }

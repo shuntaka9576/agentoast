@@ -7,6 +7,7 @@ export function useSessions() {
   const [groups, setGroups] = useState<TmuxPaneGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchVersion, setFetchVersion] = useState(0);
   const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -17,6 +18,7 @@ export function useSessions() {
           if (JSON.stringify(prev) === JSON.stringify(result)) return prev;
           return result;
         });
+        setFetchVersion((v) => v + 1);
         setError(null);
       }
     } catch (e) {
@@ -58,5 +60,5 @@ export function useSessions() {
     };
   }, [refresh]);
 
-  return { groups, loading, error, refresh };
+  return { groups, loading, error, refresh, fetchVersion };
 }
