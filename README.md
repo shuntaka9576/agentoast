@@ -218,8 +218,8 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Mute all notifications (default: false)
 # muted = false
 
-# Show only groups with notifications (default: true)
-# filter_notified_only = true
+# Show only groups with notifications (default: false)
+# filter_notified_only = false
 
 # Global keyboard shortcut
 [shortcut]
