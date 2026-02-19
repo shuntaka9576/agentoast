@@ -3,7 +3,7 @@ members = ["crates/agentoast-shared", "crates/agentoast-cli", "src-tauri"]
 resolver = "2"
 
 [workspace.package]
-version = "0.14.1"
+version = "0.14.2"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
