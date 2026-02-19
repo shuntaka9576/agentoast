@@ -205,8 +205,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
 
         let pane_pid: u32 = parts[1].parse().unwrap_or(0);
         let agent_type = detect_agent(&process_tree, pane_pid);
-        let is_active =
-            parts[5] == "1" && parts[6] == "1" && parts[7] == "1";
+        let is_active = parts[5] == "1" && parts[6] == "1" && parts[7] == "1";
         log::debug!(
             "sessions: pane {} pid={} agent={:?} is_active={}",
             parts[0],
@@ -367,10 +366,10 @@ fn build_process_tree() -> ProcessTree {
 }
 
 struct PaneContentInfo {
-    has_spinner: bool,       // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
+    has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
-    has_elicitation: bool,   // "Enter to select" navigation hint (selection dialog)
+    has_elicitation: bool, // "Enter to select" navigation hint (selection dialog)
     agent_modes: Vec<String>,
 }
 
@@ -446,10 +445,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         .ok();
 
     let Some(output) = output else {
-        log::debug!(
-            "check_pane_content({}): capture-pane exec failed",
-            pane_id
-        );
+        log::debug!("check_pane_content({}): capture-pane exec failed", pane_id);
         return default;
     };
     if !output.status.success() {
@@ -667,10 +663,7 @@ fn is_numbered_option(line: &str) -> bool {
 /// Check if a line shows file changes (e.g., "4 files +42 -0").
 fn is_file_changes_line(line: &str) -> bool {
     let trimmed = line.trim();
-    trimmed
-        .chars()
-        .next()
-        .map_or(false, |c| c.is_ascii_digit())
+    trimmed.chars().next().map_or(false, |c| c.is_ascii_digit())
         && trimmed.contains("file")
         && (trimmed.contains('+') || trimmed.contains('-'))
 }
