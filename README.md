@@ -230,9 +230,10 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 # Claude Code hook settings
 [hook.claude]
-# Events that trigger notifications (default: all)
+# Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
-# events = ["Stop", "permission_prompt", "idle_prompt", "auth_success", "elicitation_dialog"]
+# idle_prompt is excluded by default (noisy); add it back if you want idle notifications
+# events = ["Stop", "permission_prompt", "auth_success", "elicitation_dialog"]
 
 # Events that auto-focus the terminal (default: none)
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
