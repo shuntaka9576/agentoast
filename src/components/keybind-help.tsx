@@ -10,7 +10,7 @@ const KEYBINDS = [
   { key: "D", action: "Delete all notifs" },
   { key: "C", action: "Collapse all" },
   { key: "E", action: "Expand all" },
-  { key: "F", action: "Filter notified" },
+  { key: "F", action: "Filter action needed" },
   { key: "Esc", action: "Close" },
   { key: "?", action: "Help" },
 ] as const;

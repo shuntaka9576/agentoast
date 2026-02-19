@@ -75,6 +75,7 @@ pub struct TmuxPane {
     pub session_name: String,
     pub window_name: String,
     pub current_path: String,
+    pub is_active: bool,
     pub agent_type: Option<String>,
     pub agent_status: Option<AgentStatus>,
     pub agent_modes: Vec<String>,

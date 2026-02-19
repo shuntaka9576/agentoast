@@ -27,6 +27,7 @@ export interface TmuxPane {
   sessionName: string;
   windowName: string;
   currentPath: string;
+  isActive: boolean;
   agentType: Icon | null;
   agentStatus: AgentStatus | null;
   agentModes: string[];

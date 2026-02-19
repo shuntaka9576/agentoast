@@ -136,6 +136,7 @@ export function App() {
           sessionName: "",
           windowName: "",
           currentPath: "",
+          isActive: false,
           agentType: null,
           agentStatus: null,
           agentModes: [],
@@ -181,7 +182,9 @@ export function App() {
     return unifiedGroups
       .map((ug) => ({
         ...ug,
-        paneItems: ug.paneItems.filter((pi) => pi.notification !== null),
+        paneItems: ug.paneItems.filter(
+          (pi) => pi.notification !== null || pi.pane.agentStatus === "waiting",
+        ),
       }))
       .filter((ug) => ug.paneItems.length > 0);
   }, [unifiedGroups, filterNotifiedOnly]);
@@ -189,9 +192,24 @@ export function App() {
   // Auto-collapse groups without notifications (respect manual toggles)
   const collapsedGroups = useMemo(() => {
     const collapsed = new Set<string>();
+
+    // When no notifications exist, find the group containing the active pane
+    const hasAnyNotifications = displayGroups.some((ug) => groupHasNotifications(ug));
+    let activeGroupKey: string | null = null;
+    if (!hasAnyNotifications) {
+      for (const ug of displayGroups) {
+        if (ug.paneItems.some((pi) => pi.pane.isActive)) {
+          activeGroupKey = ug.groupKey;
+          break;
+        }
+      }
+    }
+
     for (const ug of displayGroups) {
       if (manuallyToggledGroups.has(ug.groupKey)) continue;
       if (!groupHasNotifications(ug)) {
+        // Don't auto-collapse the active pane's group
+        if (ug.groupKey === activeGroupKey) continue;
         collapsed.add(ug.groupKey);
       }
     }
@@ -199,7 +217,7 @@ export function App() {
     for (const key of manuallyToggledGroups) {
       const ug = displayGroups.find((g) => g.groupKey === key);
       if (!ug) continue;
-      const autoCollapsed = !groupHasNotifications(ug);
+      const autoCollapsed = !groupHasNotifications(ug) && key !== activeGroupKey;
       if (autoCollapsed) {
         // Auto would collapse → manual toggle means expanded (don't add)
       } else {
@@ -239,6 +257,16 @@ export function App() {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
       if (prev < 0) {
+        // When no notifications exist, focus the active tmux pane
+        const hasNotifications = flatItems.some(
+          (f) => f.type === "pane-item" && f.paneItem.notification !== null,
+        );
+        if (!hasNotifications) {
+          const activeIdx = flatItems.findIndex(
+            (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
+          );
+          if (activeIdx >= 0) return activeIdx;
+        }
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }

@@ -143,7 +143,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
     // converting tabs to underscores.
     const DELIM: &str = "|||";
     let format_str = format!(
-        "#{{pane_id}}{d}#{{pane_pid}}{d}#{{session_name}}{d}#{{window_name}}{d}#{{pane_current_path}}",
+        "#{{pane_id}}{d}#{{pane_pid}}{d}#{{session_name}}{d}#{{window_name}}{d}#{{pane_current_path}}{d}#{{pane_active}}{d}#{{window_active}}{d}#{{session_attached}}",
         d = DELIM
     );
 
@@ -191,24 +191,28 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         session_name: String,
         window_name: String,
         current_path: String,
+        is_active: bool,
         agent_type: Option<String>,
     }
 
     let mut raw_panes: Vec<RawPane> = Vec::new();
 
     for line in stdout.lines() {
-        let parts: Vec<&str> = line.splitn(5, DELIM).collect();
-        if parts.len() < 5 {
+        let parts: Vec<&str> = line.splitn(8, DELIM).collect();
+        if parts.len() < 8 {
             continue;
         }
 
         let pane_pid: u32 = parts[1].parse().unwrap_or(0);
         let agent_type = detect_agent(&process_tree, pane_pid);
+        let is_active =
+            parts[5] == "1" && parts[6] == "1" && parts[7] == "1";
         log::debug!(
-            "sessions: pane {} pid={} agent={:?}",
+            "sessions: pane {} pid={} agent={:?} is_active={}",
             parts[0],
             pane_pid,
-            agent_type
+            agent_type,
+            is_active
         );
 
         raw_panes.push(RawPane {
@@ -217,6 +221,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
             session_name: parts[2].to_string(),
             window_name: parts[3].to_string(),
             current_path: parts[4].to_string(),
+            is_active,
             agent_type,
         });
     }
@@ -251,6 +256,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
                 session_name: rp.session_name,
                 window_name: rp.window_name,
                 current_path: rp.current_path,
+                is_active: rp.is_active,
                 agent_type: rp.agent_type,
                 agent_status,
                 agent_modes,
@@ -361,8 +367,10 @@ fn build_process_tree() -> ProcessTree {
 }
 
 struct PaneContentInfo {
-    is_running: bool,
+    has_spinner: bool,       // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
+    has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
+    has_elicitation: bool,   // "Enter to select" navigation hint (selection dialog)
     agent_modes: Vec<String>,
 }
 
@@ -372,12 +380,16 @@ fn detect_agent_status(
 ) -> (AgentStatus, Vec<String>) {
     let info = check_pane_content(pane_id);
 
-    // Running indicators (spinners, "esc to interrupt") are real-time signals
-    // and take highest priority. Claude Code's TUI always renders the ❯ input
-    // area even during execution, so at_prompt alone is not reliable for idle
-    // detection when running evidence exists.
-    let status = if info.is_running {
+    // Spinners are real-time signals and take highest priority.
+    // Status bar "(running)" may be stale (e.g., plan mode waiting with old
+    // status bar text), so it does NOT override at_prompt.
+    let status = if info.has_spinner {
         AgentStatus::Running
+    } else if info.has_elicitation {
+        // Elicitation dialog ("Enter to select" detected) — always Waiting.
+        // Checked before at_prompt because elicitation option description text
+        // (indented continuation lines) causes is_prompt_line() to return false.
+        AgentStatus::Waiting
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -388,6 +400,8 @@ fn detect_agent_status(
         } else {
             AgentStatus::Idle
         }
+    } else if info.has_status_running {
+        AgentStatus::Running
     } else {
         AgentStatus::Running
     };
@@ -410,8 +424,10 @@ const MODE_PATTERNS: &[(&str, &str)] = &[
 
 fn check_pane_content(pane_id: &str) -> PaneContentInfo {
     let default = PaneContentInfo {
-        is_running: false,
+        has_spinner: false,
+        has_status_running: false,
         at_prompt: false,
+        has_elicitation: false,
         agent_modes: Vec::new(),
     };
 
@@ -467,31 +483,43 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         &last_lines[..last_lines.len().min(5)]
     );
 
-    let mut is_running = false;
+    let mut has_spinner = false;
+    let mut has_status_running = false;
+    let mut has_elicitation = false;
     let mut agent_modes: Vec<String> = Vec::new();
 
     for line in &last_lines {
         let trimmed = line.trim();
 
         // Running detection: spinner char + "esc to interrupt" or "…"
-        if !is_running && is_claude_running_line(trimmed) {
+        if !has_spinner && is_claude_running_line(trimmed) {
             log::debug!(
                 "check_pane_content({}): running detected (spinner): {:?}",
                 pane_id,
                 trimmed
             );
-            is_running = true;
+            has_spinner = true;
         }
 
-        // Running detection: status bar "(running)" suffix
+        // Status bar "(running)" suffix — may be stale
         // e.g., "⏵⏵ bypass permissions on · for dir in auth admin; do… (running)"
-        if !is_running && trimmed.ends_with("(running)") {
+        if !has_status_running && trimmed.ends_with("(running)") {
             log::debug!(
-                "check_pane_content({}): running detected (status bar): {:?}",
+                "check_pane_content({}): status bar running detected: {:?}",
                 pane_id,
                 trimmed
             );
-            is_running = true;
+            has_status_running = true;
+        }
+
+        // Elicitation dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
+        if !has_elicitation && trimmed.starts_with("Enter to select") {
+            log::debug!(
+                "check_pane_content({}): elicitation detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            has_elicitation = true;
         }
 
         // Agent mode detection: plan, bypass, accept
@@ -516,8 +544,10 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
     }
 
     PaneContentInfo {
-        is_running,
+        has_spinner,
+        has_status_running,
         at_prompt,
+        has_elicitation,
         agent_modes,
     }
 }
@@ -584,6 +614,11 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         // Claude Code elicitation numbered options (e.g., "  2. Yes, and bypass permissions")
         // Skip these so we can reach the ❯-prefixed selected option line underneath.
         if is_numbered_option(trimmed) {
+            continue;
+        }
+        // Claude Code elicitation navigation hint
+        // e.g., "Enter to select · ↑/↓ to navigate · Esc to cancel"
+        if trimmed.starts_with("Enter to select") {
             continue;
         }
         // First meaningful line: strip box border (│ ... │) then check prompt
