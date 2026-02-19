@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.14.2](https://github.com/shuntaka9576/agentoast/compare/v0.14.1...v0.14.2) - 2026-02-19
+- fix: change filter_notified_only default to false by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/40
+
 ## [v0.14.1](https://github.com/shuntaka9576/agentoast/compare/v0.14.0...v0.14.1) - 2026-02-19
 - fix: resolve toast layout overlap in release builds by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/37
 
