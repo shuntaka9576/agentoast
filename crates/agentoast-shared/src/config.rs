@@ -81,7 +81,7 @@ impl Default for PanelConfig {
 }
 
 fn default_filter_notified_only() -> bool {
-    true
+    false
 }
 
 fn default_toast_duration() -> u64 {
@@ -194,8 +194,8 @@ fn default_config_template() -> &'static str {
 # Mute all notifications (default: false)
 # muted = false
 
-# Show only groups with notifications (default: true)
-# filter_notified_only = true
+# Show only groups with notifications (default: false)
+# filter_notified_only = false
 
 # Global keyboard shortcut
 [shortcut]
