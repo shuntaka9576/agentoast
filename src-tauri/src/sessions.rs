@@ -379,6 +379,15 @@ fn detect_agent_status(
 ) -> (AgentStatus, Vec<String>) {
     let info = check_pane_content(pane_id);
 
+    log::debug!(
+        "detect_agent_status({}): spinner={} status_running={} elicitation={} prompt={}",
+        pane_id,
+        info.has_spinner,
+        info.has_status_running,
+        info.has_elicitation,
+        info.at_prompt
+    );
+
     // Spinners are real-time signals and take highest priority.
     // Status bar "(running)" may be stale (e.g., plan mode waiting with old
     // status bar text), so it does NOT override at_prompt.
@@ -399,9 +408,8 @@ fn detect_agent_status(
         } else {
             AgentStatus::Idle
         }
-    } else if info.has_status_running {
-        AgentStatus::Running
     } else {
+        // has_status_running or no signal — default to Running
         AgentStatus::Running
     };
 
@@ -663,7 +671,7 @@ fn is_numbered_option(line: &str) -> bool {
 /// Check if a line shows file changes (e.g., "4 files +42 -0").
 fn is_file_changes_line(line: &str) -> bool {
     let trimmed = line.trim();
-    trimmed.chars().next().map_or(false, |c| c.is_ascii_digit())
+    trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
         && trimmed.contains("file")
         && (trimmed.contains('+') || trimmed.contains('-'))
 }
