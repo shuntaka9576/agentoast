@@ -49,10 +49,23 @@ const BOTTOM_SECTION_H: f64 = 27.0;
 const BOTTOM_MARGIN: f64 = 5.0;
 
 fn compute_panel_height(has_meta: bool, has_body: bool) -> f64 {
-    let meta_section = if has_meta { LINE_GAP + META_HEIGHT } else { 0.0 };
-    let body_section = if has_body { LINE_GAP + BODY_HEIGHT } else { 0.0 };
-    let effect_h = TOP_MARGIN + LINE1_HEIGHT + meta_section + body_section
-        + BOTTOM_GAP + BOTTOM_SECTION_H + BOTTOM_MARGIN;
+    let meta_section = if has_meta {
+        LINE_GAP + META_HEIGHT
+    } else {
+        0.0
+    };
+    let body_section = if has_body {
+        LINE_GAP + BODY_HEIGHT
+    } else {
+        0.0
+    };
+    let effect_h = TOP_MARGIN
+        + LINE1_HEIGHT
+        + meta_section
+        + body_section
+        + BOTTOM_GAP
+        + BOTTOM_SECTION_H
+        + BOTTOM_MARGIN;
     effect_h + PADDING * 2.0
 }
 
