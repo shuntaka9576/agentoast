@@ -27,12 +27,16 @@ export function App() {
     toggleRepoMute,
   } = useMute();
 
-  const { groups: sessionGroups } = useSessions();
+  const { groups: sessionGroups, fetchVersion } = useSessions();
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
+
+  const needFetchVersionRef = useRef(-1);
+  const fetchVersionRef = useRef(fetchVersion);
+  fetchVersionRef.current = fetchVersion;
 
   // Load filter setting from config on mount
   useEffect(() => {
@@ -136,7 +140,10 @@ export function App() {
           sessionName: "",
           windowName: "",
           currentPath: "",
+          isActive: false,
           agentType: null,
+          agentStatus: null,
+          agentModes: [],
           gitRepoRoot: null,
           gitBranch: null,
         },
@@ -179,17 +186,34 @@ export function App() {
     return unifiedGroups
       .map((ug) => ({
         ...ug,
-        paneItems: ug.paneItems.filter((pi) => pi.notification !== null),
+        paneItems: ug.paneItems.filter(
+          (pi) => pi.notification !== null || pi.pane.agentStatus === "waiting",
+        ),
       }))
       .filter((ug) => ug.paneItems.length > 0);
   }, [unifiedGroups, filterNotifiedOnly]);
 
   // Auto-collapse groups without notifications (respect manual toggles)
+  // When not filtering, always expand the active pane's group
   const collapsedGroups = useMemo(() => {
     const collapsed = new Set<string>();
+
+    // When not filtering, find the active pane's group to keep it expanded
+    let activeGroupKey: string | null = null;
+    if (!filterNotifiedOnly) {
+      for (const ug of displayGroups) {
+        if (ug.paneItems.some((pi) => pi.pane.isActive)) {
+          activeGroupKey = ug.groupKey;
+          break;
+        }
+      }
+    }
+
     for (const ug of displayGroups) {
       if (manuallyToggledGroups.has(ug.groupKey)) continue;
       if (!groupHasNotifications(ug)) {
+        // Don't auto-collapse the active pane's group
+        if (ug.groupKey === activeGroupKey) continue;
         collapsed.add(ug.groupKey);
       }
     }
@@ -197,7 +221,7 @@ export function App() {
     for (const key of manuallyToggledGroups) {
       const ug = displayGroups.find((g) => g.groupKey === key);
       if (!ug) continue;
-      const autoCollapsed = !groupHasNotifications(ug);
+      const autoCollapsed = !groupHasNotifications(ug) && key !== activeGroupKey;
       if (autoCollapsed) {
         // Auto would collapse → manual toggle means expanded (don't add)
       } else {
@@ -206,7 +230,7 @@ export function App() {
       }
     }
     return collapsed;
-  }, [displayGroups, manuallyToggledGroups]);
+  }, [displayGroups, manuallyToggledGroups, filterNotifiedOnly]);
 
   // Build flat list of all items for keyboard navigation
   const flatItems = useMemo(() => {
@@ -226,6 +250,7 @@ export function App() {
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
       setSelectedIndex(-1);
+      needFetchVersionRef.current = fetchVersionRef.current;
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -237,12 +262,40 @@ export function App() {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
       if (prev < 0) {
+        // Wait until sessions data is fresh after panel show
+        if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
+          return -1;
+        }
+        needFetchVersionRef.current = -1;
+
+        // If notifications exist, focus the pane with the most recent notification
+        let latestNotifIdx = -1;
+        let latestCreatedAt = "";
+        for (let i = 0; i < flatItems.length; i++) {
+          const f = flatItems[i];
+          if (f.type === "pane-item" && f.paneItem.notification) {
+            if (f.paneItem.notification.createdAt > latestCreatedAt) {
+              latestCreatedAt = f.paneItem.notification.createdAt;
+              latestNotifIdx = i;
+            }
+          }
+        }
+        if (latestNotifIdx >= 0) return latestNotifIdx;
+
+        if (!filterNotifiedOnly) {
+          // No notifications: focus the active tmux pane
+          const activeIdx = flatItems.findIndex(
+            (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
+          );
+          if (activeIdx >= 0) return activeIdx;
+        }
+        // No notifications and no active pane: focus first non-header item
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }
       return Math.min(prev, flatItems.length - 1);
     });
-  }, [flatItems]);
+  }, [flatItems, filterNotifiedOnly, fetchVersion]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -345,6 +398,12 @@ export function App() {
           for (const ug of unifiedGroups) {
             if (groupHasNotifications(ug)) {
               next.add(ug.groupKey);
+            } else if (
+              !filterNotifiedOnly &&
+              ug.paneItems.some((pi) => pi.pane.isActive)
+            ) {
+              // Active group is auto-expanded, so toggle it to collapse
+              next.add(ug.groupKey);
             }
           }
           return next;
@@ -359,6 +418,13 @@ export function App() {
           const next = new Set<string>();
           for (const ug of unifiedGroups) {
             if (!groupHasNotifications(ug)) {
+              // Skip the active group — it's already auto-expanded
+              if (
+                !filterNotifiedOnly &&
+                ug.paneItems.some((pi) => pi.pane.isActive)
+              ) {
+                continue;
+              }
               next.add(ug.groupKey);
             }
           }

@@ -133,7 +133,6 @@ fn default_claude_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
         "permission_prompt".to_string(),
-        "idle_prompt".to_string(),
         "auth_success".to_string(),
         "elicitation_dialog".to_string(),
     ]
@@ -207,9 +206,10 @@ fn default_config_template() -> &'static str {
 
 # Claude Code hook settings
 [hook.claude]
-# Events that trigger notifications (default: all)
+# Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
-# events = ["Stop", "permission_prompt", "idle_prompt", "auth_success", "elicitation_dialog"]
+# idle_prompt is excluded by default (noisy); add it back if you want idle notifications
+# events = ["Stop", "permission_prompt", "auth_success", "elicitation_dialog"]
 
 # Events that auto-focus the terminal (default: none)
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
@@ -242,7 +242,6 @@ mod tests {
             vec![
                 "Stop",
                 "permission_prompt",
-                "idle_prompt",
                 "auth_success",
                 "elicitation_dialog",
             ]
@@ -272,8 +271,8 @@ focus_events = ["Stop", "permission_prompt"]
             config.hook.claude.focus_events,
             vec!["Stop", "permission_prompt"]
         );
-        // Events should still have defaults
-        assert_eq!(config.hook.claude.events.len(), 5);
+        // Events should still have defaults (4 without idle_prompt)
+        assert_eq!(config.hook.claude.events.len(), 4);
     }
 
     #[test]
@@ -283,8 +282,8 @@ focus_events = ["Stop", "permission_prompt"]
 duration_ms = 5000
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        // Hook.claude should use defaults
-        assert_eq!(config.hook.claude.events.len(), 5);
+        // Hook.claude should use defaults (4 without idle_prompt)
+        assert_eq!(config.hook.claude.events.len(), 4);
         assert!(config.hook.claude.focus_events.is_empty());
     }
 }

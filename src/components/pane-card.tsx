@@ -1,7 +1,7 @@
 import { X, Circle, GitBranch } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { PaneItem } from "@/lib/types";
+import type { PaneItem, AgentStatus, TmuxPane } from "@/lib/types";
 import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 
 interface PaneCardProps {
@@ -10,6 +10,47 @@ interface PaneCardProps {
   isSelected?: boolean;
   navIndex?: number;
   onDeleteNotification: (id: number) => void;
+}
+
+function statusDotClass(status: AgentStatus | null): string {
+  switch (status) {
+    case "running":
+      return "text-green-500 fill-green-500";
+    case "idle":
+      return "text-[var(--text-muted)] fill-[var(--text-muted)]";
+    case "waiting":
+      return "text-amber-500 fill-amber-500";
+    default:
+      return "text-green-500 fill-green-500";
+  }
+}
+
+function statusTooltip(pane: TmuxPane): string {
+  const agent = pane.agentType ?? "agent";
+  const modeStr = pane.agentModes.length > 0 ? ` (${pane.agentModes.join(", ")})` : "";
+  switch (pane.agentStatus) {
+    case "running":
+      return `${agent}: running${modeStr}`;
+    case "idle":
+      return `${agent}: idle${modeStr}`;
+    case "waiting":
+      return `${agent}: waiting for input${modeStr}`;
+    default:
+      return agent;
+  }
+}
+
+function badgeGlowStyle(badgeColor: string): React.CSSProperties | undefined {
+  switch (badgeColor) {
+    case "green":
+      return { boxShadow: "0 0 6px rgba(34, 197, 94, 0.3)" };
+    case "blue":
+      return { boxShadow: "0 0 6px rgba(59, 130, 246, 0.3)" };
+    case "red":
+      return { boxShadow: "0 0 6px rgba(239, 68, 68, 0.3)" };
+    default:
+      return undefined;
+  }
 }
 
 const badgeColorClasses: Record<string, string> = {
@@ -53,7 +94,7 @@ export function PaneCard({
     <div
       data-nav-index={navIndex}
       className={cn(
-        "group relative mx-2 my-0.5 px-2.5 py-2 rounded-lg hover:bg-[var(--hover-bg)] cursor-pointer",
+        "group relative ml-6 mr-2 my-0.5 px-2.5 py-2 min-h-[52px] rounded-lg hover:bg-[var(--hover-bg)] cursor-pointer pane-separator",
         isNew && "animate-new-highlight",
         isSelected && "bg-[var(--hover-bg)]",
       )}
@@ -72,16 +113,22 @@ export function PaneCard({
           {/* Line 1: Running status + notification badge + session info + time */}
           <div className="flex items-center gap-1.5">
             {pane.agentType && (
-              <span className="flex-shrink-0" title={pane.agentType}>
-                <Circle size={5} className="text-green-500 fill-green-500" />
+              <span className="flex-shrink-0" title={statusTooltip(pane)}>
+                <Circle size={7} className={statusDotClass(pane.agentStatus)} />
               </span>
             )}
+            {pane.agentModes.map((mode) => (
+              <span key={mode} className="text-[10px] text-[var(--text-muted)] font-medium flex-shrink-0">
+                {mode}
+              </span>
+            ))}
             {notification?.badge && badgeClass && (
               <span
                 className={cn(
                   "px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0",
                   badgeClass,
                 )}
+                style={badgeGlowStyle(notification.badgeColor)}
               >
                 {notification.badge}
               </span>

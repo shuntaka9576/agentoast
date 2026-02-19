@@ -142,3 +142,17 @@ body,
 .animate-new-highlight {
   animation: new-highlight 3s ease-out forwards;
 }
+
+/* Gradient fade separator between PaneCards */
+.pane-separator::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-primary), transparent);
+}
+.pane-separator:last-child::after {
+  display: none;
+}
