@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.13.0](https://github.com/shuntaka9576/agentoast/compare/v0.12.1...v0.13.0) - 2026-02-19
+- feat: replace WebView toast with native NSPanel implementation by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/31
+- feat: replace agent type text label with tooltip on green dot by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/32
+
 ## [v0.12.1](https://github.com/shuntaka9576/agentoast/compare/v0.12.0...v0.12.1) - 2026-02-18
 
 ## [v0.12.0](https://github.com/shuntaka9576/agentoast/compare/v0.11.0...v0.12.0) - 2026-02-18
