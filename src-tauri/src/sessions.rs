@@ -583,9 +583,12 @@ fn is_claude_running_line(line: &str) -> bool {
 
 /// Check if the last meaningful line is a prompt, skipping TUI footer lines.
 /// Walks from bottom to top, skipping empty lines, separators, status bar,
-/// token counts, and help text. Returns true if the first non-skipped line
-/// starts with a known prompt character.
+/// and help text. Up to MAX_UNKNOWN_LINES non-prompt lines are tolerated
+/// (e.g. user-configured statusline) before giving up.
 fn is_prompt_line(lines: &[&str]) -> bool {
+    const MAX_UNKNOWN_LINES: usize = 3;
+    let mut unknown_count = 0;
+
     for line in lines.iter().rev() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -610,7 +613,6 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         // Skip Claude Code TUI footer lines
         if trimmed.contains("for shortcuts")
             || trimmed.contains("shift+tab to cycle")
-            || is_token_count_line(trimmed)
             || is_file_changes_line(trimmed)
         {
             continue;
@@ -625,15 +627,24 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         if trimmed.starts_with("Enter to select") {
             continue;
         }
-        // First meaningful line: strip box border (│ ... │) then check prompt
+        // Meaningful line: strip box border (│ ... │) then check prompt
         let check = strip_box_border(trimmed);
-        return check.starts_with('❯')         // starship / Claude Code prompt
-            || check.ends_with("$ ")           // bash
+        if check.starts_with('❯')         // starship / Claude Code prompt
+            || check.ends_with("$ ")       // bash
             || check == "$"
-            || check.ends_with("% ")           // zsh
+            || check.ends_with("% ")       // zsh
             || check == "%"
-            || check == ">"                    // REPL prompt
-            || check.starts_with("> ");
+            || check == ">"                // REPL prompt
+            || check.starts_with("> ")
+        {
+            return true;
+        }
+        // Non-prompt meaningful line (e.g. statusline). Tolerate up to
+        // MAX_UNKNOWN_LINES before concluding agent is not at a prompt.
+        unknown_count += 1;
+        if unknown_count >= MAX_UNKNOWN_LINES {
+            return false;
+        }
     }
     false
 }
@@ -650,11 +661,6 @@ fn strip_box_border(line: &str) -> &str {
         .trim_start()
         .trim_end_matches('│')
         .trim_end()
-}
-
-/// Check if a line is a token count display (e.g., "🟢 114.5K (57%)", "🟡 154.0K (77%)").
-fn is_token_count_line(line: &str) -> bool {
-    line.contains('🟢') || line.contains('🟡') || line.contains('🔴')
 }
 
 /// Check if a line is a Claude Code elicitation numbered option (e.g., "  2. Yes, and bypass permissions").
