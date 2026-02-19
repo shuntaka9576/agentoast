@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.14.1](https://github.com/shuntaka9576/agentoast/compare/v0.14.0...v0.14.1) - 2026-02-19
+- fix: resolve toast layout overlap in release builds by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/37
+
 ## [v0.14.0](https://github.com/shuntaka9576/agentoast/compare/v0.13.0...v0.14.0) - 2026-02-19
 - feat: add agent status detection with Running/Idle/Waiting states by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/34
 - fix: use character wrapping for toast body text by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/36
