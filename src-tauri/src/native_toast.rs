@@ -38,22 +38,21 @@ const PADDING: f64 = 8.0;
 const CORNER_RADIUS: f64 = 12.0;
 const FADE_DURATION: f64 = 0.3;
 
-fn compute_panel_height(has_meta: bool, has_body: bool) -> f64 {
-    let top_margin = 16.0;
-    let line1_h = 16.0;
-    let meta_section = if has_meta { 6.0 + 14.0 } else { 0.0 };
-    let body_section = if has_body { 6.0 + 28.0 } else { 0.0 };
-    let gap_to_bottom = 10.0;
-    let bottom_section = 27.0; // btn_y(5) + btn_h(22)
-    let bottom_margin = 5.0;
+// Shared layout constants (used by both compute_panel_height and build_toast_view)
+const TOP_MARGIN: f64 = 12.0;
+const LINE1_HEIGHT: f64 = 18.0;
+const META_HEIGHT: f64 = 16.0;
+const BODY_HEIGHT: f64 = 28.0;
+const LINE_GAP: f64 = 6.0;
+const BOTTOM_GAP: f64 = 10.0;
+const BOTTOM_SECTION_H: f64 = 27.0;
+const BOTTOM_MARGIN: f64 = 5.0;
 
-    let effect_h = top_margin
-        + line1_h
-        + meta_section
-        + body_section
-        + gap_to_bottom
-        + bottom_section
-        + bottom_margin;
+fn compute_panel_height(has_meta: bool, has_body: bool) -> f64 {
+    let meta_section = if has_meta { LINE_GAP + META_HEIGHT } else { 0.0 };
+    let body_section = if has_body { LINE_GAP + BODY_HEIGHT } else { 0.0 };
+    let effect_h = TOP_MARGIN + LINE1_HEIGHT + meta_section + body_section
+        + BOTTOM_GAP + BOTTOM_SECTION_H + BOTTOM_MARGIN;
     effect_h + PADDING * 2.0
 }
 
@@ -199,7 +198,7 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<(), String> {
 
 fn create_panel(mtm: MainThreadMarker) -> Retained<NSPanel> {
     unsafe {
-        let frame = CGRect::new(CGPoint::new(0.0, 0.0), CGSize::new(PANEL_WIDTH, 140.0));
+        let frame = CGRect::new(CGPoint::new(0.0, 0.0), CGSize::new(PANEL_WIDTH, 144.0));
 
         let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::NonactivatingPanel;
 
@@ -350,12 +349,12 @@ fn update_and_show() {
     let has_body = !current.body.is_empty();
     let panel_height = compute_panel_height(has_meta, has_body);
 
-    // Build content view
-    let content_view = build_toast_view(mtm, &current, current_index, queue_len, panel_height);
-
-    panel.setContentView(Some(&content_view));
-
+    // Resize panel BEFORE setting content view to prevent layout distortion in release builds.
+    // Setting content view on a panel with stale size causes AppKit to resize subviews incorrectly.
     position_at_top_right(mtm, panel, panel_height);
+
+    let content_view = build_toast_view(mtm, &current, current_index, queue_len, panel_height);
+    panel.setContentView(Some(&content_view));
 
     // Show with fade-in animation
     panel.setAlphaValue(0.0);
@@ -430,7 +429,7 @@ fn build_toast_view(
     // --- Icon (16x16, no container, directly on effect_view) ---
     let icon_size = 16.0;
     let icon_x = 12.0;
-    let icon_y = effect_h - 12.0 - icon_size;
+    let icon_y = effect_h - TOP_MARGIN - icon_size;
 
     let png_bytes: &[u8] = match notification.icon.as_str() {
         "claude-code" => include_bytes!("../icons/toast/claude-code.png"),
@@ -464,7 +463,7 @@ fn build_toast_view(
     let text_width = effect_w - text_x - 12.0;
 
     // --- Line 1: Badge + repo name + relative time ---
-    let line1_y = effect_h - 12.0 - 18.0;
+    let line1_y = effect_h - TOP_MARGIN - LINE1_HEIGHT;
     let mut line1_x = 0.0_f64;
 
     // Badge pill
@@ -523,8 +522,8 @@ fn build_toast_view(
     }
 
     // --- Line 2: Metadata (below badge line) ---
-    let meta_y = line1_y - 6.0 - 14.0;
-    let meta_height = 16.0;
+    let meta_y = line1_y - LINE_GAP - META_HEIGHT;
+    let meta_height = META_HEIGHT;
     let meta_icon_size = 12.0;
     let meta_gap = 4.0;
     let meta_icon_text_gap = 2.0;
@@ -601,18 +600,23 @@ fn build_toast_view(
     if has_body {
         let body_font = font_regular(11.0);
         let body_top = if has_meta {
-            meta_y - 6.0
+            meta_y - LINE_GAP
         } else {
-            line1_y - 6.0
+            line1_y - LINE_GAP
         };
-        let body_h = (body_top - 24.0).max(14.0); // 24pt = bottom row upper limit
+        let body_h = BODY_HEIGHT;
         let body_x = 12.0; // icon_x と同じ（アイコン左端揃え）
         let body_width = effect_w - body_x - 12.0;
+        let body_y = body_top - body_h;
+        log::debug!(
+            "[native_toast] layout: effect_h={}, line1_y={}, meta_y={}, body_top={}, body_y={}, body_h={}",
+            effect_h, line1_y, meta_y, body_top, body_y, body_h
+        );
         let body_label = make_label(
             mtm,
             &notification.body,
             CGRect::new(
-                CGPoint::new(body_x, (body_top - body_h).max(2.0)),
+                CGPoint::new(body_x, body_y),
                 CGSize::new(body_width, body_h),
             ),
             &nscolor_tuple(colors.text_secondary),
