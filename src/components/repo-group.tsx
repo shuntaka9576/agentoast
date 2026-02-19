@@ -45,10 +45,8 @@ export function RepoGroup({
     paneItems.filter((pi) => pi.notification !== null).length;
 
   const runningCount = paneItems.filter((pi) => pi.pane.agentStatus === "running").length;
-  const inactiveCount = paneItems.filter(
-    (pi) => pi.pane.agentStatus === "idle" || pi.pane.agentStatus === "waiting"
-  ).length;
-  const modeCount = paneItems.filter((pi) => pi.pane.agentModes.length > 0).length;
+  const idleCount = paneItems.filter((pi) => pi.pane.agentStatus === "idle").length;
+  const waitingCount = paneItems.filter((pi) => pi.pane.agentStatus === "waiting").length;
 
   return (
     <div className="border-b border-[var(--border-subtle)] last:border-b-0">
@@ -111,7 +109,7 @@ export function RepoGroup({
           </div>
         )}
         {/* Line 3: agent status counts */}
-        {(runningCount > 0 || inactiveCount > 0) && (
+        {(runningCount > 0 || idleCount > 0 || waitingCount > 0) && (
           <div className="flex items-center gap-3 pl-[33px] mt-0.5">
             {runningCount > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-green-500 font-medium">
@@ -119,13 +117,16 @@ export function RepoGroup({
                 {runningCount}
               </span>
             )}
-            {inactiveCount > 0 && (
+            {idleCount > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]" />
-                {inactiveCount}
-                {modeCount > 0 && (
-                  <span className="ml-0.5">({modeCount} mode)</span>
-                )}
+                {idleCount}
+              </span>
+            )}
+            {waitingCount > 0 && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-500 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {waitingCount}
               </span>
             )}
           </div>

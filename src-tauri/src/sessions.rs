@@ -372,10 +372,13 @@ fn detect_agent_status(
 ) -> (AgentStatus, Vec<String>) {
     let info = check_pane_content(pane_id);
 
-    // Prompt detection takes priority over running indicators.
-    // The status bar "(running)" suffix can be stale after the agent finishes,
-    // but a visible prompt (❯, >, $, %) reliably means the agent is idle.
-    let status = if info.at_prompt {
+    // Running indicators (spinners, "esc to interrupt") are real-time signals
+    // and take highest priority. Claude Code's TUI always renders the ❯ input
+    // area even during execution, so at_prompt alone is not reliable for idle
+    // detection when running evidence exists.
+    let status = if info.is_running {
+        AgentStatus::Running
+    } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
                 AgentStatus::Waiting
@@ -385,8 +388,6 @@ fn detect_agent_status(
         } else {
             AgentStatus::Idle
         }
-    } else if info.is_running {
-        AgentStatus::Running
     } else {
         AgentStatus::Running
     };
@@ -563,8 +564,9 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         if trimmed.starts_with('⏵') || trimmed.starts_with('⏸') {
             continue;
         }
-        // ctrl+ shortcut hints (e.g., "ctrl+b ctrl+b (twice) to run in background")
-        if trimmed.contains("ctrl+") {
+        // ctrl shortcut hints (e.g., "ctrl+b ctrl+b (twice) to run in background",
+        // "ctrl-g to edit in Nvim")
+        if trimmed.contains("ctrl+") || trimmed.contains("ctrl-") {
             continue;
         }
         // Context auto-compact warning (e.g., "Context left until auto-compact: 8%")
@@ -577,6 +579,11 @@ fn is_prompt_line(lines: &[&str]) -> bool {
             || is_token_count_line(trimmed)
             || is_file_changes_line(trimmed)
         {
+            continue;
+        }
+        // Claude Code elicitation numbered options (e.g., "  2. Yes, and bypass permissions")
+        // Skip these so we can reach the ❯-prefixed selected option line underneath.
+        if is_numbered_option(trimmed) {
             continue;
         }
         // First meaningful line: strip box border (│ ... │) then check prompt
@@ -609,6 +616,17 @@ fn strip_box_border(line: &str) -> &str {
 /// Check if a line is a token count display (e.g., "🟢 114.5K (57%)", "🟡 154.0K (77%)").
 fn is_token_count_line(line: &str) -> bool {
     line.contains('🟢') || line.contains('🟡') || line.contains('🔴')
+}
+
+/// Check if a line is a Claude Code elicitation numbered option (e.g., "  2. Yes, and bypass permissions").
+/// These appear in plan approval and other selection dialogs.
+fn is_numbered_option(line: &str) -> bool {
+    let trimmed = line.trim();
+    let mut chars = trimmed.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_digit() => chars.as_str().starts_with(". "),
+        _ => false,
+    }
 }
 
 /// Check if a line shows file changes (e.g., "4 files +42 -0").

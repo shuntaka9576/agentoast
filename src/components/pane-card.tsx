@@ -17,8 +17,9 @@ function statusDotClass(status: AgentStatus | null): string {
     case "running":
       return "text-green-500 fill-green-500";
     case "idle":
-    case "waiting":
       return "text-[var(--text-muted)] fill-[var(--text-muted)]";
+    case "waiting":
+      return "text-amber-500 fill-amber-500";
     default:
       return "text-green-500 fill-green-500";
   }
