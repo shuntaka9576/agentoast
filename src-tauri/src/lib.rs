@@ -1,15 +1,14 @@
 #[cfg(target_os = "macos")]
 mod app_nap;
+#[cfg(target_os = "macos")]
+mod native_toast;
 mod panel;
 #[cfg(target_os = "macos")]
 mod sessions;
 #[cfg(target_os = "macos")]
 mod terminal;
-mod toast;
 mod tray;
 mod watcher;
-#[cfg(target_os = "macos")]
-mod webkit_config;
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -77,8 +76,9 @@ fn hide_panel(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn hide_toast(app_handle: tauri::AppHandle) {
-    toast::hide(&app_handle);
+fn hide_toast(_app_handle: tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    native_toast::hide();
 }
 
 #[tauri::command]
@@ -231,18 +231,6 @@ fn save_filter_notified_only(
 }
 
 #[tauri::command]
-fn get_toast_duration(state: tauri::State<'_, Mutex<AppState>>) -> Result<u64, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(state.config.toast.duration_ms)
-}
-
-#[tauri::command]
-fn get_toast_persistent(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(state.config.toast.persistent)
-}
-
-#[tauri::command]
 fn delete_all_notifications(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
@@ -303,8 +291,6 @@ pub fn run() {
             delete_notifications_by_pane,
             delete_notifications_by_panes,
             delete_all_notifications,
-            get_toast_duration,
-            get_toast_persistent,
             get_filter_notified_only,
             save_filter_notified_only,
             get_mute_state,
@@ -318,7 +304,6 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 app_nap::disable_app_nap();
-                webkit_config::disable_webview_suspension(app.handle());
             }
 
             let db_path = config::db_path();
@@ -382,8 +367,11 @@ pub fn run() {
                 log::info!("Global shortcut disabled (empty string in config)");
             }
 
-            // Initialize toast panel
-            toast::init(app.handle())?;
+            // Initialize native toast panel
+            #[cfg(target_os = "macos")]
+            if let Err(e) = native_toast::init(app.handle()) {
+                log::error!("Failed to init native toast: {}", e);
+            }
 
             // Start DB watcher
             watcher::start(app.handle().clone(), db_path);

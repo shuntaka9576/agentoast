@@ -26,9 +26,23 @@ serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSProcessInfo", "NSString"] }
+objc2-foundation = { version = "0.3", features = [
+    "NSProcessInfo", "NSString",
+    "NSGeometry", "NSTimer",
+    "NSData",
+] }
 objc2-web-kit = { version = "0.3", features = ["WKPreferences", "WKWebView", "WKWebViewConfiguration"] }
-objc2-app-kit = { version = "0.3", features = ["NSRunningApplication", "NSWorkspace"] }
+objc2-app-kit = { version = "0.3", features = [
+    "NSRunningApplication", "NSWorkspace",
+    "NSPanel", "NSWindow", "NSView", "NSVisualEffectView",
+    "NSTextField", "NSColor", "NSFont", "NSScreen",
+    "NSAnimationContext", "NSTrackingArea", "NSEvent",
+    "NSAppearance", "NSImage", "NSImageView",
+] }
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-quartz-core = { version = "0.3", features = ["CALayer"] }
+block2 = "0.6"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
