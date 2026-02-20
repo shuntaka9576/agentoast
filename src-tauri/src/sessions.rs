@@ -436,7 +436,7 @@ fn detect_claude_status(
 }
 
 /// Claude Code spinner characters that appear at the start of running lines.
-const SPINNER_CHARS: &[char] = &['✢', '✽', '✶', '✻', '·'];
+const SPINNER_CHARS: &[char] = &['✢', '✽', '✶', '✳', '✻', '·'];
 
 /// Check pane content for running indicators, prompt patterns, and mode indicators.
 /// Running: spinner+"…" / spinner+"esc to interrupt" / status bar "(running)".
