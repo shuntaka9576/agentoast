@@ -243,8 +243,8 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         .into_iter()
         .map(|rp| {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
-            let (agent_status, agent_modes) = if rp.agent_type.is_some() {
-                let (status, modes) = detect_agent_status(&db_conn, &rp.pane_id);
+            let (agent_status, agent_modes) = if let Some(ref at) = rp.agent_type {
+                let (status, modes) = detect_agent_status(&db_conn, &rp.pane_id, at);
                 (Some(status), modes)
             } else {
                 (None, Vec::new())
@@ -365,7 +365,7 @@ fn build_process_tree() -> ProcessTree {
     ProcessTree { children, commands }
 }
 
-struct PaneContentInfo {
+struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
@@ -376,11 +376,30 @@ struct PaneContentInfo {
 fn detect_agent_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
+    agent_type: &str,
 ) -> (AgentStatus, Vec<String>) {
-    let info = check_pane_content(pane_id);
+    match agent_type {
+        "claude-code" => detect_claude_status(db_conn, pane_id),
+        "codex" => detect_codex_status(db_conn, pane_id),
+        _ => {
+            log::debug!(
+                "detect_agent_status({}): unknown agent_type='{}', defaulting to Running",
+                pane_id,
+                agent_type
+            );
+            (AgentStatus::Running, Vec::new())
+        }
+    }
+}
+
+fn detect_claude_status(
+    db_conn: &Option<db::Connection>,
+    pane_id: &str,
+) -> (AgentStatus, Vec<String>) {
+    let info = check_claude_pane_content(pane_id);
 
     log::debug!(
-        "detect_agent_status({}): spinner={} status_running={} elicitation={} prompt={}",
+        "detect_claude_status({}): spinner={} status_running={} elicitation={} prompt={}",
         pane_id,
         info.has_spinner,
         info.has_status_running,
@@ -429,8 +448,8 @@ const MODE_PATTERNS: &[(&str, &str)] = &[
     ("accept edits on", "accept"),
 ];
 
-fn check_pane_content(pane_id: &str) -> PaneContentInfo {
-    let default = PaneContentInfo {
+fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
+    let default = ClaudePaneContentInfo {
         has_spinner: false,
         has_status_running: false,
         at_prompt: false,
@@ -441,7 +460,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
     let tmux_path = match find_tmux() {
         Some(p) => p,
         None => {
-            log::debug!("check_pane_content: tmux not found");
+            log::debug!("check_claude_pane_content: tmux not found");
             return default;
         }
     };
@@ -453,12 +472,15 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         .ok();
 
     let Some(output) = output else {
-        log::debug!("check_pane_content({}): capture-pane exec failed", pane_id);
+        log::debug!(
+            "check_claude_pane_content({}): capture-pane exec failed",
+            pane_id
+        );
         return default;
     };
     if !output.status.success() {
         log::debug!(
-            "check_pane_content({}): capture-pane exit={} stderr={}",
+            "check_claude_pane_content({}): capture-pane exit={} stderr={}",
             pane_id,
             output.status,
             String::from_utf8_lossy(&output.stderr)
@@ -482,7 +504,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         .collect();
 
     log::debug!(
-        "check_pane_content({}): last lines (bottom→up, first 5): {:?}",
+        "check_claude_pane_content({}): last lines (bottom→up, first 5): {:?}",
         pane_id,
         &last_lines[..last_lines.len().min(5)]
     );
@@ -498,7 +520,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         // Running detection: spinner char + "esc to interrupt" or "…"
         if !has_spinner && is_claude_running_line(trimmed) {
             log::debug!(
-                "check_pane_content({}): running detected (spinner): {:?}",
+                "check_claude_pane_content({}): running detected (spinner): {:?}",
                 pane_id,
                 trimmed
             );
@@ -509,7 +531,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         // e.g., "⏵⏵ bypass permissions on · for dir in auth admin; do… (running)"
         if !has_status_running && trimmed.ends_with("(running)") {
             log::debug!(
-                "check_pane_content({}): status bar running detected: {:?}",
+                "check_claude_pane_content({}): status bar running detected: {:?}",
                 pane_id,
                 trimmed
             );
@@ -519,7 +541,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         // Elicitation dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
         if !has_elicitation && trimmed.starts_with("Enter to select") {
             log::debug!(
-                "check_pane_content({}): elicitation detected: {:?}",
+                "check_claude_pane_content({}): elicitation detected: {:?}",
                 pane_id,
                 trimmed
             );
@@ -530,7 +552,7 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
         for &(pattern, label) in MODE_PATTERNS {
             if !agent_modes.iter().any(|m| m == label) && trimmed.contains(pattern) {
                 log::debug!(
-                    "check_pane_content({}): mode '{}' detected: {:?}",
+                    "check_claude_pane_content({}): mode '{}' detected: {:?}",
                     pane_id,
                     label,
                     trimmed
@@ -544,10 +566,13 @@ fn check_pane_content(pane_id: &str) -> PaneContentInfo {
     // meaningful line is a prompt (❯, $, %, >)
     let at_prompt = is_prompt_line(&all_lines);
     if at_prompt {
-        log::debug!("check_pane_content({}): prompt line detected", pane_id);
+        log::debug!(
+            "check_claude_pane_content({}): prompt line detected",
+            pane_id
+        );
     }
 
-    PaneContentInfo {
+    ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
         at_prompt,
@@ -705,4 +730,171 @@ fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
         }
     }
     None
+}
+
+// ──────────────────────────────────────────────────────────
+// Codex-specific agent status detection
+// ──────────────────────────────────────────────────────────
+
+struct CodexPaneContentInfo {
+    is_running: bool, // "(XXs • esc to interrupt)" pattern
+    at_prompt: bool,  // › (U+203A) prompt character
+}
+
+fn detect_codex_status(
+    db_conn: &Option<db::Connection>,
+    pane_id: &str,
+) -> (AgentStatus, Vec<String>) {
+    let info = check_codex_pane_content(pane_id);
+
+    log::debug!(
+        "detect_codex_status({}): running={} prompt={}",
+        pane_id,
+        info.is_running,
+        info.at_prompt
+    );
+
+    let status = if info.is_running {
+        AgentStatus::Running
+    } else if info.at_prompt {
+        if let Some(conn) = db_conn {
+            if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
+                AgentStatus::Waiting
+            } else {
+                AgentStatus::Idle
+            }
+        } else {
+            AgentStatus::Idle
+        }
+    } else {
+        // No clear signal — default to Running (conservative)
+        AgentStatus::Running
+    };
+
+    // Codex has no mode indicators (plan/bypass/accept)
+    (status, Vec::new())
+}
+
+fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
+    let default = CodexPaneContentInfo {
+        is_running: false,
+        at_prompt: false,
+    };
+
+    let tmux_path = match find_tmux() {
+        Some(p) => p,
+        None => {
+            log::debug!("check_codex_pane_content: tmux not found");
+            return default;
+        }
+    };
+
+    let output = Command::new(&tmux_path)
+        .env_remove("TMPDIR")
+        .args(["capture-pane", "-t", pane_id, "-p"])
+        .output()
+        .ok();
+
+    let Some(output) = output else {
+        log::debug!(
+            "check_codex_pane_content({}): capture-pane exec failed",
+            pane_id
+        );
+        return default;
+    };
+    if !output.status.success() {
+        log::debug!(
+            "check_codex_pane_content({}): capture-pane exit={} stderr={}",
+            pane_id,
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return default;
+    }
+
+    let content = String::from_utf8_lossy(&output.stdout);
+    let all_lines: Vec<&str> = content.lines().collect();
+
+    // Get last 30 non-empty lines for scanning
+    let last_lines: Vec<&str> = all_lines
+        .iter()
+        .rev()
+        .filter(|line| !line.trim().is_empty())
+        .take(30)
+        .copied()
+        .collect();
+
+    log::debug!(
+        "check_codex_pane_content({}): last lines (bottom→up, first 5): {:?}",
+        pane_id,
+        &last_lines[..last_lines.len().min(5)]
+    );
+
+    let mut is_running = false;
+
+    for line in &last_lines {
+        let trimmed = line.trim();
+        if !is_running && is_codex_running_line(trimmed) {
+            log::debug!(
+                "check_codex_pane_content({}): running detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            is_running = true;
+        }
+    }
+
+    let at_prompt = is_codex_prompt_line(&all_lines);
+    if at_prompt {
+        log::debug!(
+            "check_codex_pane_content({}): prompt line detected",
+            pane_id
+        );
+    }
+
+    CodexPaneContentInfo {
+        is_running,
+        at_prompt,
+    }
+}
+
+/// Check if a line indicates Codex is actively running.
+/// Matches the pattern "(XXs • esc to interrupt)" where XX is a duration.
+/// e.g., "• Working (48s • esc to interrupt) · 1 background terminal running"
+fn is_codex_running_line(line: &str) -> bool {
+    line.contains("s \u{2022} esc to interrupt") && line.contains('(')
+}
+
+/// Check if the last meaningful line is a Codex prompt (›), skipping footer lines.
+fn is_codex_prompt_line(lines: &[&str]) -> bool {
+    const MAX_UNKNOWN_LINES: usize = 3;
+    let mut unknown_count = 0;
+
+    for line in lines.iter().rev() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if is_codex_footer_line(trimmed) {
+            continue;
+        }
+        // › (U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK) is the Codex prompt
+        if trimmed.starts_with('\u{203A}') {
+            return true;
+        }
+        unknown_count += 1;
+        if unknown_count >= MAX_UNKNOWN_LINES {
+            return false;
+        }
+    }
+    false
+}
+
+/// Check if a line is a Codex TUI footer element that should be skipped.
+fn is_codex_footer_line(line: &str) -> bool {
+    line.contains("for shortcuts")
+        || line.contains("context left")
+        || line.contains("background terminal running")
+        || line.contains("/ps to view")
+        || line.contains("/clean to close")
 }
