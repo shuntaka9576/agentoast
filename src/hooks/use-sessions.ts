@@ -51,14 +51,6 @@ export function useSessions() {
     };
   }, [refresh]);
 
-  useEffect(() => {
-    const unlisten = listen("notifications:new", () => {
-      void refresh();
-    });
-    return () => {
-      unlisten.then((f) => f()).catch(() => {});
-    };
-  }, [refresh]);
 
   return { groups, loading, error, refresh, fetchVersion };
 }
