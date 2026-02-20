@@ -166,7 +166,7 @@ export function App() {
       });
     }
 
-    // Sort: notifications first (createdAt desc), then by agent status (waiting > idle > running > none), then alphabetically
+    // Sort: notifications first (createdAt desc), then by agent status (waiting > running > idle > none), then alphabetically
     result.sort((a, b) => {
       const aLatestTime = getLatestTime(a);
       const bLatestTime = getLatestTime(b);
@@ -580,8 +580,8 @@ function getGroupAgentPriority(ug: UnifiedGroup): number {
   for (const pi of ug.paneItems) {
     const s = pi.pane.agentStatus;
     if (s === "waiting" && best > 1) best = 1;
-    else if (s === "idle" && best > 2) best = 2;
-    else if (s === "running" && best > 3) best = 3;
+    else if (s === "running" && best > 2) best = 2;
+    else if (s === "idle" && best > 3) best = 3;
   }
   return best;
 }
