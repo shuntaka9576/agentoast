@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.16.0](https://github.com/shuntaka9576/agentoast/compare/v0.15.0...v0.16.0) - 2026-02-20
+- fix: add missing spinner char (U+2733) to SPINNER_CHARS by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/44
+- fix: add missing spinner char (U+2733) to SPINNER_CHARS by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/46
+- feat: detect plan approval dialog as Waiting status with reason labels by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/47
+
 ## [v0.15.0](https://github.com/shuntaka9576/agentoast/compare/v0.14.2...v0.15.0) - 2026-02-20
 - feat: add Codex-specific agent status detection by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/42
 
