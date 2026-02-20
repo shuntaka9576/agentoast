@@ -1,4 +1,6 @@
 #!/usr/bin/env -S deno run --allow-run --allow-env --allow-read
+// NOTE: `agentoast hook codex` is the recommended approach (no Deno dependency).
+// This script is kept as a reference implementation.
 
 interface CodexPayload {
   type: string

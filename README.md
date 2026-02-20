@@ -52,7 +52,7 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ## Usage
 
-Integration samples for each agent are in [`examples/notify/`](examples/notify/). Claude Code uses the built-in CLI subcommand (`agentoast hook claude`). Codex uses a [Deno](https://deno.land/) hook script. opencode uses its plugin system.
+Integration samples for each agent are in [`examples/notify/`](examples/notify/). Claude Code and Codex use built-in CLI subcommands (`agentoast hook claude` / `agentoast hook codex`). opencode uses its plugin system.
 
 ### Claude Code
 
@@ -91,17 +91,15 @@ No Deno dependency required. The CLI reads hook data from stdin and writes direc
 
 ### Codex
 
-Script [`examples/notify/codex.ts`](examples/notify/codex.ts)
-
 `~/.codex/config.toml`
 
 ```toml
 notify = [
-  "/path/to/notify/codex.ts",
+  "agentoast hook codex",
 ]
 ```
 
-Update the path to match where you saved the script.
+No Deno dependency required. The CLI reads hook data from the last command-line argument and writes directly to the notification database. See [`examples/notify/codex.ts`](examples/notify/codex.ts) for a Deno-based alternative.
 
 ### opencode
 
@@ -238,6 +236,18 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Events that auto-focus the terminal (default: none)
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
+
+# Codex hook settings
+[hook.codex]
+# Events that trigger notifications
+# Available: agent-turn-complete
+# events = ["agent-turn-complete"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
+# include_body = true
 ```
 
 ### Keyboard Shortcuts

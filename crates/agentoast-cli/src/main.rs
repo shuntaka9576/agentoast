@@ -78,6 +78,11 @@ enum Commands {
 enum HookAgent {
     /// Handle Claude Code hook events (reads JSON from stdin)
     Claude,
+    /// Handle Codex hook events (reads JSON from last CLI argument)
+    Codex {
+        /// JSON payload (passed as the last argument by Codex)
+        json: String,
+    },
 }
 
 #[derive(Deserialize)]
@@ -86,6 +91,15 @@ struct ClaudeHookData {
     cwd: Option<String>,
     notification_type: Option<String>,
     message: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CodexHookData {
+    #[serde(rename = "type")]
+    event_type: String,
+    cwd: Option<String>,
+    #[serde(rename = "last-assistant-message")]
+    last_assistant_message: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -242,6 +256,103 @@ fn run_claude_hook() -> Result<(), String> {
     Ok(())
 }
 
+const CODEX_BODY_MAX_LEN: usize = 200;
+
+fn truncate_body(msg: &str) -> String {
+    if msg.len() <= CODEX_BODY_MAX_LEN {
+        return msg.to_string();
+    }
+    let truncate_at = msg
+        .char_indices()
+        .take_while(|(i, _)| *i <= CODEX_BODY_MAX_LEN)
+        .last()
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    let mut truncated = msg[..truncate_at].to_string();
+    truncated.push_str("...");
+    truncated
+}
+
+fn run_codex_hook(json_arg: &str) -> Result<(), String> {
+    let data: CodexHookData =
+        serde_json::from_str(json_arg).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    let hook_config = config::load_config().hook.codex;
+
+    if !hook_config.events.iter().any(|e| e == &data.event_type) {
+        return Ok(());
+    }
+
+    let badge = "Stop";
+    let badge_color = "green";
+    let body = if hook_config.include_body {
+        data.last_assistant_message
+            .as_deref()
+            .map(truncate_body)
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    let force_focus = hook_config
+        .focus_events
+        .iter()
+        .any(|e| e == &data.event_type);
+
+    let mut metadata = HashMap::new();
+
+    let repo_name;
+    if let Some(ref cwd_str) = data.cwd {
+        let cwd = Path::new(cwd_str);
+        let git_info = get_git_info(cwd);
+        repo_name = git_info.repo_name;
+        if !git_info.branch_name.is_empty() {
+            metadata.insert("branch".to_string(), git_info.branch_name);
+        }
+    } else {
+        repo_name = String::new();
+    }
+
+    let tmux_pane = std::env::var("TMUX_PANE").unwrap_or_default();
+    let terminal_bundle_id = std::env::var("__CFBundleIdentifier").unwrap_or_default();
+
+    let db_path = config::db_path();
+    let conn = db::open_reader(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+
+    db::insert_notification(
+        &conn,
+        badge,
+        &body,
+        badge_color,
+        &IconType::Codex,
+        &metadata,
+        &repo_name,
+        &tmux_pane,
+        &terminal_bundle_id,
+        force_focus,
+    )
+    .map_err(|e| format!("Failed to insert notification: {}", e))?;
+
+    Ok(())
+}
+
+fn handle_codex_hook(json: &str) {
+    let result = match run_codex_hook(json) {
+        Ok(()) => HookResult {
+            success: true,
+            error: None,
+        },
+        Err(e) => HookResult {
+            success: false,
+            error: Some(e),
+        },
+    };
+
+    println!(
+        "{}",
+        serde_json::to_string(&result).unwrap_or_else(|_| r#"{"success":false}"#.to_string())
+    );
+}
+
 fn handle_claude_hook() {
     let result = match run_claude_hook() {
         Ok(()) => HookResult {
@@ -345,6 +456,7 @@ fn main() {
         }
         Commands::Hook { agent } => match agent {
             HookAgent::Claude => handle_claude_hook(),
+            HookAgent::Codex { json } => handle_codex_hook(&json),
         },
         Commands::Config => {
             let config_path = config::ensure_config_file().unwrap_or_else(|e| {
