@@ -67,6 +67,7 @@ rm -rf /Applications/Agentoast.app
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u target/release/bundle/macos/Agentoast.app 2>/dev/null || true
 rm -rf target/release/bundle/macos/Agentoast.app
 brew uninstall --cask agentoast 2>/dev/null || true
+brew uninstall agentoast-cli 2>/dev/null || true
 cargo uninstall agentoast-cli 2>/dev/null || true
 rm -rf ~/.config/agentoast
 rm -rf ~/.local/share/agentoast
