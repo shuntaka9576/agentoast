@@ -472,7 +472,10 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         .ok();
 
     let Some(output) = output else {
-        log::debug!("check_claude_pane_content({}): capture-pane exec failed", pane_id);
+        log::debug!(
+            "check_claude_pane_content({}): capture-pane exec failed",
+            pane_id
+        );
         return default;
     };
     if !output.status.success() {
@@ -563,7 +566,10 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
     // meaningful line is a prompt (❯, $, %, >)
     let at_prompt = is_prompt_line(&all_lines);
     if at_prompt {
-        log::debug!("check_claude_pane_content({}): prompt line detected", pane_id);
+        log::debug!(
+            "check_claude_pane_content({}): prompt line detected",
+            pane_id
+        );
     }
 
     ClaudePaneContentInfo {
