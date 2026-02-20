@@ -370,8 +370,8 @@ struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
-    has_elicitation: bool,       // "Enter to select" navigation hint (selection dialog)
-    has_selection_dialog: bool,  // 2+ numbered options detected (plan approval etc.)
+    has_elicitation: bool, // "Enter to select" navigation hint (selection dialog)
+    has_selection_dialog: bool, // 2+ numbered options detected (plan approval etc.)
     agent_modes: Vec<String>,
 }
 
