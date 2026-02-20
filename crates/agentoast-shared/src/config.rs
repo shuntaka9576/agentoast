@@ -110,6 +110,8 @@ fn default_toggle_panel() -> String {
 pub struct HookConfig {
     #[serde(default)]
     pub claude: ClaudeHookConfig,
+    #[serde(default)]
+    pub codex: CodexHookConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -127,6 +129,34 @@ impl Default for ClaudeHookConfig {
             focus_events: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CodexHookConfig {
+    #[serde(default = "default_codex_events")]
+    pub events: Vec<String>,
+    #[serde(default)]
+    pub focus_events: Vec<String>,
+    #[serde(default = "default_true")]
+    pub include_body: bool,
+}
+
+impl Default for CodexHookConfig {
+    fn default() -> Self {
+        Self {
+            events: default_codex_events(),
+            focus_events: Vec::new(),
+            include_body: true,
+        }
+    }
+}
+
+fn default_codex_events() -> Vec<String> {
+    vec!["agent-turn-complete".to_string()]
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_claude_events() -> Vec<String> {
@@ -215,6 +245,18 @@ fn default_config_template() -> &'static str {
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
 
+# Codex hook settings
+[hook.codex]
+# Events that trigger notifications
+# Available: agent-turn-complete
+# events = ["agent-turn-complete"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
+# include_body = true
+
 "#
 }
 
@@ -273,6 +315,38 @@ focus_events = ["Stop", "permission_prompt"]
         );
         // Events should still have defaults (4 without idle_prompt)
         assert_eq!(config.hook.claude.events.len(), 4);
+    }
+
+    #[test]
+    fn default_codex_hook_config() {
+        let config = CodexHookConfig::default();
+        assert_eq!(config.events, vec!["agent-turn-complete"]);
+        assert!(config.focus_events.is_empty());
+        assert!(config.include_body);
+    }
+
+    #[test]
+    fn parse_codex_events() {
+        let toml_str = r#"
+[hook.codex]
+events = ["agent-turn-complete"]
+focus_events = ["agent-turn-complete"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.hook.codex.events, vec!["agent-turn-complete"]);
+        assert_eq!(config.hook.codex.focus_events, vec!["agent-turn-complete"]);
+        assert!(config.hook.codex.include_body);
+    }
+
+    #[test]
+    fn parse_codex_include_body_false() {
+        let toml_str = r#"
+[hook.codex]
+include_body = false
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(!config.hook.codex.include_body);
+        assert_eq!(config.hook.codex.events, vec!["agent-turn-complete"]);
     }
 
     #[test]
