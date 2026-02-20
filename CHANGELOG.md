@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.17.0](https://github.com/shuntaka9576/agentoast/compare/v0.16.0...v0.17.0) - 2026-02-20
+- feat: add built-in `agentoast hook codex` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/49
+- fix: change agent status sort priority to waiting > running > idle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/50
+
 ## [v0.16.0](https://github.com/shuntaka9576/agentoast/compare/v0.15.0...v0.16.0) - 2026-02-20
 - fix: add missing spinner char (U+2733) to SPINNER_CHARS by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/44
 - fix: add missing spinner char (U+2733) to SPINNER_CHARS by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/46
