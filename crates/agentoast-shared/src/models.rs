@@ -78,6 +78,7 @@ pub struct TmuxPane {
     pub is_active: bool,
     pub agent_type: Option<String>,
     pub agent_status: Option<AgentStatus>,
+    pub waiting_reason: Option<String>,
     pub agent_modes: Vec<String>,
     pub git_repo_root: Option<String>,
     pub git_branch: Option<String>,
