@@ -420,9 +420,12 @@ fn detect_claude_status(
         // Checked before at_prompt because elicitation option description text
         // (indented continuation lines) causes is_prompt_line() to return false.
         (AgentStatus::Waiting, Some("ask".to_string()))
-    } else if info.has_selection_dialog {
+    } else if info.has_selection_dialog && !info.at_prompt {
         // Selection dialog without "Enter to select" (e.g., plan approval).
         // Detected via ❯ N. selection cursor + 2+ numbered options.
+        // Only valid when no prompt is detected — if at_prompt is true, the user
+        // has already completed the selection and the dialog text is just stale
+        // content still visible on screen.
         (AgentStatus::Waiting, Some("approve".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
