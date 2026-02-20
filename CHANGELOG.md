@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.15.0](https://github.com/shuntaka9576/agentoast/compare/v0.14.2...v0.15.0) - 2026-02-20
+- feat: add Codex-specific agent status detection by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/42
+
 ## [v0.14.2](https://github.com/shuntaka9576/agentoast/compare/v0.14.1...v0.14.2) - 2026-02-19
 - fix: change filter_notified_only default to false by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/40
 
