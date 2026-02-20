@@ -166,7 +166,7 @@ export function App() {
       });
     }
 
-    // Sort: groups with notifications first (by latest createdAt desc), then no-notification groups alphabetically
+    // Sort: notifications first (createdAt desc), then by agent status (waiting > idle > running > none), then alphabetically
     result.sort((a, b) => {
       const aLatestTime = getLatestTime(a);
       const bLatestTime = getLatestTime(b);
@@ -175,6 +175,11 @@ export function App() {
       }
       if (aLatestTime && !bLatestTime) return -1;
       if (!aLatestTime && bLatestTime) return 1;
+
+      const aPriority = getGroupAgentPriority(a);
+      const bPriority = getGroupAgentPriority(b);
+      if (aPriority !== bPriority) return aPriority - bPriority;
+
       return a.repoName.localeCompare(b.repoName);
     });
 
@@ -568,4 +573,15 @@ function getLatestTime(ug: UnifiedGroup): string | null {
     }
   }
   return latest;
+}
+
+function getGroupAgentPriority(ug: UnifiedGroup): number {
+  let best = 4;
+  for (const pi of ug.paneItems) {
+    const s = pi.pane.agentStatus;
+    if (s === "waiting" && best > 1) best = 1;
+    else if (s === "idle" && best > 2) best = 2;
+    else if (s === "running" && best > 3) best = 3;
+  }
+  return best;
 }
