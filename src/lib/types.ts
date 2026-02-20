@@ -30,6 +30,7 @@ export interface TmuxPane {
   isActive: boolean;
   agentType: Icon | null;
   agentStatus: AgentStatus | null;
+  waitingReason: string | null;
   agentModes: string[];
   gitRepoRoot: string | null;
   gitBranch: string | null;

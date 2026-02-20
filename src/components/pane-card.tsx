@@ -33,8 +33,10 @@ function statusTooltip(pane: TmuxPane): string {
       return `${agent}: running${modeStr}`;
     case "idle":
       return `${agent}: idle${modeStr}`;
-    case "waiting":
-      return `${agent}: waiting for input${modeStr}`;
+    case "waiting": {
+      const reasonStr = pane.waitingReason ? ` (${pane.waitingReason})` : "";
+      return `${agent}: waiting for input${reasonStr}${modeStr}`;
+    }
     default:
       return agent;
   }
@@ -113,8 +115,13 @@ export function PaneCard({
           {/* Line 1: Running status + notification badge + session info + time */}
           <div className="flex items-center gap-1.5">
             {pane.agentType && (
-              <span className="flex-shrink-0" title={statusTooltip(pane)}>
+              <span className="flex-shrink-0 flex items-center gap-1" title={statusTooltip(pane)}>
                 <Circle size={7} className={statusDotClass(pane.agentStatus)} />
+                {pane.waitingReason && (
+                  <span className="text-[10px] text-amber-500 font-medium">
+                    {pane.waitingReason}
+                  </span>
+                )}
               </span>
             )}
             {pane.agentModes.map((mode) => (

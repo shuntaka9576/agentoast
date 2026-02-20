@@ -143,6 +143,7 @@ export function App() {
           isActive: false,
           agentType: null,
           agentStatus: null,
+          waitingReason: null,
           agentModes: [],
           gitRepoRoot: null,
           gitBranch: null,

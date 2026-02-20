@@ -243,11 +243,11 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         .into_iter()
         .map(|rp| {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
-            let (agent_status, agent_modes) = if let Some(ref at) = rp.agent_type {
-                let (status, modes) = detect_agent_status(&db_conn, &rp.pane_id, at);
-                (Some(status), modes)
+            let (agent_status, waiting_reason, agent_modes) = if let Some(ref at) = rp.agent_type {
+                let (status, reason, modes) = detect_agent_status(&db_conn, &rp.pane_id, at);
+                (Some(status), reason, modes)
             } else {
-                (None, Vec::new())
+                (None, None, Vec::new())
             };
             TmuxPane {
                 pane_id: rp.pane_id,
@@ -258,6 +258,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
                 is_active: rp.is_active,
                 agent_type: rp.agent_type,
                 agent_status,
+                waiting_reason,
                 agent_modes,
                 git_repo_root: git_info.map(|g| g.repo_root.clone()),
                 git_branch: git_info.and_then(|g| g.branch.clone()),
@@ -370,6 +371,7 @@ struct ClaudePaneContentInfo {
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
     has_elicitation: bool, // "Enter to select" navigation hint (selection dialog)
+    has_selection_dialog: bool, // 2+ numbered options detected (plan approval etc.)
     agent_modes: Vec<String>,
 }
 
@@ -377,7 +379,7 @@ fn detect_agent_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     agent_type: &str,
-) -> (AgentStatus, Vec<String>) {
+) -> (AgentStatus, Option<String>, Vec<String>) {
     match agent_type {
         "claude-code" => detect_claude_status(db_conn, pane_id),
         "codex" => detect_codex_status(db_conn, pane_id),
@@ -387,7 +389,7 @@ fn detect_agent_status(
                 pane_id,
                 agent_type
             );
-            (AgentStatus::Running, Vec::new())
+            (AgentStatus::Running, None, Vec::new())
         }
     }
 }
@@ -395,44 +397,49 @@ fn detect_agent_status(
 fn detect_claude_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
-) -> (AgentStatus, Vec<String>) {
+) -> (AgentStatus, Option<String>, Vec<String>) {
     let info = check_claude_pane_content(pane_id);
 
     log::debug!(
-        "detect_claude_status({}): spinner={} status_running={} elicitation={} prompt={}",
+        "detect_claude_status({}): spinner={} status_running={} elicitation={} selection_dialog={} prompt={}",
         pane_id,
         info.has_spinner,
         info.has_status_running,
         info.has_elicitation,
+        info.has_selection_dialog,
         info.at_prompt
     );
 
     // Spinners are real-time signals and take highest priority.
     // Status bar "(running)" may be stale (e.g., plan mode waiting with old
     // status bar text), so it does NOT override at_prompt.
-    let status = if info.has_spinner {
-        AgentStatus::Running
+    let (status, waiting_reason) = if info.has_spinner {
+        (AgentStatus::Running, None)
     } else if info.has_elicitation {
         // Elicitation dialog ("Enter to select" detected) — always Waiting.
         // Checked before at_prompt because elicitation option description text
         // (indented continuation lines) causes is_prompt_line() to return false.
-        AgentStatus::Waiting
+        (AgentStatus::Waiting, Some("ask".to_string()))
+    } else if info.has_selection_dialog {
+        // Selection dialog without "Enter to select" (e.g., plan approval).
+        // Detected via ❯ N. selection cursor + 2+ numbered options.
+        (AgentStatus::Waiting, Some("approve".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
-                AgentStatus::Waiting
+                (AgentStatus::Waiting, None)
             } else {
-                AgentStatus::Idle
+                (AgentStatus::Idle, None)
             }
         } else {
-            AgentStatus::Idle
+            (AgentStatus::Idle, None)
         }
     } else {
         // has_status_running or no signal — default to Running
-        AgentStatus::Running
+        (AgentStatus::Running, None)
     };
 
-    (status, info.agent_modes)
+    (status, waiting_reason, info.agent_modes)
 }
 
 /// Claude Code spinner characters that appear at the start of running lines.
@@ -454,6 +461,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_status_running: false,
         at_prompt: false,
         has_elicitation: false,
+        has_selection_dialog: false,
         agent_modes: Vec::new(),
     };
 
@@ -512,6 +520,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
     let mut has_spinner = false;
     let mut has_status_running = false;
     let mut has_elicitation = false;
+    let mut has_selection_cursor = false;
+    let mut numbered_option_count: usize = 0;
     let mut agent_modes: Vec<String> = Vec::new();
 
     for line in &last_lines {
@@ -548,6 +558,16 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
             has_elicitation = true;
         }
 
+        // Count numbered options and selection cursors for selection dialog detection.
+        // Selection cursor (❯ N. ) is the key discriminator — without it, numbered
+        // lines are just markdown content, not a selection dialog.
+        if is_selection_cursor(trimmed) {
+            has_selection_cursor = true;
+            numbered_option_count += 1;
+        } else if is_numbered_option(trimmed) {
+            numbered_option_count += 1;
+        }
+
         // Agent mode detection: plan, bypass, accept
         for &(pattern, label) in MODE_PATTERNS {
             if !agent_modes.iter().any(|m| m == label) && trimmed.contains(pattern) {
@@ -560,6 +580,17 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
                 agent_modes.push(label.to_string());
             }
         }
+    }
+
+    // Selection dialog: requires ❯ N. selection cursor AND 2+ total numbered option lines.
+    // Without the selection cursor, numbered lines are just markdown content (e.g., "1. PR特定").
+    let has_selection_dialog = has_selection_cursor && numbered_option_count >= 2;
+    if has_selection_dialog {
+        log::debug!(
+            "check_claude_pane_content({}): selection dialog detected ({} numbered options)",
+            pane_id,
+            numbered_option_count
+        );
     }
 
     // Idle detection: walk from bottom, skip TUI footer, check if first
@@ -577,6 +608,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_status_running,
         at_prompt,
         has_elicitation,
+        has_selection_dialog,
         agent_modes,
     }
 }
@@ -654,6 +686,10 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         }
         // Meaningful line: strip box border (│ ... │) then check prompt
         let check = strip_box_border(trimmed);
+        // ❯ followed by "N. " is a selection cursor (plan approval etc.), not a prompt
+        if check.starts_with('❯') && is_selection_cursor(check) {
+            continue;
+        }
         if check.starts_with('❯')         // starship / Claude Code prompt
             || check.ends_with("$ ")       // bash
             || check == "$"
@@ -695,6 +731,25 @@ fn is_numbered_option(line: &str) -> bool {
     let mut chars = trimmed.chars();
     match chars.next() {
         Some(c) if c.is_ascii_digit() => chars.as_str().starts_with(". "),
+        _ => false,
+    }
+}
+
+/// Check if a ❯-prefixed line is a selection cursor on a numbered option.
+/// "❯ 1. Yes, clear context" → true (selection cursor in plan approval dialog)
+/// "❯ ls -la" → false (user typing at prompt)
+/// "❯" → false (empty prompt)
+fn is_selection_cursor(line: &str) -> bool {
+    let trimmed = line.trim();
+    let rest = trimmed.trim_start_matches('❯').trim_start();
+    let mut chars = rest.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_digit() => {
+            let after_digits = chars
+                .as_str()
+                .trim_start_matches(|c: char| c.is_ascii_digit());
+            after_digits.starts_with(". ")
+        }
         _ => false,
     }
 }
@@ -744,7 +799,7 @@ struct CodexPaneContentInfo {
 fn detect_codex_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
-) -> (AgentStatus, Vec<String>) {
+) -> (AgentStatus, Option<String>, Vec<String>) {
     let info = check_codex_pane_content(pane_id);
 
     log::debug!(
@@ -754,25 +809,25 @@ fn detect_codex_status(
         info.at_prompt
     );
 
-    let status = if info.is_running {
-        AgentStatus::Running
+    let (status, waiting_reason) = if info.is_running {
+        (AgentStatus::Running, None)
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
-                AgentStatus::Waiting
+                (AgentStatus::Waiting, None)
             } else {
-                AgentStatus::Idle
+                (AgentStatus::Idle, None)
             }
         } else {
-            AgentStatus::Idle
+            (AgentStatus::Idle, None)
         }
     } else {
         // No clear signal — default to Running (conservative)
-        AgentStatus::Running
+        (AgentStatus::Running, None)
     };
 
     // Codex has no mode indicators (plan/bypass/accept)
-    (status, Vec::new())
+    (status, waiting_reason, Vec::new())
 }
 
 fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
