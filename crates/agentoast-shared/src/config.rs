@@ -333,14 +333,8 @@ events = ["agent-turn-complete"]
 focus_events = ["agent-turn-complete"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(
-            config.hook.codex.events,
-            vec!["agent-turn-complete"]
-        );
-        assert_eq!(
-            config.hook.codex.focus_events,
-            vec!["agent-turn-complete"]
-        );
+        assert_eq!(config.hook.codex.events, vec!["agent-turn-complete"]);
+        assert_eq!(config.hook.codex.focus_events, vec!["agent-turn-complete"]);
         assert!(config.hook.codex.include_body);
     }
 
