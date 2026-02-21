@@ -7,6 +7,34 @@ inputs:
   homebrew_tap_token:
     description: "PAT for homebrew-tap repository"
     required: true
+  tauri_signing_private_key:
+    description: "Tauri updater signing private key"
+    required: true
+  tauri_signing_private_key_password:
+    description: "Tauri updater signing private key password"
+    required: false
+    default: ""
+  apple_certificate:
+    description: "Apple Developer ID certificate (base64)"
+    required: true
+  apple_certificate_password:
+    description: "Apple certificate password"
+    required: true
+  apple_signing_identity:
+    description: "Apple signing identity"
+    required: true
+  apple_id:
+    description: "Apple ID for notarization"
+    required: true
+  apple_password:
+    description: "Apple app-specific password"
+    required: true
+  apple_team_id:
+    description: "Apple Developer Team ID"
+    required: true
+  keychain_password:
+    description: "CI keychain password"
+    required: true
 
 runs:
   using: composite
@@ -19,10 +47,47 @@ runs:
   - name: "Install frontend dependencies"
     shell: bash
     run: bun install
-  - name: "Build Tauri app"
+  - name: "Import Apple Developer Certificate"
     shell: bash
-    run: bun run tauri build
-  - name: "Upload DMG and update Cask"
+    env:
+      APPLE_CERTIFICATE: ${{ inputs.apple_certificate }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ inputs.apple_certificate_password }}
+      KEYCHAIN_PASSWORD: ${{ inputs.keychain_password }}
+    run: |
+      echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+      security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      security default-keychain -s build.keychain
+      security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      security set-keychain-settings -t 3600 -u build.keychain
+      security import certificate.p12 -k build.keychain \
+        -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+      security set-key-partition-list -S apple-tool:,apple:,codesign: \
+        -s -k "$KEYCHAIN_PASSWORD" build.keychain
+      rm certificate.p12
+  - name: "Build and release with tauri-action"
+    uses: tauri-apps/tauri-action@v0
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.tauri_signing_private_key }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.tauri_signing_private_key_password }}
+      APPLE_SIGNING_IDENTITY: ${{ inputs.apple_signing_identity }}
+      APPLE_ID: ${{ inputs.apple_id }}
+      APPLE_PASSWORD: ${{ inputs.apple_password }}
+      APPLE_TEAM_ID: ${{ inputs.apple_team_id }}
+    with:
+      tagName: ${{ inputs.tag }}
+      releaseDraft: true
+      includeUpdaterJson: true
+  - name: "Verify updater assets"
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    run: |
+      TAG="${{ inputs.tag }}"
+      ASSETS=$(gh release view "${TAG}" --json assets --jq '.assets[].name')
+      printf '%s\n' "$ASSETS" | grep -Fxq 'latest.json' || { echo "ERROR: Missing latest.json"; exit 1; }
+      printf '%s\n' "$ASSETS" | grep -Eq '\.sig$' || { echo "ERROR: Missing .sig file"; exit 1; }
+  - name: "Update Homebrew Cask"
     shell: bash
     env:
       GITHUB_TOKEN: ${{ github.token }}
@@ -31,15 +96,10 @@ runs:
       TAG="${{ inputs.tag }}"
       VERSION="${TAG#v}"
       DMG_NAME="Agentoast_${VERSION}_aarch64.dmg"
-      DMG_PATH="target/release/bundle/dmg/${DMG_NAME}"
 
-      echo "Publishing Agentoast app ${TAG}..."
-
-      # Upload DMG to GitHub Release
-      gh release upload "${TAG}" "${DMG_PATH}" --clobber
-
-      # Update Cask via GitHub Contents API (use GH_PAT for cross-repo access)
-      SHA256=$(shasum -a 256 "${DMG_PATH}" | awk '{print $1}')
+      # Download DMG from release to compute SHA256
+      gh release download "${TAG}" --pattern "${DMG_NAME}" --dir /tmp
+      SHA256=$(shasum -a 256 "/tmp/${DMG_NAME}" | awk '{print $1}')
       DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${DMG_NAME}"
 
       CASK_CONTENT=$(cat <<CASK_EOF
@@ -52,6 +112,7 @@ runs:
         desc "macOS menu bar notification app for AI coding agents"
         homepage "https://github.com/${{ github.repository }}"
 
+        auto_updates true
         app "Agentoast.app"
 
         zap trash: [
