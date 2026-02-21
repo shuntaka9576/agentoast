@@ -231,6 +231,12 @@ fn save_filter_notified_only(
 }
 
 #[tauri::command]
+fn get_update_enabled(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.update.enabled)
+}
+
+#[tauri::command]
 fn delete_all_notifications(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
@@ -278,6 +284,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             init_panel,
             hide_panel,
@@ -291,6 +298,7 @@ pub fn run() {
             delete_notifications_by_pane,
             delete_notifications_by_panes,
             delete_all_notifications,
+            get_update_enabled,
             get_filter_notified_only,
             save_filter_notified_only,
             get_mute_state,
@@ -366,6 +374,10 @@ pub fn run() {
             } else {
                 log::info!("Global shortcut disabled (empty string in config)");
             }
+
+            // Register updater plugin
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
 
             // Initialize native toast panel
             #[cfg(target_os = "macos")]
