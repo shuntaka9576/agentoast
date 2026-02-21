@@ -521,8 +521,8 @@ export function App() {
           onToggleGlobalMute={() => void toggleGlobalMute()}
           appVersion={appVersion}
           updateStatus={updateStatus}
-          onUpdateInstall={() => void triggerInstall()}
-          onUpdateCheck={() => void checkForUpdates()}
+          onUpdateInstall={triggerInstall}
+          onUpdateCheck={checkForUpdates}
         />
 
         <div className="relative flex-1 min-h-0">

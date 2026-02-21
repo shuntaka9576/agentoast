@@ -25,6 +25,10 @@ interface UseAppUpdateReturn {
   checkForUpdates: () => void;
 }
 
+function wrapAsync(fn: () => Promise<void>): () => void {
+  return () => { fn().catch(console.error); };
+}
+
 function useAppUpdateMock(): UseAppUpdateReturn {
   const [mockIndex, setMockIndex] = useState(0);
   const updateStatus = MOCK_STATES[mockIndex];
@@ -172,7 +176,11 @@ function useAppUpdateReal(): UseAppUpdateReturn {
     }
   }, [setStatus]);
 
-  return { updateStatus, triggerInstall, checkForUpdates };
+  return {
+    updateStatus,
+    triggerInstall: wrapAsync(triggerInstall),
+    checkForUpdates: wrapAsync(checkForUpdates),
+  };
 }
 
 export function useAppUpdate(): UseAppUpdateReturn {
