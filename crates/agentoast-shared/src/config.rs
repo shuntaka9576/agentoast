@@ -44,6 +44,8 @@ pub struct AppConfig {
     pub shortcut: ShortcutConfig,
     #[serde(default)]
     pub hook: HookConfig,
+    #[serde(default)]
+    pub update: UpdateConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -159,6 +161,18 @@ fn default_true() -> bool {
     true
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for UpdateConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
 fn default_claude_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
@@ -256,6 +270,11 @@ fn default_config_template() -> &'static str {
 
 # Include last-assistant-message as notification body (default: true, truncated to 200 chars)
 # include_body = true
+
+# Auto-update settings
+[update]
+# Enable auto-update check (default: true)
+# enabled = true
 
 "#
 }
