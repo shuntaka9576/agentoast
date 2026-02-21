@@ -154,7 +154,8 @@ export function App() {
 
     const result = Array.from(map.values());
 
-    // Sort panes within each group: notified panes first (latest notification on top)
+    // Sort panes within each group: notified panes first (latest notification on top),
+    // then by agent status priority (waiting > running > idle > none)
     for (const ug of result) {
       ug.paneItems.sort((a, b) => {
         if (a.notification && b.notification) {
@@ -162,6 +163,11 @@ export function App() {
         }
         if (a.notification && !b.notification) return -1;
         if (!a.notification && b.notification) return 1;
+
+        const aPri = getPaneAgentPriority(a);
+        const bPri = getPaneAgentPriority(b);
+        if (aPri !== bPri) return aPri - bPri;
+
         return 0;
       });
     }
@@ -573,6 +579,14 @@ function getLatestTime(ug: UnifiedGroup): string | null {
     }
   }
   return latest;
+}
+
+function getPaneAgentPriority(pi: PaneItem): number {
+  const s = pi.pane.agentStatus;
+  if (s === "waiting") return 1;
+  if (s === "running") return 2;
+  if (s === "idle") return 3;
+  return 4;
 }
 
 function getGroupAgentPriority(ug: UnifiedGroup): number {
