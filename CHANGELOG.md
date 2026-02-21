@@ -1,8 +1,5 @@
 # Changelog
 
-## [v0.17.1](https://github.com/shuntaka9576/agentoast/compare/v0.17.0...v0.17.1) - 2026-02-21
-- feat: add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/51
-
 ## [v0.17.0](https://github.com/shuntaka9576/agentoast/compare/v0.16.0...v0.17.0) - 2026-02-20
 - feat: add built-in `agentoast hook codex` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/49
 - fix: change agent status sort priority to waiting > running > idle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/50
