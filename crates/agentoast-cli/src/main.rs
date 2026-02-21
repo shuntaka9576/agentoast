@@ -83,6 +83,11 @@ enum HookAgent {
         /// JSON payload (passed as the last argument by Codex)
         json: String,
     },
+    /// Handle OpenCode hook events (reads JSON from CLI argument)
+    Opencode {
+        /// JSON payload containing event type, properties, and directory
+        json: String,
+    },
 }
 
 #[derive(Deserialize)]
@@ -100,6 +105,15 @@ struct CodexHookData {
     cwd: Option<String>,
     #[serde(rename = "last-assistant-message")]
     last_assistant_message: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct OpenCodeHookData {
+    #[serde(rename = "type")]
+    event_type: String,
+    #[serde(default)]
+    properties: serde_json::Value,
+    directory: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -353,6 +367,96 @@ fn handle_codex_hook(json: &str) {
     );
 }
 
+fn run_opencode_hook(json_arg: &str) -> Result<(), String> {
+    let data: OpenCodeHookData =
+        serde_json::from_str(json_arg).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    let hook_config = config::load_config().hook.opencode;
+
+    if !hook_config.events.iter().any(|e| e == &data.event_type) {
+        return Ok(());
+    }
+
+    // For session.status, only notify on idle sub-type
+    if data.event_type == "session.status" {
+        let is_idle = data
+            .properties
+            .get("status")
+            .and_then(|s| s.get("type"))
+            .and_then(|t| t.as_str())
+            == Some("idle");
+        if !is_idle {
+            return Ok(());
+        }
+    }
+
+    let (badge, badge_color) = match data.event_type.as_str() {
+        "session.status" => ("Stop", "green"),
+        "session.error" => ("Error", "red"),
+        "permission.asked" => ("Permission", "blue"),
+        _ => ("Notification", "gray"),
+    };
+
+    let force_focus = hook_config
+        .focus_events
+        .iter()
+        .any(|e| e == &data.event_type);
+
+    let mut metadata = HashMap::new();
+
+    let repo_name;
+    if let Some(ref dir) = data.directory {
+        let cwd = Path::new(dir);
+        let git_info = get_git_info(cwd);
+        repo_name = git_info.repo_name;
+        if !git_info.branch_name.is_empty() {
+            metadata.insert("branch".to_string(), git_info.branch_name);
+        }
+    } else {
+        repo_name = String::new();
+    }
+
+    let tmux_pane = std::env::var("TMUX_PANE").unwrap_or_default();
+    let terminal_bundle_id = std::env::var("__CFBundleIdentifier").unwrap_or_default();
+
+    let db_path = config::db_path();
+    let conn = db::open_reader(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
+
+    db::insert_notification(
+        &conn,
+        badge,
+        "",
+        badge_color,
+        &IconType::OpenCode,
+        &metadata,
+        &repo_name,
+        &tmux_pane,
+        &terminal_bundle_id,
+        force_focus,
+    )
+    .map_err(|e| format!("Failed to insert notification: {}", e))?;
+
+    Ok(())
+}
+
+fn handle_opencode_hook(json: &str) {
+    let result = match run_opencode_hook(json) {
+        Ok(()) => HookResult {
+            success: true,
+            error: None,
+        },
+        Err(e) => HookResult {
+            success: false,
+            error: Some(e),
+        },
+    };
+
+    println!(
+        "{}",
+        serde_json::to_string(&result).unwrap_or_else(|_| r#"{"success":false}"#.to_string())
+    );
+}
+
 fn handle_claude_hook() {
     let result = match run_claude_hook() {
         Ok(()) => HookResult {
@@ -457,6 +561,7 @@ fn main() {
         Commands::Hook { agent } => match agent {
             HookAgent::Claude => handle_claude_hook(),
             HookAgent::Codex { json } => handle_codex_hook(&json),
+            HookAgent::Opencode { json } => handle_opencode_hook(&json),
         },
         Commands::Config => {
             let config_path = config::ensure_config_file().unwrap_or_else(|e| {

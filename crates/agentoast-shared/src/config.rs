@@ -114,6 +114,8 @@ pub struct HookConfig {
     pub claude: ClaudeHookConfig,
     #[serde(default)]
     pub codex: CodexHookConfig,
+    #[serde(default)]
+    pub opencode: OpenCodeHookConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -155,6 +157,31 @@ impl Default for CodexHookConfig {
 
 fn default_codex_events() -> Vec<String> {
     vec!["agent-turn-complete".to_string()]
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenCodeHookConfig {
+    #[serde(default = "default_opencode_events")]
+    pub events: Vec<String>,
+    #[serde(default)]
+    pub focus_events: Vec<String>,
+}
+
+impl Default for OpenCodeHookConfig {
+    fn default() -> Self {
+        Self {
+            events: default_opencode_events(),
+            focus_events: Vec::new(),
+        }
+    }
+}
+
+fn default_opencode_events() -> Vec<String> {
+    vec![
+        "session.status".to_string(),
+        "session.error".to_string(),
+        "permission.asked".to_string(),
+    ]
 }
 
 fn default_true() -> bool {
@@ -271,6 +298,15 @@ fn default_config_template() -> &'static str {
 # Include last-assistant-message as notification body (default: true, truncated to 200 chars)
 # include_body = true
 
+# OpenCode hook settings
+[hook.opencode]
+# Events that trigger notifications
+# Available: session.status (idle only), session.error, permission.asked
+# events = ["session.status", "session.error", "permission.asked"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
 # Auto-update settings
 [update]
 # Enable auto-update check (default: true)
@@ -369,6 +405,41 @@ include_body = false
     }
 
     #[test]
+    fn default_opencode_hook_config() {
+        let config = OpenCodeHookConfig::default();
+        assert_eq!(
+            config.events,
+            vec!["session.status", "session.error", "permission.asked"]
+        );
+        assert!(config.focus_events.is_empty());
+    }
+
+    #[test]
+    fn parse_opencode_events() {
+        let toml_str = r#"
+[hook.opencode]
+events = ["session.status"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.hook.opencode.events, vec!["session.status"]);
+        assert!(config.hook.opencode.focus_events.is_empty());
+    }
+
+    #[test]
+    fn parse_opencode_focus_events() {
+        let toml_str = r#"
+[hook.opencode]
+focus_events = ["permission.asked"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            config.hook.opencode.focus_events,
+            vec!["permission.asked"]
+        );
+        assert_eq!(config.hook.opencode.events.len(), 3);
+    }
+
+    #[test]
     fn parse_empty_hook_section() {
         let toml_str = r#"
 [toast]
@@ -378,6 +449,9 @@ duration_ms = 5000
         // Hook.claude should use defaults (4 without idle_prompt)
         assert_eq!(config.hook.claude.events.len(), 4);
         assert!(config.hook.claude.focus_events.is_empty());
+        // Hook.opencode should use defaults (3 events)
+        assert_eq!(config.hook.opencode.events.len(), 3);
+        assert!(config.hook.opencode.focus_events.is_empty());
     }
 }
 
