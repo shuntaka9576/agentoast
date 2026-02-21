@@ -1,6 +1,15 @@
 export type Icon = "agentoast" | "claude-code" | "codex" | "opencode";
 export type AgentStatus = "running" | "idle" | "waiting";
 
+export type UpdateStatus =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "up-to-date" }
+  | { status: "downloading"; progress: number }
+  | { status: "installing" }
+  | { status: "ready" }
+  | { status: "error"; message: string };
+
 export interface Notification {
   id: number;
   badge: string;

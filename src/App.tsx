@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useMute } from "@/hooks/use-mute";
 import { useSessions } from "@/hooks/use-sessions";
+import { useAppUpdate } from "@/hooks/use-app-update";
 import { PanelHeader } from "@/components/panel-header";
 import { RepoGroup } from "@/components/repo-group";
 import { KeybindHelp } from "@/components/keybind-help";
@@ -28,6 +30,13 @@ export function App() {
   } = useMute();
 
   const { groups: sessionGroups, fetchVersion } = useSessions();
+
+  const [appVersion, setAppVersion] = useState("");
+  const { updateStatus, triggerInstall, checkForUpdates } = useAppUpdate();
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
@@ -510,6 +519,10 @@ export function App() {
           }}
           onDeleteAll={() => void deleteAll()}
           onToggleGlobalMute={() => void toggleGlobalMute()}
+          appVersion={appVersion}
+          updateStatus={updateStatus}
+          onUpdateInstall={() => void triggerInstall()}
+          onUpdateCheck={() => void checkForUpdates()}
         />
 
         <div className="relative flex-1 min-h-0">
