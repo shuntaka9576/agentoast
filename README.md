@@ -52,9 +52,13 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ## Usage
 
-Integration samples for each agent are in [`examples/notify/`](examples/notify/). Claude Code and Codex use built-in CLI subcommands (`agentoast hook claude` / `agentoast hook codex`). opencode uses its plugin system.
+### Notification
 
-### Claude Code
+#### Integration
+
+Ready-to-use integration scripts are provided for each agent. All agents use built-in CLI subcommands (`agentoast hook claude` / `agentoast hook codex` / `agentoast hook opencode`). opencode uses its [plugin system](https://opencode.ai/docs/plugins) to receive events, then delegates to the CLI subcommand. See [`examples/notify/`](examples/notify/) for source code.
+
+##### Claude Code
 
 `~/.claude/settings.json`
 
@@ -89,7 +93,7 @@ Integration samples for each agent are in [`examples/notify/`](examples/notify/)
 
 No Deno dependency required. The CLI reads hook data from stdin and writes directly to the notification database. See [`examples/notify/claude.ts`](examples/notify/claude.ts) for a Deno-based alternative.
 
-### Codex
+##### Codex
 
 `~/.codex/config.toml`
 
@@ -101,11 +105,9 @@ notify = [
 
 No Deno dependency required. The CLI reads hook data from the last command-line argument and writes directly to the notification database. See [`examples/notify/codex.ts`](examples/notify/codex.ts) for a Deno-based alternative.
 
-### opencode
+##### opencode
 
-Plugin [`examples/notify/opencode.ts`](examples/notify/opencode.ts)
-
-opencode uses a [plugin system](https://opencode.ai/docs/plugins) rather than hook scripts. Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically.
+Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically. The plugin forwards all events to `agentoast hook opencode`. Event filtering and notification mapping are configured in `config.toml` `[hook.opencode]`.
 
 ```bash
 mkdir -p ~/.config/opencode/plugins
@@ -116,11 +118,11 @@ Supported events
 
 | Event | Notification |
 |---|---|
-| `session.status` (idle) | Stop (red) |
+| `session.status` (idle) | Stop (green) |
 | `session.error` | Error (red) |
 | `permission.asked` | Permission (blue) |
 
-### Send Notification
+#### Send Notification
 
 ```bash
 agentoast send \
@@ -179,7 +181,7 @@ opencode
 ```bash
 agentoast send \
   --badge "Stop" \
-  --badge-color red \
+  --badge-color green \
   --icon opencode \
   --repo your-repo \
   --tmux-pane %0 \
@@ -248,6 +250,15 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 # Include last-assistant-message as notification body (default: true, truncated to 200 chars)
 # include_body = true
+
+# OpenCode hook settings
+[hook.opencode]
+# Events that trigger notifications
+# Available: session.status (idle only), session.error, permission.asked
+# events = ["session.status", "session.error", "permission.asked"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
 ```
 
 ### Keyboard Shortcuts
