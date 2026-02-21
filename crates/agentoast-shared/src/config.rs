@@ -432,10 +432,7 @@ events = ["session.status"]
 focus_events = ["permission.asked"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(
-            config.hook.opencode.focus_events,
-            vec!["permission.asked"]
-        );
+        assert_eq!(config.hook.opencode.focus_events, vec!["permission.asked"]);
         assert_eq!(config.hook.opencode.events.len(), 3);
     }
 
