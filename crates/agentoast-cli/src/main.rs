@@ -221,7 +221,7 @@ fn run_claude_hook() -> Result<(), String> {
         .as_deref()
         .unwrap_or(&data.hook_event_name);
 
-    let hook_config = config::load_config().notification.agents.claude;
+    let hook_config = config::load_config().notification.agents.claude_code;
 
     if !hook_config.events.iter().any(|e| e == event_key) {
         return Ok(());

@@ -110,7 +110,7 @@ fn default_toggle_panel() -> String {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct AgentsConfig {
     #[serde(default)]
-    pub claude: ClaudeHookConfig,
+    pub claude_code: ClaudeCodeHookConfig,
     #[serde(default)]
     pub codex: CodexHookConfig,
     #[serde(default)]
@@ -118,17 +118,17 @@ pub struct AgentsConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct ClaudeHookConfig {
-    #[serde(default = "default_claude_events")]
+pub struct ClaudeCodeHookConfig {
+    #[serde(default = "default_claude_code_events")]
     pub events: Vec<String>,
     #[serde(default)]
     pub focus_events: Vec<String>,
 }
 
-impl Default for ClaudeHookConfig {
+impl Default for ClaudeCodeHookConfig {
     fn default() -> Self {
         Self {
-            events: default_claude_events(),
+            events: default_claude_code_events(),
             focus_events: Vec::new(),
         }
     }
@@ -187,7 +187,7 @@ fn default_true() -> bool {
     true
 }
 
-fn default_claude_events() -> Vec<String> {
+fn default_claude_code_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
         "permission_prompt".to_string(),
@@ -256,7 +256,7 @@ fn default_config_template() -> &'static str {
 # filter_notified_only = false
 
 # Claude Code agent settings
-[notification.agents.claude]
+[notification.agents.claude_code]
 # Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
 # idle_prompt is excluded by default (noisy); add it back if you want idle notifications
@@ -314,8 +314,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_claude_hook_config() {
-        let config = ClaudeHookConfig::default();
+    fn default_claude_code_hook_config() {
+        let config = ClaudeCodeHookConfig::default();
         assert_eq!(
             config.events,
             vec![
@@ -331,27 +331,32 @@ mod tests {
     #[test]
     fn parse_custom_events() {
         let toml_str = r#"
-[notification.agents.claude]
+[notification.agents.claude_code]
 events = ["Stop"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.notification.agents.claude.events, vec!["Stop"]);
-        assert!(config.notification.agents.claude.focus_events.is_empty());
+        assert_eq!(config.notification.agents.claude_code.events, vec!["Stop"]);
+        assert!(config
+            .notification
+            .agents
+            .claude_code
+            .focus_events
+            .is_empty());
     }
 
     #[test]
     fn parse_focus_events() {
         let toml_str = r#"
-[notification.agents.claude]
+[notification.agents.claude_code]
 focus_events = ["Stop", "permission_prompt"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(
-            config.notification.agents.claude.focus_events,
+            config.notification.agents.claude_code.focus_events,
             vec!["Stop", "permission_prompt"]
         );
         // Events should still have defaults (4 without idle_prompt)
-        assert_eq!(config.notification.agents.claude.events.len(), 4);
+        assert_eq!(config.notification.agents.claude_code.events.len(), 4);
     }
 
     #[test]
@@ -440,9 +445,14 @@ focus_events = ["permission.asked"]
 duration_ms = 5000
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        // notification.agents.claude should use defaults (4 without idle_prompt)
-        assert_eq!(config.notification.agents.claude.events.len(), 4);
-        assert!(config.notification.agents.claude.focus_events.is_empty());
+        // notification.agents.claude_code should use defaults (4 without idle_prompt)
+        assert_eq!(config.notification.agents.claude_code.events.len(), 4);
+        assert!(config
+            .notification
+            .agents
+            .claude_code
+            .focus_events
+            .is_empty());
         // notification.agents.opencode should use defaults (3 events)
         assert_eq!(config.notification.agents.opencode.events.len(), 3);
         assert!(config.notification.agents.opencode.focus_events.is_empty());

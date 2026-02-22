@@ -132,7 +132,7 @@ fn event_filtered_by_config() {
     write_config(
         config_dir.path(),
         r#"
-[notification.agents.claude]
+[notification.agents.claude_code]
 events = ["Stop"]
 "#,
     );
@@ -169,7 +169,7 @@ fn focus_events_config() {
     write_config(
         config_dir.path(),
         r#"
-[notification.agents.claude]
+[notification.agents.claude_code]
 focus_events = ["Stop"]
 "#,
     );
