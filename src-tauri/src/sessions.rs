@@ -420,14 +420,14 @@ fn detect_claude_status(
         // Elicitation dialog ("Enter to select" detected) — always Waiting.
         // Checked before at_prompt because elicitation option description text
         // (indented continuation lines) causes is_prompt_line() to return false.
-        (AgentStatus::Waiting, Some("ask".to_string()))
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.has_selection_dialog && !info.at_prompt {
         // Selection dialog without "Enter to select" (e.g., plan approval).
         // Detected via ❯ N. selection cursor + 2+ numbered options.
         // Only valid when no prompt is detected — if at_prompt is true, the user
         // has already completed the selection and the dialog text is just stale
         // content still visible on screen.
-        (AgentStatus::Waiting, Some("approve".to_string()))
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -989,7 +989,7 @@ fn detect_opencode_status(
     let (status, waiting_reason) = if info.is_running {
         (AgentStatus::Running, None)
     } else if info.has_permission_dialog || info.has_selection_dialog {
-        (AgentStatus::Waiting, Some("approve".to_string()))
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else {
         // No running signal — check DB for pending notifications
         if let Some(conn) = db_conn {
