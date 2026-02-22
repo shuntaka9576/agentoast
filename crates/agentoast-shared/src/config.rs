@@ -106,7 +106,7 @@ impl Default for KeybindingConfig {
 }
 
 fn default_toggle_panel() -> String {
-    "ctrl+alt+n".to_string()
+    "super+ctrl+n".to_string()
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -303,10 +303,10 @@ fn default_config_template() -> &'static str {
 
 # Keyboard shortcuts
 [keybinding]
-# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Shortcut to toggle the notification panel (default: super+ctrl+n)
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
-# toggle_panel = "ctrl+alt+n"
+# toggle_panel = "super+ctrl+n"
 
 # Auto-update settings
 [update]

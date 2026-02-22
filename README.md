@@ -255,10 +255,10 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 # Keyboard shortcuts
 [keybinding]
-# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Shortcut to toggle the notification panel (default: super+ctrl+n)
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
-# toggle_panel = "ctrl+alt+n"
+# toggle_panel = "super+ctrl+n"
 ```
 
 ### Keyboard Shortcuts
@@ -277,7 +277,7 @@ Panel shortcuts (press `?` in the panel to see this list).
 | `Esc` | Close |
 | `?` | Help |
 
-The global shortcut to toggle the panel is `Ctrl+Alt+N` (configurable in `config.toml`).
+The global shortcut to toggle the panel is `Cmd+Ctrl+N` (configurable in `config.toml`).
 
 ### Tips
 
