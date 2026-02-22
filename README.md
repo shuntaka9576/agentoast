@@ -107,7 +107,7 @@ No Deno dependency required. The CLI reads hook data from the last command-line 
 
 ##### opencode
 
-Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically. The plugin forwards all events to `agentoast hook opencode`. Event filtering and notification mapping are configured in `config.toml` `[hook.opencode]`.
+Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically. The plugin forwards all events to `agentoast hook opencode`. Event filtering and notification mapping are configured in `config.toml` `[notification.agents.opencode]`.
 
 ```bash
 mkdir -p ~/.config/opencode/plugins
@@ -213,23 +213,16 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Keep toast visible until clicked (default: false)
 # persistent = false
 
-# Menu bar notification panel
-[panel]
+# Notification settings
+[notification]
 # Mute all notifications (default: false)
 # muted = false
 
 # Show only groups with notifications (default: false)
 # filter_notified_only = false
 
-# Global keyboard shortcut
-[shortcut]
-# Shortcut to toggle the notification panel (default: ctrl+alt+n)
-# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
-# Set to "" to disable
-# toggle_panel = "ctrl+alt+n"
-
-# Claude Code hook settings
-[hook.claude]
+# Claude Code agent settings
+[notification.agents.claude]
 # Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
 # idle_prompt is excluded by default (noisy); add it back if you want idle notifications
@@ -239,8 +232,8 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
 
-# Codex hook settings
-[hook.codex]
+# Codex agent settings
+[notification.agents.codex]
 # Events that trigger notifications
 # Available: agent-turn-complete
 # events = ["agent-turn-complete"]
@@ -251,14 +244,21 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Include last-assistant-message as notification body (default: true, truncated to 200 chars)
 # include_body = true
 
-# OpenCode hook settings
-[hook.opencode]
+# OpenCode agent settings
+[notification.agents.opencode]
 # Events that trigger notifications
 # Available: session.status (idle only), session.error, permission.asked
 # events = ["session.status", "session.error", "permission.asked"]
 
 # Events that auto-focus the terminal (default: none)
 # focus_events = []
+
+# Keyboard shortcuts
+[keybinding]
+# Shortcut to toggle the notification panel (default: ctrl+alt+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
+# Set to "" to disable
+# toggle_panel = "ctrl+alt+n"
 ```
 
 ### Keyboard Shortcuts

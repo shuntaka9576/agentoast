@@ -101,7 +101,7 @@ fn event_filtered_by_config() {
     write_config(
         config_dir.path(),
         r#"
-[hook.codex]
+[notification.agents.codex]
 events = []
 "#,
     );
@@ -135,7 +135,7 @@ fn focus_events_config() {
     write_config(
         config_dir.path(),
         r#"
-[hook.codex]
+[notification.agents.codex]
 focus_events = ["agent-turn-complete"]
 "#,
     );
@@ -245,7 +245,7 @@ fn include_body_false() {
     write_config(
         config_dir.path(),
         r#"
-[hook.codex]
+[notification.agents.codex]
 include_body = false
 "#,
     );
