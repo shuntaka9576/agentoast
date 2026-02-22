@@ -222,7 +222,7 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # filter_notified_only = false
 
 # Claude Code agent settings
-[notification.agents.claude]
+[notification.agents.claude_code]
 # Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
 # idle_prompt is excluded by default (noisy); add it back if you want idle notifications
