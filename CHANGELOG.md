@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.18.1](https://github.com/shuntaka9576/agentoast/compare/v0.18.0...v0.18.1) - 2026-02-22
+- fix: rename config section agents.claude to agents.claude_code by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/61
+
 ## [v0.18.0](https://github.com/shuntaka9576/agentoast/compare/v0.17.0...v0.18.0) - 2026-02-22
 - feat: add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/51
 - Release for v0.17.1 by @github-actions[bot] in https://github.com/shuntaka9576/agentoast/pull/52
