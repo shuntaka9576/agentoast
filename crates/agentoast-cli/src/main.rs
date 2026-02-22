@@ -221,7 +221,7 @@ fn run_claude_hook() -> Result<(), String> {
         .as_deref()
         .unwrap_or(&data.hook_event_name);
 
-    let hook_config = config::load_config().hook.claude;
+    let hook_config = config::load_config().notification.agents.claude;
 
     if !hook_config.events.iter().any(|e| e == event_key) {
         return Ok(());
@@ -291,7 +291,7 @@ fn run_codex_hook(json_arg: &str) -> Result<(), String> {
     let data: CodexHookData =
         serde_json::from_str(json_arg).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let hook_config = config::load_config().hook.codex;
+    let hook_config = config::load_config().notification.agents.codex;
 
     if !hook_config.events.iter().any(|e| e == &data.event_type) {
         return Ok(());
@@ -371,7 +371,7 @@ fn run_opencode_hook(json_arg: &str) -> Result<(), String> {
     let data: OpenCodeHookData =
         serde_json::from_str(json_arg).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let hook_config = config::load_config().hook.opencode;
+    let hook_config = config::load_config().notification.agents.opencode;
 
     if !hook_config.events.iter().any(|e| e == &data.event_type) {
         return Ok(());

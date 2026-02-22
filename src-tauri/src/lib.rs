@@ -56,7 +56,7 @@ pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStateP
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
     tray::update_mute_menu(app_handle, payload.global_muted);
-    if let Err(e) = config::save_panel_muted(payload.global_muted) {
+    if let Err(e) = config::save_notification_muted(payload.global_muted) {
         log::warn!("Failed to save mute state to config.toml: {}", e);
     }
     Ok(payload)
@@ -212,7 +212,7 @@ fn toggle_repo_mute(
 #[tauri::command]
 fn get_filter_notified_only(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(state.config.panel.filter_notified_only)
+    Ok(state.config.notification.filter_notified_only)
 }
 
 #[tauri::command]
@@ -222,9 +222,9 @@ fn save_filter_notified_only(
 ) -> Result<(), String> {
     {
         let mut state = state.lock().map_err(|e| e.to_string())?;
-        state.config.panel.filter_notified_only = value;
+        state.config.notification.filter_notified_only = value;
     }
-    if let Err(e) = config::save_panel_filter_notified_only(value) {
+    if let Err(e) = config::save_notification_filter_notified_only(value) {
         log::warn!("Failed to save filter_notified_only to config.toml: {}", e);
     }
     Ok(())
@@ -319,8 +319,8 @@ pub fn run() {
             log::info!("DB path: {:?}", db_path);
             log::info!("Config: {:?}", app_config);
 
-            let shortcut_str = app_config.shortcut.toggle_panel.clone();
-            let initial_muted = app_config.panel.muted;
+            let shortcut_str = app_config.keybinding.toggle_panel.clone();
+            let initial_muted = app_config.notification.muted;
 
             // Ensure DB is initialized
             let _ = db::open(&db_path).expect("Failed to initialize database");
