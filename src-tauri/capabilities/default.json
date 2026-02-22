@@ -12,8 +12,6 @@
     "core:window:allow-inner-size",
     "core:window:allow-scale-factor",
     "opener:default",
-    "global-shortcut:default",
-    "updater:default",
-    "process:allow-restart"
+    "global-shortcut:default"
   ]
 }

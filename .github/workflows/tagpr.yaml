@@ -71,15 +71,6 @@ jobs:
       with:
         tag: ${{ needs.tagpr.outputs.tag }}
         homebrew_tap_token: ${{ steps.app-token.outputs.token }}
-        tauri_signing_private_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        tauri_signing_private_key_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        apple_certificate: ${{ secrets.APPLE_CERTIFICATE }}
-        apple_certificate_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        apple_signing_identity: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        apple_id: ${{ secrets.APPLE_ID }}
-        apple_password: ${{ secrets.APPLE_PASSWORD }}
-        apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
-        keychain_password: ${{ secrets.KEYCHAIN_PASSWORD }}
 
   publish-release:
     needs: [tagpr, release-cli, release-app]

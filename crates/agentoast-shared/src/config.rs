@@ -42,8 +42,6 @@ pub struct AppConfig {
     pub notification: NotificationConfig,
     #[serde(default)]
     pub keybinding: KeybindingConfig,
-    #[serde(default)]
-    pub update: UpdateConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -189,18 +187,6 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpdateConfig {
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-}
-
-impl Default for UpdateConfig {
-    fn default() -> Self {
-        Self { enabled: true }
-    }
-}
-
 fn default_claude_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
@@ -307,11 +293,6 @@ fn default_config_template() -> &'static str {
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
 # toggle_panel = "super+ctrl+n"
-
-# Auto-update settings
-[update]
-# Enable auto-update check (default: true)
-# enabled = true
 
 "#
 }
