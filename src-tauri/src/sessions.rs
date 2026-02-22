@@ -796,8 +796,10 @@ fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
 // ──────────────────────────────────────────────────────────
 
 struct CodexPaneContentInfo {
-    is_running: bool, // "(XXs • esc to interrupt)" pattern
-    at_prompt: bool,  // › (U+203A) prompt character
+    is_running: bool,          // "(XXs • esc to interrupt)" pattern
+    has_question_dialog: bool, // "enter to submit answer" in question dialog footer
+    has_plan_approval: bool,   // "enter to confirm" in plan approval footer
+    at_prompt: bool,           // › (U+203A) prompt character
 }
 
 fn detect_codex_status(
@@ -807,14 +809,21 @@ fn detect_codex_status(
     let info = check_codex_pane_content(pane_id);
 
     log::debug!(
-        "detect_codex_status({}): running={} prompt={}",
+        "detect_codex_status({}): running={} question_dialog={} plan_approval={} prompt={}",
         pane_id,
         info.is_running,
+        info.has_question_dialog,
+        info.has_plan_approval,
         info.at_prompt
     );
 
     let (status, waiting_reason) = if info.is_running {
         (AgentStatus::Running, None)
+    } else if info.has_question_dialog || info.has_plan_approval {
+        // Question dialog ("enter to submit answer") or plan approval ("enter to confirm")
+        // detected — always Waiting. Takes priority over at_prompt because the selection
+        // cursor (› N.) can be misidentified as a prompt.
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -837,6 +846,8 @@ fn detect_codex_status(
 fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
     let default = CodexPaneContentInfo {
         is_running: false,
+        has_question_dialog: false,
+        has_plan_approval: false,
         at_prompt: false,
     };
 
@@ -890,6 +901,8 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
     );
 
     let mut is_running = false;
+    let mut has_question_dialog = false;
+    let mut has_plan_approval = false;
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -900,6 +913,22 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
                 trimmed
             );
             is_running = true;
+        }
+        if !has_question_dialog && is_codex_question_dialog_line(trimmed) {
+            log::debug!(
+                "check_codex_pane_content({}): question dialog detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            has_question_dialog = true;
+        }
+        if !has_plan_approval && is_codex_plan_approval_line(trimmed) {
+            log::debug!(
+                "check_codex_pane_content({}): plan approval detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            has_plan_approval = true;
         }
     }
 
@@ -913,6 +942,8 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
 
     CodexPaneContentInfo {
         is_running,
+        has_question_dialog,
+        has_plan_approval,
         at_prompt,
     }
 }
@@ -924,7 +955,8 @@ fn is_codex_running_line(line: &str) -> bool {
     line.contains("s \u{2022} esc to interrupt") && line.contains('(')
 }
 
-/// Check if the last meaningful line is a Codex prompt (›), skipping footer lines.
+/// Check if the last meaningful line is a Codex prompt (›), skipping footer lines
+/// and question dialog elements.
 fn is_codex_prompt_line(lines: &[&str]) -> bool {
     const MAX_UNKNOWN_LINES: usize = 3;
     let mut unknown_count = 0;
@@ -937,8 +969,24 @@ fn is_codex_prompt_line(lines: &[&str]) -> bool {
         if is_codex_footer_line(trimmed) {
             continue;
         }
+        // Skip question dialog footer (e.g., "tab to add notes | enter to submit answer | ...")
+        if is_codex_question_dialog_line(trimmed) {
+            continue;
+        }
+        // Skip plan approval footer (e.g., "Press enter to confirm or esc to go back")
+        if is_codex_plan_approval_line(trimmed) {
+            continue;
+        }
+        // Skip numbered options in question dialog (e.g., "2. 既存ユーザー ...")
+        if is_numbered_option(trimmed) {
+            continue;
+        }
         // › (U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK) is the Codex prompt
         if trimmed.starts_with('\u{203A}') {
+            // Skip selection cursor (› N. ...) in question dialog
+            if is_codex_selection_cursor(trimmed) {
+                continue;
+            }
             return true;
         }
         unknown_count += 1;
@@ -956,6 +1004,39 @@ fn is_codex_footer_line(line: &str) -> bool {
         || line.contains("background terminal running")
         || line.contains("/ps to view")
         || line.contains("/clean to close")
+}
+
+/// Check if a line indicates a Codex question/elicitation dialog.
+/// Matches the footer "tab to add notes | enter to submit answer | esc to interrupt"
+/// which appears at the bottom of Codex's question dialogs.
+fn is_codex_question_dialog_line(line: &str) -> bool {
+    line.contains("enter to submit answer")
+}
+
+/// Check if a line indicates a Codex plan approval dialog.
+/// Matches the footer "Press enter to confirm or esc to go back"
+/// which appears at the bottom of Codex's plan approval screen.
+fn is_codex_plan_approval_line(line: &str) -> bool {
+    line.contains("enter to confirm")
+}
+
+/// Check if a ›-prefixed line is a selection cursor on a numbered option in Codex.
+/// "› 1. New user (Recommended)" → true (selection cursor in question dialog)
+/// "› ls -la" → false (user typing at prompt)
+/// "›" → false (empty prompt)
+fn is_codex_selection_cursor(line: &str) -> bool {
+    let trimmed = line.trim();
+    let rest = trimmed.trim_start_matches('\u{203A}').trim_start();
+    let mut chars = rest.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_digit() => {
+            let after_digits = chars
+                .as_str()
+                .trim_start_matches(|c: char| c.is_ascii_digit());
+            after_digits.starts_with(". ")
+        }
+        _ => false,
+    }
 }
 
 // ──────────────────────────────────────────────────────────
