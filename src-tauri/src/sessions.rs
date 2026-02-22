@@ -370,8 +370,8 @@ struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
-    has_elicitation: bool, // "Enter to select" navigation hint (selection dialog)
-    has_selection_dialog: bool, // 2+ numbered options detected (plan approval etc.)
+    has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
+    has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
     agent_modes: Vec<String>,
 }
 
@@ -402,12 +402,12 @@ fn detect_claude_status(
     let info = check_claude_pane_content(pane_id);
 
     log::debug!(
-        "detect_claude_status({}): spinner={} status_running={} elicitation={} selection_dialog={} prompt={}",
+        "detect_claude_status({}): spinner={} status_running={} question_dialog={} plan_approval={} prompt={}",
         pane_id,
         info.has_spinner,
         info.has_status_running,
-        info.has_elicitation,
-        info.has_selection_dialog,
+        info.has_question_dialog,
+        info.has_plan_approval,
         info.at_prompt
     );
 
@@ -416,13 +416,13 @@ fn detect_claude_status(
     // status bar text), so it does NOT override at_prompt.
     let (status, waiting_reason) = if info.has_spinner {
         (AgentStatus::Running, None)
-    } else if info.has_elicitation {
-        // Elicitation dialog ("Enter to select" detected) — always Waiting.
-        // Checked before at_prompt because elicitation option description text
+    } else if info.has_question_dialog {
+        // Question dialog ("Enter to select" detected) — always Waiting.
+        // Checked before at_prompt because question dialog option description text
         // (indented continuation lines) causes is_prompt_line() to return false.
         (AgentStatus::Waiting, Some("respond".to_string()))
-    } else if info.has_selection_dialog && !info.at_prompt {
-        // Selection dialog without "Enter to select" (e.g., plan approval).
+    } else if info.has_plan_approval && !info.at_prompt {
+        // Plan approval dialog without "Enter to select" (e.g., context clearing).
         // Detected via ❯ N. selection cursor + 2+ numbered options.
         // Only valid when no prompt is detected — if at_prompt is true, the user
         // has already completed the selection and the dialog text is just stale
@@ -464,8 +464,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_spinner: false,
         has_status_running: false,
         at_prompt: false,
-        has_elicitation: false,
-        has_selection_dialog: false,
+        has_question_dialog: false,
+        has_plan_approval: false,
         agent_modes: Vec::new(),
     };
 
@@ -523,7 +523,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
 
     let mut has_spinner = false;
     let mut has_status_running = false;
-    let mut has_elicitation = false;
+    let mut has_question_dialog = false;
     let mut has_selection_cursor = false;
     let mut numbered_option_count: usize = 0;
     let mut agent_modes: Vec<String> = Vec::new();
@@ -552,14 +552,14 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
             has_status_running = true;
         }
 
-        // Elicitation dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
-        if !has_elicitation && trimmed.starts_with("Enter to select") {
+        // Question dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
+        if !has_question_dialog && trimmed.starts_with("Enter to select") {
             log::debug!(
-                "check_claude_pane_content({}): elicitation detected: {:?}",
+                "check_claude_pane_content({}): question dialog detected: {:?}",
                 pane_id,
                 trimmed
             );
-            has_elicitation = true;
+            has_question_dialog = true;
         }
 
         // Count numbered options and selection cursors for selection dialog detection.
@@ -586,12 +586,12 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         }
     }
 
-    // Selection dialog: requires ❯ N. selection cursor AND 2+ total numbered option lines.
+    // Plan approval: requires ❯ N. selection cursor AND 2+ total numbered option lines.
     // Without the selection cursor, numbered lines are just markdown content (e.g., "1. PR特定").
-    let has_selection_dialog = has_selection_cursor && numbered_option_count >= 2;
-    if has_selection_dialog {
+    let has_plan_approval = has_selection_cursor && numbered_option_count >= 2;
+    if has_plan_approval {
         log::debug!(
-            "check_claude_pane_content({}): selection dialog detected ({} numbered options)",
+            "check_claude_pane_content({}): plan approval detected ({} numbered options)",
             pane_id,
             numbered_option_count
         );
@@ -611,8 +611,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
         at_prompt,
-        has_elicitation,
-        has_selection_dialog,
+        has_question_dialog,
+        has_plan_approval,
         agent_modes,
     }
 }
