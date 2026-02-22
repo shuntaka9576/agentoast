@@ -39,15 +39,6 @@
     "resources": [
       "icons/tray-icon.png",
       "icons/tray-icon-notification.png"
-    ],
-    "createUpdaterArtifacts": true
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGNTU5Q0FGNEZDODM4MDEKUldRQk9NaFByNXhWMzVWckRYOTJ6bTNtSXVNRmRoS0VvMEhKbG84bnFXUDhSTG43YXdMTi9kTXAK",
-      "endpoints": [
-        "https://github.com/shuntaka9576/agentoast/releases/latest/download/latest.json"
-      ]
-    }
+    ]
   }
 }

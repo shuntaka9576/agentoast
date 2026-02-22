@@ -110,7 +110,7 @@ gh release upload "${TAG}" "target/release/bundle/dmg/${DMG_NAME}" --clobber
 
 # 3. Update Cask via GitHub Contents API
 SHA256=$(shasum -a 256 "target/release/bundle/dmg/${DMG_NAME}" | awk '{print $1}')
-DMG_URL="https://github.com/shuntaka9576/agentoast/releases/download/${TAG}/${DMG_NAME}"
+DMG_URL="https://github.com/shuntaka9576/agent-notify/releases/download/${TAG}/${DMG_NAME}"
 
 CASK_CONTENT=$(cat <<CASK_EOF
 cask "agentoast" do
@@ -120,9 +120,8 @@ cask "agentoast" do
   url "${DMG_URL}"
   name "Agentoast"
   desc "macOS menu bar notification app for AI coding agents"
-  homepage "https://github.com/shuntaka9576/agentoast"
+  homepage "https://github.com/shuntaka9576/agent-notify"
 
-  auto_updates true
   app "Agentoast.app"
 
   zap trash: [
@@ -147,35 +146,6 @@ else
     --method PUT \
     -f message="Add agentoast cask ${TAG}" \
     -f content="${ENCODED}"
-fi
-
-# Upload updater artifacts (if available from signed build)
-TAR_GZ="target/release/bundle/macos/Agentoast.app.tar.gz"
-SIG_FILE="target/release/bundle/macos/Agentoast.app.tar.gz.sig"
-
-if [ -f "${TAR_GZ}" ] && [ -f "${SIG_FILE}" ]; then
-  gh release upload "${TAG}" "${TAR_GZ}" "${SIG_FILE}" --clobber
-
-  SIGNATURE=$(cat "${SIG_FILE}")
-  TAR_GZ_URL="https://github.com/shuntaka9576/agentoast/releases/download/${TAG}/Agentoast.app.tar.gz"
-
-  cat > /tmp/latest.json <<EOF
-{
-  "version": "${VERSION}",
-  "notes": "Release ${TAG}",
-  "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "platforms": {
-    "darwin-aarch64": {
-      "signature": "${SIGNATURE}",
-      "url": "${TAR_GZ_URL}"
-    }
-  }
-}
-EOF
-
-  gh release upload "${TAG}" /tmp/latest.json --clobber
-  rm /tmp/latest.json
-  echo "Uploaded updater artifacts"
 fi
 
 echo "Done! Published ${TAG}"
