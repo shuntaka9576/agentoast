@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.18.0](https://github.com/shuntaka9576/agentoast/compare/v0.17.0...v0.18.0) - 2026-02-22
+- feat: add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/51
+- Release for v0.17.1 by @github-actions[bot] in https://github.com/shuntaka9576/agentoast/pull/52
+- feat: add OpenCode agent status detection by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/53
+- fix: sort panes within group by agent status priority by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/54
+- feat: add `agentoast hook opencode` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/56
+- feat: rename config sections for clarity by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/58
+- revert: remove auto-update support due to Apple notarization stalling by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/59
+
 ## [v0.17.0](https://github.com/shuntaka9576/agentoast/compare/v0.16.0...v0.17.0) - 2026-02-20
 - feat: add built-in `agentoast hook codex` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/49
 - fix: change agent status sort priority to waiting > running > idle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/50
