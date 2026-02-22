@@ -34,8 +34,8 @@ function statusTooltip(pane: TmuxPane): string {
     case "idle":
       return `${agent}: idle${modeStr}`;
     case "waiting": {
-      const reasonStr = pane.waitingReason ? ` (${pane.waitingReason})` : "";
-      return `${agent}: waiting for input${reasonStr}${modeStr}`;
+      const label = pane.waitingReason ? "waiting for response" : "waiting for input";
+      return `${agent}: ${label}${modeStr}`;
     }
     default:
       return agent;
