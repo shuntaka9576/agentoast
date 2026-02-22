@@ -146,6 +146,7 @@ fn delete_notification(
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
     }
+    let _ = app_handle.emit("notifications:refresh", ());
     Ok(())
 }
 
@@ -162,6 +163,7 @@ fn delete_notifications_by_pane(
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
     }
+    let _ = app_handle.emit("notifications:refresh", ());
     Ok(())
 }
 
@@ -178,6 +180,7 @@ fn delete_notifications_by_panes(
         let _ = app_handle.emit("notifications:unread-count", count);
         watcher::update_tray_icon(&app_handle, count);
     }
+    let _ = app_handle.emit("notifications:refresh", ());
     Ok(())
 }
 
@@ -240,6 +243,7 @@ fn delete_all_notifications(
     db::delete_all_notifications(&conn).map_err(|e| e.to_string())?;
     let _ = app_handle.emit("notifications:unread-count", 0i64);
     watcher::update_tray_icon(&app_handle, 0);
+    let _ = app_handle.emit("notifications:refresh", ());
     Ok(())
 }
 
