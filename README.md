@@ -24,24 +24,14 @@ A toast pops up whenever an agent completes or needs attention — click it to j
 
 ## Installation
 
-### CLI
-
 ```bash
 brew install shuntaka9576/tap/agentoast-cli
-```
-
-### App
-
-Download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases) or install via Homebrew Cask.
-
-```bash
 brew install --cask shuntaka9576/tap/agentoast
-xattr -cr /Applications/Agentoast.app
 ```
 
-> The app is not yet signed with an Apple Developer ID. macOS Gatekeeper may flag it as "damaged" — the `xattr` command above removes the quarantine attribute to fix this. Apple Developer signing is in progress and will remove this requirement in a future release.
+Or download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases).
 
-### Uninstall
+To uninstall:
 
 ```bash
 brew uninstall --cask shuntaka9576/tap/agentoast
