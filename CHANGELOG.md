@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.19.0](https://github.com/shuntaka9576/agentoast/compare/v0.18.1...v0.19.0) - 2026-02-23
+- fix: unify waiting_reason 'ask' and 'approve' into 'respond' by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/64
+- feat: detect Codex question dialog and plan approval as Waiting by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/66
+- fix: emit notifications:refresh on notification deletion to update agent status dots by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/67
+- refactor: rename Claude Code detection signals to match Codex naming by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/68
+
 ## [v0.18.1](https://github.com/shuntaka9576/agentoast/compare/v0.18.0...v0.18.1) - 2026-02-22
 - fix: rename config section agents.claude to agents.claude_code by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/61
 
