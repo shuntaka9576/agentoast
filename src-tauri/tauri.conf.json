@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGNTU5Q0FGNEZDODM4MDEKUldRQk9NaFByNXhWMzVWckRYOTJ6bTNtSXVNRmRoS0VvMEhKbG84bnFXUDhSTG43YXdMTi9kTXAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA2MjFGMkExNTUwM0ZDOEYKUldTUC9BTlZvZkloQm5qU0JUTWRqbFZhZWZ0b2tLN0czTHo3RTJaZWpzM2NTSWVmRmdIZDgyVTIK",
       "endpoints": [
         "https://github.com/shuntaka9576/agentoast/releases/latest/download/latest.json"
       ]

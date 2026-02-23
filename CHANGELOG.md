@@ -1,8 +1,5 @@
 # Changelog
 
-## [v0.20.0](https://github.com/shuntaka9576/agentoast/compare/v0.19.0...v0.20.0) - 2026-02-23
-- feat: re-add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/60
-
 ## [v0.19.0](https://github.com/shuntaka9576/agentoast/compare/v0.18.1...v0.19.0) - 2026-02-23
 - fix: unify waiting_reason 'ask' and 'approve' into 'respond' by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/64
 - feat: detect Codex question dialog and plan approval as Waiting by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/66
