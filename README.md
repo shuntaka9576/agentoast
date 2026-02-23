@@ -24,21 +24,14 @@ A toast pops up whenever an agent completes or needs attention — click it to j
 
 ## Installation
 
-### CLI
-
 ```bash
 brew install shuntaka9576/tap/agentoast-cli
-```
-
-### App
-
-Download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases) or install via Homebrew Cask.
-
-```bash
 brew install --cask shuntaka9576/tap/agentoast
 ```
 
-### Uninstall
+Or download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases).
+
+To uninstall:
 
 ```bash
 brew uninstall --cask shuntaka9576/tap/agentoast
