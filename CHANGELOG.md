@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.21.0](https://github.com/shuntaka9576/agentoast/compare/v0.20.0...v0.21.0) - 2026-02-23
+- docs: simplify Installation section into a single block by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/73
+
 ## [v0.20.0](https://github.com/shuntaka9576/agentoast/compare/v0.19.0...v0.20.0) - 2026-02-23
 - feat: re-add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/60
 - fix: regenerate updater signing keypair by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/70
