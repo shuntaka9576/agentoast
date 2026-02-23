@@ -6,6 +6,8 @@
   </p>
 </div>
 
+![main](docs/assets/main.gif)
+
 A macOS menu bar app for tmux users. Get a toast notification whenever an AI coding agent (Claude Code, Codex, opencode) finishes or needs your input — click it to jump right back to the tmux pane it came from.
 
 You kick off a long-running agent task, switch over to a browser or another window, and completely miss the moment it wraps up or asks for permission. agentoast makes sure you never miss it.
@@ -19,8 +21,6 @@ When an agent completes or needs attention, a toast pops up at the top-right cor
 With `--focus`, the terminal is brought to the foreground automatically — no click needed. See [`Send Notification`](#send-notification) for details.
 
 All notifications are grouped by repository in the menu bar. Clicking one takes you straight to its tmux pane.
-
-![menubar](docs/assets/menubar.gif)
 
 <img src="docs/assets/menubar.png" width="400" alt="menubar" />
 
