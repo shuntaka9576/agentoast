@@ -8,8 +8,8 @@ workspace = true
 
 [dependencies]
 rusqlite = { version = "0.38", features = ["bundled"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "1.0"
-toml_edit = "0.22"
-log = "0.4"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+toml = "1.0.3"
+toml_edit = "0.25.3"
+log = "0.4.29"
