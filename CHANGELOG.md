@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.21.1](https://github.com/shuntaka9576/agentoast/compare/v0.21.0...v0.21.1) - 2026-02-24
+- chore(ci): pin GitHub Actions to commit SHAs for supply chain security by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/74
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/76
+- chore(deps): update songmu/tagpr action to v1.17.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/77
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/78
+
 ## [v0.21.0](https://github.com/shuntaka9576/agentoast/compare/v0.20.0...v0.21.0) - 2026-02-23
 - docs: simplify Installation section into a single block by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/73
 
