@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.22.1](https://github.com/shuntaka9576/agentoast/compare/v0.22.0...v0.22.1) - 2026-02-26
+- chore: remove unused dependencies (env_logger, objc2-web-kit) by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/83
+
 ## [v0.22.0](https://github.com/shuntaka9576/agentoast/compare/v0.21.1...v0.22.0) - 2026-02-26
 - feat: add auto-update UI to panel header by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/57
 
