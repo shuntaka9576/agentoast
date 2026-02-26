@@ -1,5 +1,42 @@
 # Changelog
 
+## [v0.21.1](https://github.com/shuntaka9576/agentoast/compare/v0.21.0...v0.21.1) - 2026-02-24
+- chore(ci): pin GitHub Actions to commit SHAs for supply chain security by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/74
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/76
+- chore(deps): update songmu/tagpr action to v1.17.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/77
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/78
+
+## [v0.21.1](https://github.com/shuntaka9576/agentoast/compare/v0.21.0...v0.21.1) - 2026-02-24
+- chore(ci): pin GitHub Actions to commit SHAs for supply chain security by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/74
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/76
+- chore(deps): update songmu/tagpr action to v1.17.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/77
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/78
+
+## [v0.21.0](https://github.com/shuntaka9576/agentoast/compare/v0.20.0...v0.21.0) - 2026-02-23
+- docs: simplify Installation section into a single block by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/73
+
+## [v0.20.0](https://github.com/shuntaka9576/agentoast/compare/v0.19.0...v0.20.0) - 2026-02-23
+- feat: re-add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/60
+- fix: regenerate updater signing keypair by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/70
+
+## [v0.19.0](https://github.com/shuntaka9576/agentoast/compare/v0.18.1...v0.19.0) - 2026-02-23
+- fix: unify waiting_reason 'ask' and 'approve' into 'respond' by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/64
+- feat: detect Codex question dialog and plan approval as Waiting by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/66
+- fix: emit notifications:refresh on notification deletion to update agent status dots by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/67
+- refactor: rename Claude Code detection signals to match Codex naming by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/68
+
+## [v0.18.1](https://github.com/shuntaka9576/agentoast/compare/v0.18.0...v0.18.1) - 2026-02-22
+- fix: rename config section agents.claude to agents.claude_code by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/61
+
+## [v0.18.0](https://github.com/shuntaka9576/agentoast/compare/v0.17.0...v0.18.0) - 2026-02-22
+- feat: add auto-update support with Apple signing and tauri-action CI by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/51
+- Release for v0.17.1 by @github-actions[bot] in https://github.com/shuntaka9576/agentoast/pull/52
+- feat: add OpenCode agent status detection by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/53
+- fix: sort panes within group by agent status priority by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/54
+- feat: add `agentoast hook opencode` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/56
+- feat: rename config sections for clarity by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/58
+- revert: remove auto-update support due to Apple notarization stalling by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/59
+
 ## [v0.17.0](https://github.com/shuntaka9576/agentoast/compare/v0.16.0...v0.17.0) - 2026-02-20
 - feat: add built-in `agentoast hook codex` CLI subcommand by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/49
 - fix: change agent status sort priority to waiting > running > idle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/50

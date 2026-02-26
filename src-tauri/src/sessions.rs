@@ -370,8 +370,8 @@ struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
     has_status_running: bool, // Status bar "(running)" suffix (may be stale)
     at_prompt: bool,
-    has_elicitation: bool, // "Enter to select" navigation hint (selection dialog)
-    has_selection_dialog: bool, // 2+ numbered options detected (plan approval etc.)
+    has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
+    has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
     agent_modes: Vec<String>,
 }
 
@@ -402,12 +402,12 @@ fn detect_claude_status(
     let info = check_claude_pane_content(pane_id);
 
     log::debug!(
-        "detect_claude_status({}): spinner={} status_running={} elicitation={} selection_dialog={} prompt={}",
+        "detect_claude_status({}): spinner={} status_running={} question_dialog={} plan_approval={} prompt={}",
         pane_id,
         info.has_spinner,
         info.has_status_running,
-        info.has_elicitation,
-        info.has_selection_dialog,
+        info.has_question_dialog,
+        info.has_plan_approval,
         info.at_prompt
     );
 
@@ -416,18 +416,18 @@ fn detect_claude_status(
     // status bar text), so it does NOT override at_prompt.
     let (status, waiting_reason) = if info.has_spinner {
         (AgentStatus::Running, None)
-    } else if info.has_elicitation {
-        // Elicitation dialog ("Enter to select" detected) — always Waiting.
-        // Checked before at_prompt because elicitation option description text
+    } else if info.has_question_dialog {
+        // Question dialog ("Enter to select" detected) — always Waiting.
+        // Checked before at_prompt because question dialog option description text
         // (indented continuation lines) causes is_prompt_line() to return false.
-        (AgentStatus::Waiting, Some("ask".to_string()))
-    } else if info.has_selection_dialog && !info.at_prompt {
-        // Selection dialog without "Enter to select" (e.g., plan approval).
+        (AgentStatus::Waiting, Some("respond".to_string()))
+    } else if info.has_plan_approval && !info.at_prompt {
+        // Plan approval dialog without "Enter to select" (e.g., context clearing).
         // Detected via ❯ N. selection cursor + 2+ numbered options.
         // Only valid when no prompt is detected — if at_prompt is true, the user
         // has already completed the selection and the dialog text is just stale
         // content still visible on screen.
-        (AgentStatus::Waiting, Some("approve".to_string()))
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -464,8 +464,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_spinner: false,
         has_status_running: false,
         at_prompt: false,
-        has_elicitation: false,
-        has_selection_dialog: false,
+        has_question_dialog: false,
+        has_plan_approval: false,
         agent_modes: Vec::new(),
     };
 
@@ -523,7 +523,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
 
     let mut has_spinner = false;
     let mut has_status_running = false;
-    let mut has_elicitation = false;
+    let mut has_question_dialog = false;
     let mut has_selection_cursor = false;
     let mut numbered_option_count: usize = 0;
     let mut agent_modes: Vec<String> = Vec::new();
@@ -552,14 +552,14 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
             has_status_running = true;
         }
 
-        // Elicitation dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
-        if !has_elicitation && trimmed.starts_with("Enter to select") {
+        // Question dialog detection: "Enter to select · ↑/↓ to navigate · Esc to cancel"
+        if !has_question_dialog && trimmed.starts_with("Enter to select") {
             log::debug!(
-                "check_claude_pane_content({}): elicitation detected: {:?}",
+                "check_claude_pane_content({}): question dialog detected: {:?}",
                 pane_id,
                 trimmed
             );
-            has_elicitation = true;
+            has_question_dialog = true;
         }
 
         // Count numbered options and selection cursors for selection dialog detection.
@@ -586,12 +586,12 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         }
     }
 
-    // Selection dialog: requires ❯ N. selection cursor AND 2+ total numbered option lines.
+    // Plan approval: requires ❯ N. selection cursor AND 2+ total numbered option lines.
     // Without the selection cursor, numbered lines are just markdown content (e.g., "1. PR特定").
-    let has_selection_dialog = has_selection_cursor && numbered_option_count >= 2;
-    if has_selection_dialog {
+    let has_plan_approval = has_selection_cursor && numbered_option_count >= 2;
+    if has_plan_approval {
         log::debug!(
-            "check_claude_pane_content({}): selection dialog detected ({} numbered options)",
+            "check_claude_pane_content({}): plan approval detected ({} numbered options)",
             pane_id,
             numbered_option_count
         );
@@ -611,8 +611,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
         at_prompt,
-        has_elicitation,
-        has_selection_dialog,
+        has_question_dialog,
+        has_plan_approval,
         agent_modes,
     }
 }
@@ -796,8 +796,10 @@ fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
 // ──────────────────────────────────────────────────────────
 
 struct CodexPaneContentInfo {
-    is_running: bool, // "(XXs • esc to interrupt)" pattern
-    at_prompt: bool,  // › (U+203A) prompt character
+    is_running: bool,          // "(XXs • esc to interrupt)" pattern
+    has_question_dialog: bool, // "enter to submit answer" in question dialog footer
+    has_plan_approval: bool,   // "enter to confirm" in plan approval footer
+    at_prompt: bool,           // › (U+203A) prompt character
 }
 
 fn detect_codex_status(
@@ -807,14 +809,21 @@ fn detect_codex_status(
     let info = check_codex_pane_content(pane_id);
 
     log::debug!(
-        "detect_codex_status({}): running={} prompt={}",
+        "detect_codex_status({}): running={} question_dialog={} plan_approval={} prompt={}",
         pane_id,
         info.is_running,
+        info.has_question_dialog,
+        info.has_plan_approval,
         info.at_prompt
     );
 
     let (status, waiting_reason) = if info.is_running {
         (AgentStatus::Running, None)
+    } else if info.has_question_dialog || info.has_plan_approval {
+        // Question dialog ("enter to submit answer") or plan approval ("enter to confirm")
+        // detected — always Waiting. Takes priority over at_prompt because the selection
+        // cursor (› N.) can be misidentified as a prompt.
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -837,6 +846,8 @@ fn detect_codex_status(
 fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
     let default = CodexPaneContentInfo {
         is_running: false,
+        has_question_dialog: false,
+        has_plan_approval: false,
         at_prompt: false,
     };
 
@@ -890,6 +901,8 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
     );
 
     let mut is_running = false;
+    let mut has_question_dialog = false;
+    let mut has_plan_approval = false;
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -900,6 +913,22 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
                 trimmed
             );
             is_running = true;
+        }
+        if !has_question_dialog && is_codex_question_dialog_line(trimmed) {
+            log::debug!(
+                "check_codex_pane_content({}): question dialog detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            has_question_dialog = true;
+        }
+        if !has_plan_approval && is_codex_plan_approval_line(trimmed) {
+            log::debug!(
+                "check_codex_pane_content({}): plan approval detected: {:?}",
+                pane_id,
+                trimmed
+            );
+            has_plan_approval = true;
         }
     }
 
@@ -913,6 +942,8 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
 
     CodexPaneContentInfo {
         is_running,
+        has_question_dialog,
+        has_plan_approval,
         at_prompt,
     }
 }
@@ -924,7 +955,8 @@ fn is_codex_running_line(line: &str) -> bool {
     line.contains("s \u{2022} esc to interrupt") && line.contains('(')
 }
 
-/// Check if the last meaningful line is a Codex prompt (›), skipping footer lines.
+/// Check if the last meaningful line is a Codex prompt (›), skipping footer lines
+/// and question dialog elements.
 fn is_codex_prompt_line(lines: &[&str]) -> bool {
     const MAX_UNKNOWN_LINES: usize = 3;
     let mut unknown_count = 0;
@@ -937,8 +969,24 @@ fn is_codex_prompt_line(lines: &[&str]) -> bool {
         if is_codex_footer_line(trimmed) {
             continue;
         }
+        // Skip question dialog footer (e.g., "tab to add notes | enter to submit answer | ...")
+        if is_codex_question_dialog_line(trimmed) {
+            continue;
+        }
+        // Skip plan approval footer (e.g., "Press enter to confirm or esc to go back")
+        if is_codex_plan_approval_line(trimmed) {
+            continue;
+        }
+        // Skip numbered options in question dialog (e.g., "2. 既存ユーザー ...")
+        if is_numbered_option(trimmed) {
+            continue;
+        }
         // › (U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK) is the Codex prompt
         if trimmed.starts_with('\u{203A}') {
+            // Skip selection cursor (› N. ...) in question dialog
+            if is_codex_selection_cursor(trimmed) {
+                continue;
+            }
             return true;
         }
         unknown_count += 1;
@@ -956,6 +1004,39 @@ fn is_codex_footer_line(line: &str) -> bool {
         || line.contains("background terminal running")
         || line.contains("/ps to view")
         || line.contains("/clean to close")
+}
+
+/// Check if a line indicates a Codex question/elicitation dialog.
+/// Matches the footer "tab to add notes | enter to submit answer | esc to interrupt"
+/// which appears at the bottom of Codex's question dialogs.
+fn is_codex_question_dialog_line(line: &str) -> bool {
+    line.contains("enter to submit answer")
+}
+
+/// Check if a line indicates a Codex plan approval dialog.
+/// Matches the footer "Press enter to confirm or esc to go back"
+/// which appears at the bottom of Codex's plan approval screen.
+fn is_codex_plan_approval_line(line: &str) -> bool {
+    line.contains("enter to confirm")
+}
+
+/// Check if a ›-prefixed line is a selection cursor on a numbered option in Codex.
+/// "› 1. New user (Recommended)" → true (selection cursor in question dialog)
+/// "› ls -la" → false (user typing at prompt)
+/// "›" → false (empty prompt)
+fn is_codex_selection_cursor(line: &str) -> bool {
+    let trimmed = line.trim();
+    let rest = trimmed.trim_start_matches('\u{203A}').trim_start();
+    let mut chars = rest.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_digit() => {
+            let after_digits = chars
+                .as_str()
+                .trim_start_matches(|c: char| c.is_ascii_digit());
+            after_digits.starts_with(". ")
+        }
+        _ => false,
+    }
 }
 
 // ──────────────────────────────────────────────────────────
@@ -989,7 +1070,7 @@ fn detect_opencode_status(
     let (status, waiting_reason) = if info.is_running {
         (AgentStatus::Running, None)
     } else if info.has_permission_dialog || info.has_selection_dialog {
-        (AgentStatus::Waiting, Some("approve".to_string()))
+        (AgentStatus::Waiting, Some("respond".to_string()))
     } else {
         // No running signal — check DB for pending notifications
         if let Some(conn) = db_conn {

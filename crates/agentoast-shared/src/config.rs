@@ -39,11 +39,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub toast: ToastConfig,
     #[serde(default)]
-    pub panel: PanelConfig,
+    pub notification: NotificationConfig,
     #[serde(default)]
-    pub shortcut: ShortcutConfig,
-    #[serde(default)]
-    pub hook: HookConfig,
+    pub keybinding: KeybindingConfig,
     #[serde(default)]
     pub update: UpdateConfig,
 }
@@ -66,18 +64,21 @@ impl Default for ToastConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct PanelConfig {
+pub struct NotificationConfig {
     #[serde(default)]
     pub muted: bool,
     #[serde(default = "default_filter_notified_only")]
     pub filter_notified_only: bool,
+    #[serde(default)]
+    pub agents: AgentsConfig,
 }
 
-impl Default for PanelConfig {
+impl Default for NotificationConfig {
     fn default() -> Self {
         Self {
             muted: false,
             filter_notified_only: default_filter_notified_only(),
+            agents: AgentsConfig::default(),
         }
     }
 }
@@ -91,12 +92,12 @@ fn default_toast_duration() -> u64 {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct ShortcutConfig {
+pub struct KeybindingConfig {
     #[serde(default = "default_toggle_panel")]
     pub toggle_panel: String,
 }
 
-impl Default for ShortcutConfig {
+impl Default for KeybindingConfig {
     fn default() -> Self {
         Self {
             toggle_panel: default_toggle_panel(),
@@ -105,13 +106,13 @@ impl Default for ShortcutConfig {
 }
 
 fn default_toggle_panel() -> String {
-    "ctrl+alt+n".to_string()
+    "super+ctrl+n".to_string()
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct HookConfig {
+pub struct AgentsConfig {
     #[serde(default)]
-    pub claude: ClaudeHookConfig,
+    pub claude_code: ClaudeCodeHookConfig,
     #[serde(default)]
     pub codex: CodexHookConfig,
     #[serde(default)]
@@ -119,17 +120,17 @@ pub struct HookConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct ClaudeHookConfig {
-    #[serde(default = "default_claude_events")]
+pub struct ClaudeCodeHookConfig {
+    #[serde(default = "default_claude_code_events")]
     pub events: Vec<String>,
     #[serde(default)]
     pub focus_events: Vec<String>,
 }
 
-impl Default for ClaudeHookConfig {
+impl Default for ClaudeCodeHookConfig {
     fn default() -> Self {
         Self {
-            events: default_claude_events(),
+            events: default_claude_code_events(),
             focus_events: Vec::new(),
         }
     }
@@ -200,7 +201,7 @@ impl Default for UpdateConfig {
     }
 }
 
-fn default_claude_events() -> Vec<String> {
+fn default_claude_code_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
         "permission_prompt".to_string(),
@@ -226,21 +227,21 @@ pub fn load_config() -> AppConfig {
     }
 }
 
-/// Update [panel] muted in config.toml, preserving existing comments and formatting.
-pub fn save_panel_muted(muted: bool) -> io::Result<()> {
+/// Update [notification] muted in config.toml, preserving existing comments and formatting.
+pub fn save_notification_muted(muted: bool) -> io::Result<()> {
     let path = config_path();
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     let mut doc: DocumentMut = content.parse().unwrap_or_default();
-    doc["panel"]["muted"] = toml_edit::value(muted);
+    doc["notification"]["muted"] = toml_edit::value(muted);
     std::fs::write(&path, doc.to_string())
 }
 
-/// Update [panel] filter_notified_only in config.toml, preserving existing comments and formatting.
-pub fn save_panel_filter_notified_only(value: bool) -> io::Result<()> {
+/// Update [notification] filter_notified_only in config.toml, preserving existing comments and formatting.
+pub fn save_notification_filter_notified_only(value: bool) -> io::Result<()> {
     let path = config_path();
     let content = std::fs::read_to_string(&path).unwrap_or_default();
     let mut doc: DocumentMut = content.parse().unwrap_or_default();
-    doc["panel"]["filter_notified_only"] = toml_edit::value(value);
+    doc["notification"]["filter_notified_only"] = toml_edit::value(value);
     std::fs::write(&path, doc.to_string())
 }
 
@@ -260,23 +261,16 @@ fn default_config_template() -> &'static str {
 # Keep toast visible until clicked (default: false)
 # persistent = false
 
-# Menu bar notification panel
-[panel]
+# Notification settings
+[notification]
 # Mute all notifications (default: false)
 # muted = false
 
 # Show only groups with notifications (default: false)
 # filter_notified_only = false
 
-# Global keyboard shortcut
-[shortcut]
-# Shortcut to toggle the notification panel (default: ctrl+alt+n)
-# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
-# Set to "" to disable
-# toggle_panel = "ctrl+alt+n"
-
-# Claude Code hook settings
-[hook.claude]
+# Claude Code agent settings
+[notification.agents.claude_code]
 # Events that trigger notifications
 # Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
 # idle_prompt is excluded by default (noisy); add it back if you want idle notifications
@@ -286,8 +280,8 @@ fn default_config_template() -> &'static str {
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
 
-# Codex hook settings
-[hook.codex]
+# Codex agent settings
+[notification.agents.codex]
 # Events that trigger notifications
 # Available: agent-turn-complete
 # events = ["agent-turn-complete"]
@@ -298,14 +292,21 @@ fn default_config_template() -> &'static str {
 # Include last-assistant-message as notification body (default: true, truncated to 200 chars)
 # include_body = true
 
-# OpenCode hook settings
-[hook.opencode]
+# OpenCode agent settings
+[notification.agents.opencode]
 # Events that trigger notifications
 # Available: session.status (idle only), session.error, permission.asked
 # events = ["session.status", "session.error", "permission.asked"]
 
 # Events that auto-focus the terminal (default: none)
 # focus_events = []
+
+# Keyboard shortcuts
+[keybinding]
+# Shortcut to toggle the notification panel (default: super+ctrl+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
+# Set to "" to disable
+# toggle_panel = "super+ctrl+n"
 
 # Auto-update settings
 [update]
@@ -332,8 +333,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_claude_hook_config() {
-        let config = ClaudeHookConfig::default();
+    fn default_claude_code_hook_config() {
+        let config = ClaudeCodeHookConfig::default();
         assert_eq!(
             config.events,
             vec![
@@ -349,27 +350,32 @@ mod tests {
     #[test]
     fn parse_custom_events() {
         let toml_str = r#"
-[hook.claude]
+[notification.agents.claude_code]
 events = ["Stop"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.hook.claude.events, vec!["Stop"]);
-        assert!(config.hook.claude.focus_events.is_empty());
+        assert_eq!(config.notification.agents.claude_code.events, vec!["Stop"]);
+        assert!(config
+            .notification
+            .agents
+            .claude_code
+            .focus_events
+            .is_empty());
     }
 
     #[test]
     fn parse_focus_events() {
         let toml_str = r#"
-[hook.claude]
+[notification.agents.claude_code]
 focus_events = ["Stop", "permission_prompt"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(
-            config.hook.claude.focus_events,
+            config.notification.agents.claude_code.focus_events,
             vec!["Stop", "permission_prompt"]
         );
         // Events should still have defaults (4 without idle_prompt)
-        assert_eq!(config.hook.claude.events.len(), 4);
+        assert_eq!(config.notification.agents.claude_code.events.len(), 4);
     }
 
     #[test]
@@ -383,25 +389,34 @@ focus_events = ["Stop", "permission_prompt"]
     #[test]
     fn parse_codex_events() {
         let toml_str = r#"
-[hook.codex]
+[notification.agents.codex]
 events = ["agent-turn-complete"]
 focus_events = ["agent-turn-complete"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.hook.codex.events, vec!["agent-turn-complete"]);
-        assert_eq!(config.hook.codex.focus_events, vec!["agent-turn-complete"]);
-        assert!(config.hook.codex.include_body);
+        assert_eq!(
+            config.notification.agents.codex.events,
+            vec!["agent-turn-complete"]
+        );
+        assert_eq!(
+            config.notification.agents.codex.focus_events,
+            vec!["agent-turn-complete"]
+        );
+        assert!(config.notification.agents.codex.include_body);
     }
 
     #[test]
     fn parse_codex_include_body_false() {
         let toml_str = r#"
-[hook.codex]
+[notification.agents.codex]
 include_body = false
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert!(!config.hook.codex.include_body);
-        assert_eq!(config.hook.codex.events, vec!["agent-turn-complete"]);
+        assert!(!config.notification.agents.codex.include_body);
+        assert_eq!(
+            config.notification.agents.codex.events,
+            vec!["agent-turn-complete"]
+        );
     }
 
     #[test]
@@ -417,38 +432,49 @@ include_body = false
     #[test]
     fn parse_opencode_events() {
         let toml_str = r#"
-[hook.opencode]
+[notification.agents.opencode]
 events = ["session.status"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.hook.opencode.events, vec!["session.status"]);
-        assert!(config.hook.opencode.focus_events.is_empty());
+        assert_eq!(
+            config.notification.agents.opencode.events,
+            vec!["session.status"]
+        );
+        assert!(config.notification.agents.opencode.focus_events.is_empty());
     }
 
     #[test]
     fn parse_opencode_focus_events() {
         let toml_str = r#"
-[hook.opencode]
+[notification.agents.opencode]
 focus_events = ["permission.asked"]
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.hook.opencode.focus_events, vec!["permission.asked"]);
-        assert_eq!(config.hook.opencode.events.len(), 3);
+        assert_eq!(
+            config.notification.agents.opencode.focus_events,
+            vec!["permission.asked"]
+        );
+        assert_eq!(config.notification.agents.opencode.events.len(), 3);
     }
 
     #[test]
-    fn parse_empty_hook_section() {
+    fn parse_empty_agents_section() {
         let toml_str = r#"
 [toast]
 duration_ms = 5000
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
-        // Hook.claude should use defaults (4 without idle_prompt)
-        assert_eq!(config.hook.claude.events.len(), 4);
-        assert!(config.hook.claude.focus_events.is_empty());
-        // Hook.opencode should use defaults (3 events)
-        assert_eq!(config.hook.opencode.events.len(), 3);
-        assert!(config.hook.opencode.focus_events.is_empty());
+        // notification.agents.claude_code should use defaults (4 without idle_prompt)
+        assert_eq!(config.notification.agents.claude_code.events.len(), 4);
+        assert!(config
+            .notification
+            .agents
+            .claude_code
+            .focus_events
+            .is_empty());
+        // notification.agents.opencode should use defaults (3 events)
+        assert_eq!(config.notification.agents.opencode.events.len(), 3);
+        assert!(config.notification.agents.opencode.focus_events.is_empty());
     }
 }
 

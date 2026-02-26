@@ -13,39 +13,39 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 agentoast-shared = { path = "../crates/agentoast-shared" }
-tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
-tauri-plugin-opener = "2"
-tauri-plugin-global-shortcut = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
+tauri = { version = "2.10.2", features = ["macos-private-api", "tray-icon", "image-png"] }
+tauri-plugin-opener = "2.5.3"
+tauri-plugin-global-shortcut = "2.3.1"
+tauri-plugin-updater = "2.10.0"
+tauri-plugin-process = "2.3.1"
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
-log = "0.4"
-env_logger = "0.11"
-fern = "0.7"
-humantime = "2"
-notify = "8"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+log = "0.4.29"
+env_logger = "0.11.9"
+fern = "0.7.1"
+humantime = "2.3.0"
+notify = "8.2.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = [
+objc2 = "0.6.3"
+objc2-foundation = { version = "0.3.2", features = [
     "NSProcessInfo", "NSString",
     "NSGeometry", "NSTimer",
     "NSData",
 ] }
-objc2-web-kit = { version = "0.3", features = ["WKPreferences", "WKWebView", "WKWebViewConfiguration"] }
-objc2-app-kit = { version = "0.3", features = [
+objc2-web-kit = { version = "0.3.2", features = ["WKPreferences", "WKWebView", "WKWebViewConfiguration"] }
+objc2-app-kit = { version = "0.3.2", features = [
     "NSRunningApplication", "NSWorkspace",
     "NSPanel", "NSWindow", "NSView", "NSVisualEffectView",
     "NSTextField", "NSColor", "NSFont", "NSScreen",
     "NSAnimationContext", "NSTrackingArea", "NSEvent",
     "NSAppearance", "NSImage", "NSImageView",
 ] }
-objc2-core-foundation = "0.3"
-objc2-core-graphics = "0.3"
-objc2-quartz-core = { version = "0.3", features = ["CALayer"] }
-block2 = "0.6"
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-quartz-core = { version = "0.3.2", features = ["CALayer"] }
+block2 = "0.6.2"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.5.5", features = [] }

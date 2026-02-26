@@ -6,44 +6,32 @@
   </p>
 </div>
 
+![main](docs/assets/main.gif)
+
 A macOS menu bar app for tmux users. Get a toast notification whenever an AI coding agent (Claude Code, Codex, opencode) finishes or needs your input — click it to jump right back to the tmux pane it came from.
 
 You kick off a long-running agent task, switch over to a browser or another window, and completely miss the moment it wraps up or asks for permission. agentoast makes sure you never miss it.
 
-When an agent completes or needs attention, a toast pops up at the top-right corner — click it to jump right back to the tmux pane.
+Add a [hook](#integration) to your agent's config. All notifications are grouped by repository in the menu bar — clicking one takes you straight to its tmux pane.
+
+<img src="docs/assets/menubar.png" width="400" alt="menubar" />
+
+A toast pops up whenever an agent completes or needs attention — click it to jump right back to the tmux pane.
 
 ![toast](docs/assets/toast.gif)
 
 <img src="docs/assets/toast.png" width="400" alt="toast" />
 
-With `--focus`, the terminal is brought to the foreground automatically — no click needed. See [`Send Notification`](#send-notification) for details.
-
-All notifications are grouped by repository in the menu bar. Clicking one takes you straight to its tmux pane.
-
-![menubar](docs/assets/menubar.gif)
-
-<img src="docs/assets/menubar.png" width="400" alt="menubar" />
-
 ## Installation
-
-### CLI
 
 ```bash
 brew install shuntaka9576/tap/agentoast-cli
-```
-
-### App
-
-Download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases) or install via Homebrew Cask.
-
-```bash
 brew install --cask shuntaka9576/tap/agentoast
-xattr -cr /Applications/Agentoast.app
 ```
 
-> The app is not yet signed with an Apple Developer ID. macOS Gatekeeper may flag it as "damaged" — the `xattr` command above removes the quarantine attribute to fix this. Apple Developer signing is in progress and will remove this requirement in a future release.
+Or download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases).
 
-### Uninstall
+To uninstall:
 
 ```bash
 brew uninstall --cask shuntaka9576/tap/agentoast
@@ -51,6 +39,97 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 ```
 
 ## Usage
+
+### Config
+
+Opens `~/.config/agentoast/config.toml` in your editor, creating a default one if it doesn't exist yet.
+
+```bash
+agentoast config
+```
+
+Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vim`
+
+```toml
+# agentoast configuration
+
+# Editor to open when running `agentoast config`
+# Falls back to $EDITOR environment variable, then vim
+# editor = "vim"
+
+# Toast popup notification
+[toast]
+# Display duration in milliseconds (default: 4000)
+# duration_ms = 4000
+
+# Keep toast visible until clicked (default: false)
+# persistent = false
+
+# Notification settings
+[notification]
+# Mute all notifications (default: false)
+# muted = false
+
+# Show only groups with notifications (default: false)
+# filter_notified_only = false
+
+# Claude Code agent settings
+[notification.agents.claude_code]
+# Events that trigger notifications
+# Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
+# idle_prompt is excluded by default (noisy); add it back if you want idle notifications
+# events = ["Stop", "permission_prompt", "auth_success", "elicitation_dialog"]
+
+# Events that auto-focus the terminal (default: none)
+# These events set force_focus=true, causing silent terminal focus without toast (when not muted)
+# focus_events = []
+
+# Codex agent settings
+[notification.agents.codex]
+# Events that trigger notifications
+# Available: agent-turn-complete
+# events = ["agent-turn-complete"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
+# include_body = true
+
+# OpenCode agent settings
+[notification.agents.opencode]
+# Events that trigger notifications
+# Available: session.status (idle only), session.error, permission.asked
+# events = ["session.status", "session.error", "permission.asked"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Keyboard shortcuts
+[keybinding]
+# Shortcut to toggle the notification panel (default: super+ctrl+n)
+# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
+# Set to "" to disable
+# toggle_panel = "super+ctrl+n"
+```
+
+### Keyboard Shortcuts
+
+Panel shortcuts (press `?` in the panel to see this list).
+
+| Key | Action |
+|---|---|
+| `j` / `k` | Next / Previous |
+| `Enter` | Open / Fold |
+| `d` | Delete notif |
+| `D` | Delete all notifs |
+| `C` / `E` | Collapse all / Expand all |
+| `F` | Filter notified |
+| `Tab` / `Shift+Tab` | Jump to next / prev notified pane |
+| `Esc` | Close |
+| `?` | Help |
+
+The global shortcut to toggle the panel is `Cmd+Ctrl+N` (configurable in `config.toml`).
 
 ### Notification
 
@@ -107,7 +186,7 @@ No Deno dependency required. The CLI reads hook data from the last command-line 
 
 ##### opencode
 
-Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically. The plugin forwards all events to `agentoast hook opencode`. Event filtering and notification mapping are configured in `config.toml` `[hook.opencode]`.
+Drop the plugin file into `~/.config/opencode/plugins/` and it gets picked up automatically. The plugin forwards all events to `agentoast hook opencode`. Event filtering and notification mapping are configured in `config.toml` `[notification.agents.opencode]`.
 
 ```bash
 mkdir -p ~/.config/opencode/plugins
@@ -187,97 +266,6 @@ agentoast send \
   --tmux-pane %0 \
   --meta branch=your-branch
 ```
-
-### Config
-
-Opens `~/.config/agentoast/config.toml` in your editor, creating a default one if it doesn't exist yet.
-
-```bash
-agentoast config
-```
-
-Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vim`
-
-```toml
-# agentoast configuration
-
-# Editor to open when running `agentoast config`
-# Falls back to $EDITOR environment variable, then vim
-# editor = "vim"
-
-# Toast popup notification
-[toast]
-# Display duration in milliseconds (default: 4000)
-# duration_ms = 4000
-
-# Keep toast visible until clicked (default: false)
-# persistent = false
-
-# Menu bar notification panel
-[panel]
-# Mute all notifications (default: false)
-# muted = false
-
-# Show only groups with notifications (default: false)
-# filter_notified_only = false
-
-# Global keyboard shortcut
-[shortcut]
-# Shortcut to toggle the notification panel (default: ctrl+alt+n)
-# Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
-# Set to "" to disable
-# toggle_panel = "ctrl+alt+n"
-
-# Claude Code hook settings
-[hook.claude]
-# Events that trigger notifications
-# Available: Stop, permission_prompt, idle_prompt, auth_success, elicitation_dialog
-# idle_prompt is excluded by default (noisy); add it back if you want idle notifications
-# events = ["Stop", "permission_prompt", "auth_success", "elicitation_dialog"]
-
-# Events that auto-focus the terminal (default: none)
-# These events set force_focus=true, causing silent terminal focus without toast (when not muted)
-# focus_events = []
-
-# Codex hook settings
-[hook.codex]
-# Events that trigger notifications
-# Available: agent-turn-complete
-# events = ["agent-turn-complete"]
-
-# Events that auto-focus the terminal (default: none)
-# focus_events = []
-
-# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
-# include_body = true
-
-# OpenCode hook settings
-[hook.opencode]
-# Events that trigger notifications
-# Available: session.status (idle only), session.error, permission.asked
-# events = ["session.status", "session.error", "permission.asked"]
-
-# Events that auto-focus the terminal (default: none)
-# focus_events = []
-```
-
-### Keyboard Shortcuts
-
-Panel shortcuts (press `?` in the panel to see this list).
-
-| Key | Action |
-|---|---|
-| `j` / `k` | Next / Previous |
-| `Enter` | Open / Fold |
-| `d` | Delete notif |
-| `D` | Delete all notifs |
-| `C` / `E` | Collapse all / Expand all |
-| `F` | Filter notified |
-| `Tab` / `Shift+Tab` | Jump to next / prev notified pane |
-| `Esc` | Close |
-| `?` | Help |
-
-The global shortcut to toggle the panel is `Ctrl+Alt+N` (configurable in `config.toml`).
 
 ### Tips
 

@@ -9,7 +9,8 @@
     "bun.lock",
     "Cargo.lock",
     "src-tauri/gen",
-    "src-tauri/icons"
+    "src-tauri/icons",
+    "CHANGELOG.md"
   ],
   "dictionaries": ["npm", "node", "typescript", "html", "css", "bash", "rust"],
   "words": [
@@ -24,6 +25,7 @@
     "iterm",
     "keybind",
     "keybinds",
+    "keypair",
     "kovidgoyal",
     "lefthook",
     "lsregister",
