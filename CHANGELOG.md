@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.22.0](https://github.com/shuntaka9576/agentoast/compare/v0.21.1...v0.22.0) - 2026-02-26
+- feat: add auto-update UI to panel header by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/57
+
 ## [v0.21.1](https://github.com/shuntaka9576/agentoast/compare/v0.21.0...v0.21.1) - 2026-02-24
 - chore(ci): pin GitHub Actions to commit SHAs for supply chain security by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/74
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/76
