@@ -4,8 +4,6 @@ import {
   BellOff,
   Filter,
   Trash2,
-  ArrowDownCircle,
-  CheckCircle2,
   Loader2,
   RefreshCw,
 } from "lucide-react";
@@ -81,7 +79,8 @@ export function PanelHeader({
   const isReady = updateStatus.status === "ready";
   const isDownloading = updateStatus.status === "downloading";
   const isInstalling = updateStatus.status === "installing";
-  const isUpToDate = updateStatus.status === "up-to-date";
+  const isError = updateStatus.status === "error";
+  const showUpdateIcon = isReady || isDownloading || isInstalling || isError;
 
   const iconColorClass = isDownloading || isInstalling
     ? "text-[var(--text-secondary)]"
@@ -105,43 +104,41 @@ export function PanelHeader({
         />
       </button>
       <div className="flex items-center gap-1">
-        <div className="relative" ref={dropdownRef}>
-          <button
-            tabIndex={-1}
-            onClick={handleUpdateClick}
-            className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${iconColorClass}`}
-            title={getUpdateTitle(updateStatus, appVersion)}
-          >
-            {isDownloading || isInstalling ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : isReady ? (
-              <RefreshCw size={14} />
-            ) : isUpToDate ? (
-              <CheckCircle2 size={14} />
-            ) : (
-              <ArrowDownCircle size={14} />
+        {showUpdateIcon && (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              tabIndex={-1}
+              onClick={handleUpdateClick}
+              className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${iconColorClass}`}
+              title={getUpdateTitle(updateStatus, appVersion)}
+            >
+              {isDownloading || isInstalling ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+            </button>
+            {dropdownOpen && isReady && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-[var(--panel-bg)] border border-[var(--border-primary)] rounded-lg shadow-lg p-2 min-w-[160px]">
+                <button
+                  tabIndex={-1}
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    onUpdateInstall();
+                  }}
+                  className="w-full text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                >
+                  Restart to update
+                </button>
+              </div>
             )}
-          </button>
-          {dropdownOpen && isReady && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-[var(--panel-bg)] border border-[var(--border-primary)] rounded-lg shadow-lg p-2 min-w-[160px]">
-              <button
-                tabIndex={-1}
-                onClick={() => {
-                  setDropdownOpen(false);
-                  onUpdateInstall();
-                }}
-                className="w-full text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-              >
-                Restart to update
-              </button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         <button
           tabIndex={-1}
           onClick={onToggleGlobalMute}
           className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
-          title={globalMuted ? "Unmute notifications" : "Mute notifications"}
+          title={`${globalMuted ? "Unmute notifications" : "Mute notifications"} — Agentoast v${appVersion}`}
         >
           {globalMuted ? <BellOff size={14} /> : <Bell size={14} />}
         </button>

@@ -1,23 +1,8 @@
-/// <reference types="vite/client" />
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { UpdateStatus } from "@/lib/types";
-
-const DEV_MOCK = import.meta.env.DEV;
-
-const MOCK_STATES: UpdateStatus[] = [
-  { status: "idle" },
-  { status: "checking" },
-  { status: "up-to-date" },
-  { status: "downloading", progress: -1 },
-  { status: "downloading", progress: 45 },
-  { status: "ready" },
-  { status: "installing" },
-  { status: "error", message: "Update check failed" },
-  { status: "error", message: "Download failed" },
-];
 
 interface UseAppUpdateReturn {
   updateStatus: UpdateStatus;
@@ -29,32 +14,7 @@ function wrapAsync(fn: () => Promise<void>): () => void {
   return () => { fn().catch(console.error); };
 }
 
-function useAppUpdateMock(): UseAppUpdateReturn {
-  const [mockIndex, setMockIndex] = useState(0);
-  const updateStatus = MOCK_STATES[mockIndex];
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "u") {
-        setMockIndex((prev) => (prev + 1) % MOCK_STATES.length);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  useEffect(() => {
-    console.log(`[dev] update status: ${updateStatus.status}`, updateStatus);
-  }, [updateStatus]);
-
-  return {
-    updateStatus,
-    triggerInstall: () => console.log("[dev] triggerInstall called"),
-    checkForUpdates: () => console.log("[dev] checkForUpdates called"),
-  };
-}
-
-function useAppUpdateReal(): UseAppUpdateReturn {
+export function useAppUpdate(): UseAppUpdateReturn {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: "idle" });
   const statusRef = useRef<UpdateStatus>({ status: "idle" });
   const updateRef = useRef<Update | null>(null);
@@ -181,8 +141,4 @@ function useAppUpdateReal(): UseAppUpdateReturn {
     triggerInstall: wrapAsync(triggerInstall),
     checkForUpdates: wrapAsync(checkForUpdates),
   };
-}
-
-export function useAppUpdate(): UseAppUpdateReturn {
-  return DEV_MOCK ? useAppUpdateMock() : useAppUpdateReal();
 }
