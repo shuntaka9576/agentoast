@@ -13,6 +13,7 @@ const AGENT_PROCESSES: &[(&str, &str)] = &[
     ("claude", "claude-code"),
     ("codex", "codex"),
     ("opencode", "opencode"),
+    (".opencode", "opencode"), // mise/npm install: actual Go binary is named .opencode
 ];
 
 struct GitInfo {
