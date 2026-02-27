@@ -77,7 +77,11 @@ pub fn insert_notification(conn: &Connection, input: &NotificationInput) -> rusq
 
 fn row_to_notification(row: &rusqlite::Row) -> rusqlite::Result<Notification> {
     let metadata_str: String = row.get(5)?;
-    let metadata: HashMap<String, String> = serde_json::from_str(&metadata_str).unwrap_or_default();
+    let metadata: HashMap<String, String> =
+        serde_json::from_str(&metadata_str).unwrap_or_else(|e| {
+            log::warn!("Failed to parse notification metadata: {e}");
+            HashMap::new()
+        });
 
     Ok(Notification {
         id: row.get(0)?,

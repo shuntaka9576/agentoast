@@ -202,7 +202,7 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
         return;
     }
 
-    log::info!(
+    log::debug!(
         "Detected {} new notification(s) via {}",
         new_notifications.len(),
         source
@@ -302,9 +302,11 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
 
     if !filtered_toast.is_empty() {
         let notifications = filtered_toast;
-        let _ = app_handle.run_on_main_thread(move || {
+        if let Err(e) = app_handle.run_on_main_thread(move || {
             native_toast::show_notifications(notifications);
-        });
+        }) {
+            log::warn!("Failed to show toast notifications: {e}");
+        }
     }
 
     // Emit notifications:new only for normal notifications (not force_focus)
@@ -328,11 +330,13 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
             let tmux_pane = focus_notification.tmux_pane.clone();
             let terminal_bundle_id = focus_notification.terminal_bundle_id.clone();
             let handle_for_focus = app_handle.clone();
-            let _ = handle_for_focus.run_on_main_thread(move || {
+            if let Err(e) = handle_for_focus.run_on_main_thread(move || {
                 if let Err(e) = crate::terminal::focus_terminal(&tmux_pane, &terminal_bundle_id) {
                     log::debug!("force_focus: terminal focus failed (non-fatal): {}", e);
                 }
-            });
+            }) {
+                log::warn!("Failed to run terminal focus on main thread: {e}");
+            }
         }
     }
 
@@ -356,7 +360,9 @@ pub fn update_tray_icon(app_handle: &AppHandle, unread_count: i64) {
         } else {
             "Agentoast".to_string()
         };
-        let _ = tray.set_tooltip(Some(&tooltip));
+        if let Err(e) = tray.set_tooltip(Some(&tooltip)) {
+            log::warn!("Failed to set tray tooltip: {e}");
+        }
 
         if unread_count > 0 {
             if let Ok(path) = app_handle
@@ -364,8 +370,12 @@ pub fn update_tray_icon(app_handle: &AppHandle, unread_count: i64) {
                 .resolve("icons/tray-icon-notification.png", BaseDirectory::Resource)
             {
                 if let Ok(icon) = Image::from_path(path) {
-                    let _ = tray.set_icon(Some(icon));
-                    let _ = tray.set_icon_as_template(false);
+                    if let Err(e) = tray.set_icon(Some(icon)) {
+                        log::warn!("Failed to set tray notification icon: {e}");
+                    }
+                    if let Err(e) = tray.set_icon_as_template(false) {
+                        log::warn!("Failed to set tray icon as template (notification): {e}");
+                    }
                 }
             }
         } else if let Ok(path) = app_handle
@@ -373,8 +383,12 @@ pub fn update_tray_icon(app_handle: &AppHandle, unread_count: i64) {
             .resolve("icons/tray-icon.png", BaseDirectory::Resource)
         {
             if let Ok(icon) = Image::from_path(path) {
-                let _ = tray.set_icon(Some(icon));
-                let _ = tray.set_icon_as_template(true);
+                if let Err(e) = tray.set_icon(Some(icon)) {
+                    log::warn!("Failed to set tray default icon: {e}");
+                }
+                if let Err(e) = tray.set_icon_as_template(true) {
+                    log::warn!("Failed to set tray icon as template (default): {e}");
+                }
             }
         }
     }
