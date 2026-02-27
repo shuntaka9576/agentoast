@@ -29,20 +29,28 @@ pub fn open_reader(db_path: &Path) -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn insert_notification(
-    conn: &Connection,
-    badge: &str,
-    body: &str,
-    badge_color: &str,
-    icon: &IconType,
-    metadata: &HashMap<String, String>,
-    repo: &str,
-    tmux_pane: &str,
-    terminal_bundle_id: &str,
-    force_focus: bool,
-) -> rusqlite::Result<i64> {
-    let metadata_json = serde_json::to_string(metadata).unwrap_or_else(|_| "{}".to_string());
+pub struct NotificationInput<'a> {
+    pub badge: &'a str,
+    pub body: &'a str,
+    pub badge_color: &'a str,
+    pub icon: &'a IconType,
+    pub metadata: &'a HashMap<String, String>,
+    pub repo: &'a str,
+    pub tmux_pane: &'a str,
+    pub terminal_bundle_id: &'a str,
+    pub force_focus: bool,
+}
+
+pub fn insert_notification(conn: &Connection, input: &NotificationInput) -> rusqlite::Result<i64> {
+    let metadata_json = serde_json::to_string(input.metadata).unwrap_or_else(|_| "{}".to_string());
+    let badge = input.badge;
+    let body = input.body;
+    let badge_color = input.badge_color;
+    let icon = input.icon;
+    let tmux_pane = input.tmux_pane;
+    let terminal_bundle_id = input.terminal_bundle_id;
+    let repo = input.repo;
+    let force_focus = input.force_focus;
 
     // Wrap DELETE+INSERT in a transaction so they produce a single WAL write,
     // preventing the file-watcher debounce from missing the INSERT.

@@ -154,15 +154,17 @@ fn main() {
 
             match db::insert_notification(
                 &conn,
-                &badge,
-                &body,
-                &badge_color,
-                &icon_type,
-                &metadata,
-                &repo,
-                &tmux_pane,
-                &terminal_bundle_id,
-                focus,
+                &db::NotificationInput {
+                    badge: &badge,
+                    body: &body,
+                    badge_color: &badge_color,
+                    icon: &icon_type,
+                    metadata: &metadata,
+                    repo: &repo,
+                    tmux_pane: &tmux_pane,
+                    terminal_bundle_id: &terminal_bundle_id,
+                    force_focus: focus,
+                },
             ) {
                 Ok(id) => println!("Notification saved (id={})", id),
                 Err(e) => {

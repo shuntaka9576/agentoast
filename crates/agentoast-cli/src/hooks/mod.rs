@@ -153,15 +153,17 @@ pub fn insert_notification(ctx: &HookContext, p: &NotificationPayload) -> Result
     let conn = db::open_reader(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
     db::insert_notification(
         &conn,
-        p.badge,
-        p.body,
-        p.badge_color,
-        p.icon,
-        p.metadata,
-        p.repo_name,
-        &ctx.tmux_pane,
-        &ctx.terminal_bundle_id,
-        p.force_focus,
+        &db::NotificationInput {
+            badge: p.badge,
+            body: p.body,
+            badge_color: p.badge_color,
+            icon: p.icon,
+            metadata: p.metadata,
+            repo: p.repo_name,
+            tmux_pane: &ctx.tmux_pane,
+            terminal_bundle_id: &ctx.terminal_bundle_id,
+            force_focus: p.force_focus,
+        },
     )
     .map(|_| ())
     .map_err(|e| format!("Failed to insert notification: {}", e))
