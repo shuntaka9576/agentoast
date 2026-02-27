@@ -133,6 +133,12 @@ fn get_unread_count(state: tauri::State<'_, Mutex<AppState>>) -> Result<i64, Str
     db::get_unread_count(&conn).map_err(|e| e.to_string())
 }
 
+fn emit_after_delete(app_handle: &tauri::AppHandle, count: i64) {
+    let _ = app_handle.emit("notifications:unread-count", count);
+    watcher::update_tray_icon(app_handle, count);
+    let _ = app_handle.emit("notifications:refresh", ());
+}
+
 #[tauri::command]
 fn delete_notification(
     app_handle: tauri::AppHandle,
@@ -142,11 +148,7 @@ fn delete_notification(
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
     db::delete_notification(&conn, id).map_err(|e| e.to_string())?;
-    if let Ok(count) = db::get_unread_count(&conn) {
-        let _ = app_handle.emit("notifications:unread-count", count);
-        watcher::update_tray_icon(&app_handle, count);
-    }
-    let _ = app_handle.emit("notifications:refresh", ());
+    emit_after_delete(&app_handle, db::get_unread_count(&conn).unwrap_or(0));
     Ok(())
 }
 
@@ -159,11 +161,7 @@ fn delete_notifications_by_pane(
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
     db::delete_notifications_by_pane(&conn, &tmux_pane).map_err(|e| e.to_string())?;
-    if let Ok(count) = db::get_unread_count(&conn) {
-        let _ = app_handle.emit("notifications:unread-count", count);
-        watcher::update_tray_icon(&app_handle, count);
-    }
-    let _ = app_handle.emit("notifications:refresh", ());
+    emit_after_delete(&app_handle, db::get_unread_count(&conn).unwrap_or(0));
     Ok(())
 }
 
@@ -176,11 +174,7 @@ fn delete_notifications_by_panes(
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
     db::delete_notifications_by_panes(&conn, &pane_ids).map_err(|e| e.to_string())?;
-    if let Ok(count) = db::get_unread_count(&conn) {
-        let _ = app_handle.emit("notifications:unread-count", count);
-        watcher::update_tray_icon(&app_handle, count);
-    }
-    let _ = app_handle.emit("notifications:refresh", ());
+    emit_after_delete(&app_handle, db::get_unread_count(&conn).unwrap_or(0));
     Ok(())
 }
 
@@ -247,9 +241,7 @@ fn delete_all_notifications(
     let state = state.lock().map_err(|e| e.to_string())?;
     let conn = db::open_reader(&state.db_path).map_err(|e| e.to_string())?;
     db::delete_all_notifications(&conn).map_err(|e| e.to_string())?;
-    let _ = app_handle.emit("notifications:unread-count", 0i64);
-    watcher::update_tray_icon(&app_handle, 0);
-    let _ = app_handle.emit("notifications:refresh", ());
+    emit_after_delete(&app_handle, 0);
     Ok(())
 }
 
