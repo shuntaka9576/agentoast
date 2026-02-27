@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.22.2](https://github.com/shuntaka9576/agentoast/compare/v0.22.1...v0.22.2) - 2026-02-27
+- refactor: split CLI hook handlers into per-agent modules by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/85
+- refactor: split sessions.rs into per-agent modules by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/87
+- refactor: extract emit_after_delete helper in lib.rs by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/88
+- refactor: introduce NotificationInput struct to reduce insert_notification args by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/89
+- refactor: introduce DismissButtonParams struct to reduce make_dismiss_button args by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/90
+- fix: detect .opencode binary for mise/npm installed OpenCode by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/91
+
 ## [v0.22.1](https://github.com/shuntaka9576/agentoast/compare/v0.22.0...v0.22.1) - 2026-02-26
 - chore: remove unused dependencies (env_logger, objc2-web-kit) by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/83
 
