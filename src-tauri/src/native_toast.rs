@@ -687,24 +687,28 @@ fn build_toast_view(
     if let Some(v) = make_dismiss_button(
         mtm,
         X_ICON,
-        8.0,
-        btn_y,
-        btn_w,
-        btn_h,
-        btn_icon_size,
-        &colors,
+        DismissButtonParams {
+            x: 8.0,
+            y: btn_y,
+            w: btn_w,
+            h: btn_h,
+            icon_size: btn_icon_size,
+            colors: &colors,
+        },
     ) {
         effect_view.addSubview(&v);
     }
     if let Some(v) = make_dismiss_button(
         mtm,
         TRASH_ICON,
-        8.0 + btn_w + btn_gap,
-        btn_y,
-        btn_w,
-        btn_h,
-        btn_icon_size,
-        &colors,
+        DismissButtonParams {
+            x: 8.0 + btn_w + btn_gap,
+            y: btn_y,
+            w: btn_w,
+            h: btn_h,
+            icon_size: btn_icon_size,
+            colors: &colors,
+        },
     ) {
         effect_view.addSubview(&v);
     }
@@ -867,17 +871,28 @@ fn make_meta_icon(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-fn make_dismiss_button(
-    mtm: MainThreadMarker,
-    png_bytes: &[u8],
+struct DismissButtonParams<'a> {
     x: f64,
     y: f64,
     w: f64,
     h: f64,
     icon_size: f64,
-    colors: &ToastColors,
+    colors: &'a ToastColors,
+}
+
+fn make_dismiss_button(
+    mtm: MainThreadMarker,
+    png_bytes: &[u8],
+    params: DismissButtonParams<'_>,
 ) -> Option<Retained<NSView>> {
+    let DismissButtonParams {
+        x,
+        y,
+        w,
+        h,
+        icon_size,
+        colors,
+    } = params;
     let container = NSView::initWithFrame(
         NSView::alloc(mtm),
         CGRect::new(CGPoint::new(x, y), CGSize::new(w, h)),
