@@ -64,12 +64,12 @@ tmux select-layout -t "$SESSION2:0" even-horizontal
 # ─── Phase 3: Launch agents ─────────────────────────────────────────────────
 echo "Phase 3: Launch agents"
 
-# dotfiles
+# dotfiles (Running)
 tmux send-keys -t "$SESSION1:0.0" "$CLAUDE" C-m
 tmux send-keys -t "$SESSION1:0.1" "codex" C-m
 tmux send-keys -t "$SESSION1:0.2" "opencode --prompt \"Run sleep 1000 in the foreground\"" C-m
 
-# shuntaka-dev
+# shuntaka-dev (Waiting)
 tmux send-keys -t "$SESSION2:0.0" "$CLAUDE" C-m
 tmux send-keys -t "$SESSION2:0.1" "codex" C-m
 tmux send-keys -t "$SESSION2:0.2" "opencode --prompt \"Add a brief description comment to the top of README.md\"" C-m
@@ -78,12 +78,12 @@ tmux send-keys -t "$SESSION2:0.2" "opencode --prompt \"Add a brief description c
 echo "Phase 4: Waiting for agents to initialize..."
 set +e
 
-# dotfiles
+# dotfiles (Running — no prompts to send, just wait for opencode)
 wait_for_prompt "$SESSION1:0.0" "❯" 30
 wait_for_prompt "$SESSION1:0.1" "›" 30
 wait_for_prompt "$SESSION1:0.2" "ctrl+t variants" 30
 
-# shuntaka-dev
+# shuntaka-dev (Waiting — need prompts after init)
 wait_for_prompt "$SESSION2:0.0" "❯" 30
 wait_for_prompt "$SESSION2:0.1" "›" 30
 
@@ -91,49 +91,49 @@ set -e
 
 # ─── Phase 5: Send prompts ──────────────────────────────────────────────────
 
-# dotfiles: Claude → plan mode + task
-echo "Phase 5: dotfiles - Claude plan mode"
-tmux send-keys -t "$SESSION1:0.0" "/plan"
-sleep 0.15
-tmux send-keys -t "$SESSION1:0.0" Enter
-sleep 2
-tmux send-keys -t "$SESSION1:0.0" "Add a brief description comment to the top of README.md"
+# dotfiles: Claude → sleep 1000 (Running)
+echo "Phase 5: dotfiles - Claude sleep 1000"
+tmux send-keys -t "$SESSION1:0.0" "Run sleep 1000 in the foreground"
 sleep 0.15
 tmux send-keys -t "$SESSION1:0.0" Enter
 
-# dotfiles: Codex → plan mode + task
-echo "Phase 5: dotfiles - Codex plan mode"
-tmux send-keys -t "$SESSION1:0.1" "/plan"
-sleep 0.15
-tmux send-keys -t "$SESSION1:0.1" Enter
-sleep 2
-tmux send-keys -t "$SESSION1:0.1" "Add a brief description comment to the top of README.md"
+# dotfiles: Codex → long analysis task (Running)
+echo "Phase 5: dotfiles - Codex analysis"
+tmux send-keys -t "$SESSION1:0.1" "Read every source file in this repository one by one, then write a comprehensive architecture document covering all modules, functions, and their relationships"
 sleep 0.15
 tmux send-keys -t "$SESSION1:0.1" Enter
 
-# shuntaka-dev: Claude → sleep 1000
-echo "Phase 5: shuntaka-dev - Claude sleep 1000"
-tmux send-keys -t "$SESSION2:0.0" "Run sleep 1000 in the foreground"
+# shuntaka-dev: Claude → plan mode + task (Waiting)
+echo "Phase 5: shuntaka-dev - Claude plan mode"
+tmux send-keys -t "$SESSION2:0.0" "/plan"
+sleep 0.15
+tmux send-keys -t "$SESSION2:0.0" Enter
+sleep 2
+tmux send-keys -t "$SESSION2:0.0" "Add a brief description comment to the top of README.md"
 sleep 0.15
 tmux send-keys -t "$SESSION2:0.0" Enter
 
-# shuntaka-dev: Codex → long analysis task
-echo "Phase 5: shuntaka-dev - Codex analysis"
-tmux send-keys -t "$SESSION2:0.1" "Read every source file in this repository one by one, then write a comprehensive architecture document covering all modules, functions, and their relationships"
+# shuntaka-dev: Codex → plan mode + task (Waiting)
+echo "Phase 5: shuntaka-dev - Codex plan mode"
+tmux send-keys -t "$SESSION2:0.1" "/plan"
+sleep 0.15
+tmux send-keys -t "$SESSION2:0.1" Enter
+sleep 2
+tmux send-keys -t "$SESSION2:0.1" "Add a brief description comment to the top of README.md"
 sleep 0.15
 tmux send-keys -t "$SESSION2:0.1" Enter
 
 echo ""
 echo "Done! All agents launched."
 echo ""
-echo "  $SESSION1:"
-echo "    Pane 0: claude (plan → Waiting)"
-echo "    Pane 1: codex (plan → Waiting)"
-echo "    Pane 2: opencode (Running)"
-echo ""
-echo "  $SESSION2:"
+echo "  $SESSION1 (Running):"
 echo "    Pane 0: claude (Running)"
 echo "    Pane 1: codex (Running)"
+echo "    Pane 2: opencode (Running)"
+echo ""
+echo "  $SESSION2 (Waiting):"
+echo "    Pane 0: claude (plan → Waiting)"
+echo "    Pane 1: codex (plan → Waiting)"
 echo "    Pane 2: opencode (Approve → Waiting)"
 echo ""
 echo "Attach with: tmux attach -t $SESSION1"
