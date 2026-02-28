@@ -40,6 +40,17 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ## Usage
 
+### Works With
+
+| Agent | Hook Config | Events | Status Detection |
+|---|---|---|---|
+| [Claude Code](https://github.com/anthropics/claude-code) | `~/.claude/settings.json` | Stop, Permission, Auth, Elicitation | Running / Idle / Waiting |
+| [Codex](https://github.com/openai/codex) | `~/.codex/config.toml` | Turn Complete | Running / Idle / Waiting |
+| [opencode](https://github.com/anomalyco/opencode) | Plugin (`~/.config/opencode/plugins/`) | Session Idle, Error, Permission | Running / Idle / Waiting |
+| 🚧 [Kiro CLI](https://github.com/aws/kiro-cli) | — | — | — |
+
+All agents utilize the built-in CLI (`agentoast hook <agent>`). See the [Integration](#integration) section for setup details. If you'd like to see support for other agents, please feel free to [open an issue](https://github.com/shuntaka9576/agentoast/issues).
+
 ### Config
 
 Opens `~/.config/agentoast/config.toml` in your editor, creating a default one if it doesn't exist yet.
