@@ -226,7 +226,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
             team_role = Some("lead".to_string());
         }
 
-        // Teammate: separator "──── @agentname ──"
+        // Teammate: separator "──── @agent-name ──"
         if team_role.is_none() && trimmed.starts_with('\u{2500}') {
             if let Some(name) = extract_team_agent_name(trimmed) {
                 log::debug!(
