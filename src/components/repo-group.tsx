@@ -206,24 +206,25 @@ function ExpandedPanes({
       {teamGroups.map((teamPanes) => {
         const lead = teamPanes.find((pi) => pi.pane.teamRole === "lead");
         const teammates = teamPanes.filter((pi) => pi.pane.teamRole === "teammate");
-        const leadName = lead
-          ? (teamPanes.find((pi) => pi.pane.teamRole === "teammate")
-              ? "@main"
-              : "@main")
-          : null;
         const teamKey = lead
           ? `${lead.pane.sessionName}:${lead.pane.windowName}`
           : teamPanes[0].pane.paneId;
+        const memberCount = teamPanes.length;
+        const hasSelectedMember = teamPanes.some(
+          (pi) =>
+            pi.pane.paneId === selectedPaneId ||
+            (pi.notification !== null && pi.notification.id === selectedId),
+        );
         return (
-          <div key={teamKey} className="mx-3 my-1 border border-[var(--border-subtle)] rounded-md">
+          <div key={teamKey} className={cn(
+            "mx-3 my-1 border rounded-md",
+            hasSelectedMember ? "border-violet-500/60" : "border-[var(--border-subtle)]",
+          )}>
             {/* Team sub-header */}
             <div className="flex items-center gap-1.5 px-2 py-1 border-b border-[var(--border-subtle)]">
               <Users size={10} className="text-[var(--text-muted)] flex-shrink-0" />
               <span className="text-[10px] text-[var(--text-muted)]">
-                {leadName ?? "@main"}
-                {teammates.length > 0 && (
-                  <span className="ml-1">· {teammates.length} {teammates.length === 1 ? "teammate" : "teammates"}</span>
-                )}
+                Agent Teams({memberCount})
               </span>
             </div>
             {/* Sort: lead first, then teammates */}
