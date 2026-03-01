@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::capture_pane;
+use super::{capture_pane, AgentDetectionResult};
 
 /// OpenCode mode patterns: (substring after ▣ prefix, label for frontend)
 const OPENCODE_MODE_PATTERNS: &[(&str, &str)] = &[("Plan", "plan"), ("Build", "build")];
@@ -15,7 +15,7 @@ struct OpencodePaneContentInfo {
 pub(super) fn detect_opencode_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
-) -> (AgentStatus, Option<String>, Vec<String>) {
+) -> AgentDetectionResult {
     let info = check_opencode_pane_content(pane_id);
 
     log::debug!(
@@ -43,7 +43,14 @@ pub(super) fn detect_opencode_status(
         }
     };
 
-    (status, waiting_reason, info.agent_modes)
+    // OpenCode does not support Agent Teams
+    AgentDetectionResult {
+        status,
+        waiting_reason,
+        agent_modes: info.agent_modes,
+        team_role: None,
+        team_name: None,
+    }
 }
 
 fn check_opencode_pane_content(pane_id: &str) -> OpencodePaneContentInfo {

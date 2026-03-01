@@ -129,6 +129,16 @@ export function PaneCard({
                 {mode}
               </span>
             ))}
+            {pane.teamRole === "lead" && (
+              <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">
+                @main
+              </span>
+            )}
+            {pane.teamName && (
+              <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">
+                {pane.teamName}
+              </span>
+            )}
             {notification?.badge && badgeClass && (
               <span
                 className={cn(

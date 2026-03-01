@@ -80,6 +80,8 @@ pub struct TmuxPane {
     pub agent_status: Option<AgentStatus>,
     pub waiting_reason: Option<String>,
     pub agent_modes: Vec<String>,
+    pub team_role: Option<String>,  // "lead" or "teammate" (Agent Teams)
+    pub team_name: Option<String>,  // "@agent-alpha" (teammate only)
     pub git_repo_root: Option<String>,
     pub git_branch: Option<String>,
 }

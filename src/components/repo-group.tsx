@@ -1,4 +1,5 @@
-import { Bell, BellOff, ChevronDown, ChevronRight, GitBranch, Folder, FolderGit2, Trash2 } from "lucide-react";
+import { Bell, BellOff, ChevronDown, ChevronRight, GitBranch, Folder, FolderGit2, Trash2, Users } from "lucide-react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { PaneItem, FlatItem } from "@/lib/types";
 import { PaneCard } from "./pane-card";
@@ -134,27 +135,107 @@ export function RepoGroup({
       </button>
 
       {expanded && (
-        <div className="py-0.5">
-          {paneItems.map((pi) => {
-            const navIndex = flatItems.findIndex(
-              (f) => f.type === "pane-item" && f.paneItem.pane.paneId === pi.pane.paneId,
-            );
-            const isSelected =
-              pi.pane.paneId === selectedPaneId ||
-              (pi.notification !== null && pi.notification.id === selectedId);
-            return (
-              <PaneCard
-                key={`pane-${pi.pane.paneId}`}
-                paneItem={pi}
-                isNew={pi.notification !== null && newIds.has(pi.notification.id)}
-                isSelected={isSelected}
-                navIndex={navIndex}
-                onDeleteNotification={onDeleteNotification}
-              />
-            );
-          })}
-        </div>
+        <ExpandedPanes
+          paneItems={paneItems}
+          flatItems={flatItems}
+          newIds={newIds}
+          selectedId={selectedId}
+          selectedPaneId={selectedPaneId}
+          onDeleteNotification={onDeleteNotification}
+        />
       )}
+    </div>
+  );
+}
+
+interface ExpandedPanesProps {
+  paneItems: PaneItem[];
+  flatItems: FlatItem[];
+  newIds: Set<number>;
+  selectedId: number | null;
+  selectedPaneId: string | null;
+  onDeleteNotification: (id: number) => void;
+}
+
+function ExpandedPanes({
+  paneItems,
+  flatItems,
+  newIds,
+  selectedId,
+  selectedPaneId,
+  onDeleteNotification,
+}: ExpandedPanesProps) {
+  // Group panes by Agent Teams membership (session:window key)
+  const { teamGroups, soloItems } = useMemo(() => {
+    const teamMap = new Map<string, PaneItem[]>();
+    const solo: PaneItem[] = [];
+    for (const pi of paneItems) {
+      const { teamRole, sessionName, windowName } = pi.pane;
+      if (teamRole) {
+        const key = `${sessionName}:${windowName}`;
+        if (!teamMap.has(key)) teamMap.set(key, []);
+        teamMap.get(key)!.push(pi);
+      } else {
+        solo.push(pi);
+      }
+    }
+    return { teamGroups: Array.from(teamMap.values()), soloItems: solo };
+  }, [paneItems]);
+
+  const renderPaneCard = (pi: PaneItem) => {
+    const navIndex = flatItems.findIndex(
+      (f) => f.type === "pane-item" && f.paneItem.pane.paneId === pi.pane.paneId,
+    );
+    const isSelected =
+      pi.pane.paneId === selectedPaneId ||
+      (pi.notification !== null && pi.notification.id === selectedId);
+    return (
+      <PaneCard
+        key={`pane-${pi.pane.paneId}`}
+        paneItem={pi}
+        isNew={pi.notification !== null && newIds.has(pi.notification.id)}
+        isSelected={isSelected}
+        navIndex={navIndex}
+        onDeleteNotification={onDeleteNotification}
+      />
+    );
+  };
+
+  return (
+    <div className="py-0.5">
+      {teamGroups.map((teamPanes) => {
+        const lead = teamPanes.find((pi) => pi.pane.teamRole === "lead");
+        const teammates = teamPanes.filter((pi) => pi.pane.teamRole === "teammate");
+        const leadName = lead
+          ? (teamPanes.find((pi) => pi.pane.teamRole === "teammate")
+              ? "@main"
+              : "@main")
+          : null;
+        const teamKey = lead
+          ? `${lead.pane.sessionName}:${lead.pane.windowName}`
+          : teamPanes[0].pane.paneId;
+        return (
+          <div key={teamKey} className="mx-3 my-1 border border-[var(--border-subtle)] rounded-md">
+            {/* Team sub-header */}
+            <div className="flex items-center gap-1.5 px-2 py-1 border-b border-[var(--border-subtle)]">
+              <Users size={10} className="text-[var(--text-muted)] flex-shrink-0" />
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {leadName ?? "@main"}
+                {teammates.length > 0 && (
+                  <span className="ml-1">· {teammates.length} {teammates.length === 1 ? "teammate" : "teammates"}</span>
+                )}
+              </span>
+            </div>
+            {/* Sort: lead first, then teammates */}
+            {[
+              ...(lead ? [lead] : []),
+              ...teammates,
+              ...teamPanes.filter((pi) => pi.pane.teamRole !== "lead" && pi.pane.teamRole !== "teammate"),
+            ].map(renderPaneCard)}
+          </div>
+        );
+      })}
+      {soloItems.map(renderPaneCard)}
     </div>
   );
 }

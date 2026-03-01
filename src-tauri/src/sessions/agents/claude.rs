@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::{capture_pane, is_numbered_option};
+use super::{capture_pane, is_numbered_option, AgentDetectionResult};
 
 struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
@@ -9,12 +9,14 @@ struct ClaudePaneContentInfo {
     has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
     has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
     agent_modes: Vec<String>,
+    team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
+    team_name: Option<String>, // "@agent-alpha" for teammates
 }
 
 pub(super) fn detect_claude_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
-) -> (AgentStatus, Option<String>, Vec<String>) {
+) -> AgentDetectionResult {
     let info = check_claude_pane_content(pane_id);
 
     log::debug!(
@@ -59,7 +61,13 @@ pub(super) fn detect_claude_status(
         (AgentStatus::Running, None)
     };
 
-    (status, waiting_reason, info.agent_modes)
+    AgentDetectionResult {
+        status,
+        waiting_reason,
+        agent_modes: info.agent_modes,
+        team_role: info.team_role,
+        team_name: info.team_name,
+    }
 }
 
 /// Claude Code spinner characters that appear at the start of running lines.
@@ -80,6 +88,8 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_question_dialog: false,
         has_plan_approval: false,
         agent_modes: Vec::new(),
+        team_role: None,
+        team_name: None,
     };
 
     let content = match capture_pane(pane_id) {
@@ -178,6 +188,59 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         }
     }
 
+    // Agent Teams detection: scan only the status bar area (bottom ~7 lines)
+    // to avoid false positives from conversation text containing "teammate"
+    // or "· ↓ to expand" strings.
+    let status_area = &last_lines[..last_lines.len().min(7)];
+    let mut team_role: Option<String> = None;
+    let mut team_name: Option<String> = None;
+
+    for line in status_area {
+        let trimmed = line.trim();
+
+        // Lead: mode line (⏵/⏸) containing "teammate"
+        //   e.g., "⏸ plan mode on · 3 teammates"
+        if team_role.is_none() {
+            let is_mode_line = trimmed.starts_with('⏵') || trimmed.starts_with('⏸');
+            if is_mode_line && trimmed.contains("teammate") {
+                log::debug!(
+                    "check_claude_pane_content({}): agent team lead detected (mode line): {:?}",
+                    pane_id,
+                    trimmed
+                );
+                team_role = Some("lead".to_string());
+            }
+        }
+
+        // Lead: team listing starting with @ and containing "· ↓ to expand"
+        //   e.g., "@main @agent-alpha @agent-beta @agent-gamma · ↓ to expand"
+        if team_role.is_none()
+            && trimmed.starts_with('@')
+            && trimmed.contains("\u{00B7} \u{2193} to expand")
+        {
+            log::debug!(
+                "check_claude_pane_content({}): agent team lead detected (team listing): {:?}",
+                pane_id,
+                trimmed
+            );
+            team_role = Some("lead".to_string());
+        }
+
+        // Teammate: separator "──── @agentname ──"
+        if team_role.is_none() && trimmed.starts_with('\u{2500}') {
+            if let Some(name) = extract_team_agent_name(trimmed) {
+                log::debug!(
+                    "check_claude_pane_content({}): agent team teammate '{}' detected: {:?}",
+                    pane_id,
+                    name,
+                    trimmed
+                );
+                team_role = Some("teammate".to_string());
+                team_name = Some(name);
+            }
+        }
+    }
+
     // Plan approval: requires ❯ N. selection cursor AND 2+ total numbered option lines.
     // Without the selection cursor, numbered lines are just markdown content (e.g., "1. PR特定").
     let has_plan_approval = has_selection_cursor && numbered_option_count >= 2;
@@ -206,6 +269,23 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         has_question_dialog,
         has_plan_approval,
         agent_modes,
+        team_role,
+        team_name,
+    }
+}
+
+/// Extract agent name from an Agent Teams teammate separator line.
+/// "──────── @agent-alpha ──" → Some("@agent-alpha")
+/// Lines start with ─ (U+2500) and contain " @name " pattern.
+fn extract_team_agent_name(line: &str) -> Option<String> {
+    let at_pos = line.find(" @")?;
+    let rest = &line[at_pos + 1..]; // "@agent-alpha ──"
+    let end = rest.find(' ').unwrap_or(rest.len());
+    let name = &rest[..end];
+    if name.starts_with('@') && name.len() > 1 {
+        Some(name.to_string())
+    } else {
+        None
     }
 }
 

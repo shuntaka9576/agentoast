@@ -247,12 +247,13 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         .into_iter()
         .map(|rp| {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
-            let (agent_status, waiting_reason, agent_modes) = if let Some(ref at) = rp.agent_type {
-                let (status, reason, modes) = detect_agent_status(&db_conn, &rp.pane_id, at);
-                (Some(status), reason, modes)
-            } else {
-                (None, None, Vec::new())
-            };
+            let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
+                if let Some(ref at) = rp.agent_type {
+                    let r = detect_agent_status(&db_conn, &rp.pane_id, at);
+                    (Some(r.status), r.waiting_reason, r.agent_modes, r.team_role, r.team_name)
+                } else {
+                    (None, None, Vec::new(), None, None)
+                };
             TmuxPane {
                 pane_id: rp.pane_id,
                 pane_pid: rp.pane_pid,
@@ -264,6 +265,8 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
                 agent_status,
                 waiting_reason,
                 agent_modes,
+                team_role,
+                team_name,
                 git_repo_root: git_info.map(|g| g.repo_root.clone()),
                 git_branch: git_info.and_then(|g| g.branch.clone()),
             }

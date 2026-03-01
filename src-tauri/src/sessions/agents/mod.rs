@@ -8,6 +8,14 @@ mod claude;
 mod codex;
 mod opencode;
 
+pub(super) struct AgentDetectionResult {
+    pub status: AgentStatus,
+    pub waiting_reason: Option<String>,
+    pub agent_modes: Vec<String>,
+    pub team_role: Option<String>, // "lead" or "teammate"
+    pub team_name: Option<String>, // "@agent-alpha" (teammate only)
+}
+
 /// Capture tmux pane content as plain text.
 /// Returns None if tmux is not found or the capture command fails.
 pub(super) fn capture_pane(pane_id: &str) -> Option<String> {
@@ -44,7 +52,7 @@ pub(super) fn detect_agent_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     agent_type: &str,
-) -> (AgentStatus, Option<String>, Vec<String>) {
+) -> AgentDetectionResult {
     match agent_type {
         "claude-code" => claude::detect_claude_status(db_conn, pane_id),
         "codex" => codex::detect_codex_status(db_conn, pane_id),
@@ -55,7 +63,13 @@ pub(super) fn detect_agent_status(
                 pane_id,
                 agent_type
             );
-            (AgentStatus::Running, None, Vec::new())
+            AgentDetectionResult {
+                status: AgentStatus::Running,
+                waiting_reason: None,
+                agent_modes: Vec::new(),
+                team_role: None,
+                team_name: None,
+            }
         }
     }
 }

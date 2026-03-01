@@ -41,6 +41,8 @@ export interface TmuxPane {
   agentStatus: AgentStatus | null;
   waitingReason: string | null;
   agentModes: string[];
+  teamRole: "lead" | "teammate" | null;
+  teamName: string | null; // "@agent-alpha" for teammates
   gitRepoRoot: string | null;
   gitBranch: string | null;
 }
