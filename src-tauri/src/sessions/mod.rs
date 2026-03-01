@@ -387,6 +387,10 @@ fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
                             return Some(agent_type.to_string());
                         }
                     }
+                    // Agent Teams spawns the versioned binary directly (e.g. /…/claude/versions/2.1.59)
+                    if comm.contains("/claude/versions/") {
+                        return Some("claude-code".to_string());
+                    }
                 }
                 stack.push(child);
             }
