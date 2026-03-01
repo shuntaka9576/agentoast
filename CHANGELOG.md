@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.23.0](https://github.com/shuntaka9576/agentoast/compare/v0.22.2...v0.23.0) - 2026-03-01
+- feat: add Agent Teams subgroup display in Sessions tab by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/93
+
 ## [v0.22.2](https://github.com/shuntaka9576/agentoast/compare/v0.22.1...v0.22.2) - 2026-02-27
 - refactor: split CLI hook handlers into per-agent modules by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/85
 - refactor: split sessions.rs into per-agent modules by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/87
