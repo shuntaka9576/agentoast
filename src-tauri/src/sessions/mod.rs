@@ -250,7 +250,13 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
             let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
                 if let Some(ref at) = rp.agent_type {
                     let r = detect_agent_status(&db_conn, &rp.pane_id, at);
-                    (Some(r.status), r.waiting_reason, r.agent_modes, r.team_role, r.team_name)
+                    (
+                        Some(r.status),
+                        r.waiting_reason,
+                        r.agent_modes,
+                        r.team_role,
+                        r.team_name,
+                    )
                 } else {
                     (None, None, Vec::new(), None, None)
                 };
