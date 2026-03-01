@@ -154,6 +154,8 @@ export function App() {
           agentStatus: null,
           waitingReason: null,
           agentModes: [],
+          teamRole: null,
+          teamName: null,
           gitRepoRoot: null,
           gitBranch: null,
         },
@@ -179,6 +181,37 @@ export function App() {
 
         return 0;
       });
+    }
+
+    // Consolidate team panes: all teams first (lead first per team), then solo panes.
+    // This ensures flatItems order matches the visual render order in ExpandedPanes,
+    // which always renders teamGroups before soloItems.
+    for (const ug of result) {
+      if (!ug.paneItems.some((pi) => pi.pane.teamRole)) continue;
+
+      const teamMap = new Map<string, PaneItem[]>();
+      const solos: PaneItem[] = [];
+      for (const pi of ug.paneItems) {
+        if (!pi.pane.teamRole) {
+          solos.push(pi);
+        } else {
+          const key = `${pi.pane.sessionName}:${pi.pane.windowName}`;
+          if (!teamMap.has(key)) teamMap.set(key, []);
+          teamMap.get(key)!.push(pi);
+        }
+      }
+
+      const reordered: PaneItem[] = [];
+      for (const members of teamMap.values()) {
+        const lead = members.find((p) => p.pane.teamRole === "lead");
+        const teammates = members
+          .filter((p) => p.pane.teamRole === "teammate")
+          .sort((a, b) => (a.pane.teamName ?? "").localeCompare(b.pane.teamName ?? ""));
+        if (lead) reordered.push(lead);
+        reordered.push(...teammates);
+      }
+      reordered.push(...solos);
+      ug.paneItems = reordered;
     }
 
     // Sort: notifications first (createdAt desc), then by agent status (waiting > running > idle > none), then alphabetically

@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::{capture_pane, is_numbered_option};
+use super::{capture_pane, is_numbered_option, AgentDetectionResult};
 
 struct CodexPaneContentInfo {
     is_running: bool,          // "(XXs • esc to interrupt)" pattern
@@ -12,7 +12,7 @@ struct CodexPaneContentInfo {
 pub(super) fn detect_codex_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
-) -> (AgentStatus, Option<String>, Vec<String>) {
+) -> AgentDetectionResult {
     let info = check_codex_pane_content(pane_id);
 
     log::debug!(
@@ -46,8 +46,14 @@ pub(super) fn detect_codex_status(
         (AgentStatus::Running, None)
     };
 
-    // Codex has no mode indicators (plan/bypass/accept)
-    (status, waiting_reason, Vec::new())
+    // Codex has no mode indicators (plan/bypass/accept) or Agent Teams support
+    AgentDetectionResult {
+        status,
+        waiting_reason,
+        agent_modes: Vec::new(),
+        team_role: None,
+        team_name: None,
+    }
 }
 
 fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
