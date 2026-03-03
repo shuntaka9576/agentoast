@@ -327,3 +327,199 @@ fn missing_cwd() {
     assert_eq!(notifications.len(), 1);
     assert_eq!(notifications[0].repo, "");
 }
+
+#[test]
+fn teammate_idle_event() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    write_config(
+        config_dir.path(),
+        r#"
+[notification.agents.claude_code]
+events = ["TeammateIdle"]
+"#,
+    );
+
+    let json = serde_json::json!({
+        "hook_event_name": "TeammateIdle",
+        "teammate_name": "researcher",
+        "team_name": "my-project",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].badge, "Teammate Idle");
+    assert_eq!(notifications[0].badge_color, "gray");
+    assert_eq!(notifications[0].body, "@researcher is idle (my-project)");
+    assert_eq!(notifications[0].icon, "claude-code");
+    assert_eq!(
+        notifications[0].metadata.get("teammate").unwrap(),
+        "researcher"
+    );
+    assert_eq!(notifications[0].metadata.get("team").unwrap(), "my-project");
+}
+
+#[test]
+fn task_completed_event() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    write_config(
+        config_dir.path(),
+        r#"
+[notification.agents.claude_code]
+events = ["TaskCompleted"]
+"#,
+    );
+
+    let json = serde_json::json!({
+        "hook_event_name": "TaskCompleted",
+        "task_id": "task-001",
+        "task_subject": "Implement user authentication",
+        "task_description": "Add login and signup endpoints",
+        "teammate_name": "implementer",
+        "team_name": "my-project",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].badge, "Task Done");
+    assert_eq!(notifications[0].badge_color, "green");
+    assert_eq!(notifications[0].body, "Implement user authentication");
+    assert_eq!(notifications[0].icon, "claude-code");
+    assert_eq!(notifications[0].metadata.get("task").unwrap(), "task-001");
+    assert_eq!(
+        notifications[0].metadata.get("teammate").unwrap(),
+        "implementer"
+    );
+    assert_eq!(notifications[0].metadata.get("team").unwrap(), "my-project");
+}
+
+#[test]
+fn teammate_idle_filtered_by_default() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    let json = serde_json::json!({
+        "hook_event_name": "TeammateIdle",
+        "teammate_name": "researcher",
+        "team_name": "my-project",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert!(
+        notifications.is_empty(),
+        "TeammateIdle should be filtered by default config"
+    );
+}
+
+#[test]
+fn task_completed_filtered_by_default() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    let json = serde_json::json!({
+        "hook_event_name": "TaskCompleted",
+        "task_id": "task-001",
+        "task_subject": "Implement auth",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert!(
+        notifications.is_empty(),
+        "TaskCompleted should be filtered by default config"
+    );
+}
+
+#[test]
+fn task_completed_without_optional_fields() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    write_config(
+        config_dir.path(),
+        r#"
+[notification.agents.claude_code]
+events = ["TaskCompleted"]
+"#,
+    );
+
+    let json = serde_json::json!({
+        "hook_event_name": "TaskCompleted",
+        "task_id": "task-002",
+        "task_subject": "Fix bug",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].badge, "Task Done");
+    assert_eq!(notifications[0].body, "Fix bug");
+    assert_eq!(notifications[0].metadata.get("task").unwrap(), "task-002");
+    assert!(!notifications[0].metadata.contains_key("teammate"));
+    assert!(!notifications[0].metadata.contains_key("team"));
+}
+
+#[test]
+fn teammate_idle_focus_event() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    write_config(
+        config_dir.path(),
+        r#"
+[notification.agents.claude_code]
+events = ["TeammateIdle"]
+focus_events = ["TeammateIdle"]
+"#,
+    );
+
+    let json = serde_json::json!({
+        "hook_event_name": "TeammateIdle",
+        "teammate_name": "researcher",
+        "team_name": "my-project",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert!(
+        notifications[0].force_focus,
+        "TeammateIdle should have force_focus=true when in focus_events"
+    );
+}

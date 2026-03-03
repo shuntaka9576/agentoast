@@ -6,9 +6,15 @@
 interface HookData {
   session_id: string
   transcript_path: string
-  hook_event_name: "Stop" | "Notification"
+  hook_event_name: "Stop" | "Notification" | "TeammateIdle" | "TaskCompleted"
   notification_type?: "permission_prompt" | "idle_prompt" | "auth_success" | "elicitation_dialog"
   stop_hook_active?: boolean
+  // Agent Teams fields
+  teammate_name?: string
+  team_name?: string
+  task_id?: string
+  task_subject?: string
+  task_description?: string
 }
 
 // Set to true to auto-focus terminal on Stop/permission_prompt/elicitation_dialog events

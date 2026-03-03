@@ -15,6 +15,13 @@ struct ClaudeHookData {
     notification_type: Option<String>,
     message: Option<String>,
     last_assistant_message: Option<String>,
+    // Agent Teams fields
+    teammate_name: Option<String>,
+    team_name: Option<String>,
+    task_id: Option<String>,
+    task_subject: Option<String>,
+    #[allow(dead_code)]
+    task_description: Option<String>,
 }
 
 pub fn run() -> Result<(), String> {
@@ -39,6 +46,8 @@ pub fn run() -> Result<(), String> {
 
     let force_focus = hook_config.focus_events.iter().any(|e| e == event_key);
 
+    let (repo_name, mut metadata) = collect_git_metadata(data.cwd.as_deref());
+
     let (badge, badge_color, body) = match data.hook_event_name.as_str() {
         "Stop" => {
             let body = if hook_config.include_body {
@@ -51,13 +60,32 @@ pub fn run() -> Result<(), String> {
             };
             ("Stop", "green", body)
         }
+        "TeammateIdle" => {
+            let teammate = data.teammate_name.as_deref().unwrap_or("unknown");
+            let team = data.team_name.as_deref().unwrap_or("unknown");
+            metadata.insert("teammate".to_string(), teammate.to_string());
+            metadata.insert("team".to_string(), team.to_string());
+            let body = format!("@{} is idle ({})", teammate, team);
+            ("Teammate Idle", "gray", body)
+        }
+        "TaskCompleted" => {
+            let body = data.task_subject.unwrap_or_default();
+            if let Some(ref task_id) = data.task_id {
+                metadata.insert("task".to_string(), task_id.clone());
+            }
+            if let Some(ref teammate) = data.teammate_name {
+                metadata.insert("teammate".to_string(), teammate.clone());
+            }
+            if let Some(ref team) = data.team_name {
+                metadata.insert("team".to_string(), team.clone());
+            }
+            ("Task Done", "green", body)
+        }
         _ => {
             let body = data.message.unwrap_or_default();
             ("Notification", "blue", body)
         }
     };
-
-    let (repo_name, metadata) = collect_git_metadata(data.cwd.as_deref());
     let ctx = HookContext::from_env();
 
     insert_notification(
