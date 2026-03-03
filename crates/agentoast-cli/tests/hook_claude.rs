@@ -242,7 +242,8 @@ fn stop_event_with_last_assistant_message() {
     assert_eq!(notifications[0].badge, "Stop");
     assert_eq!(notifications[0].badge_color, "green");
     assert_eq!(
-        notifications[0].body, "Refactoring complete. Changed 3 files."
+        notifications[0].body,
+        "Refactoring complete. Changed 3 files."
     );
 }
 
@@ -298,7 +299,10 @@ include_body = false
 
     let notifications = get_notifications(data_dir.path());
     assert_eq!(notifications.len(), 1);
-    assert_eq!(notifications[0].body, "", "body should be empty when include_body=false");
+    assert_eq!(
+        notifications[0].body, "",
+        "body should be empty when include_body=false"
+    );
 }
 
 #[test]
