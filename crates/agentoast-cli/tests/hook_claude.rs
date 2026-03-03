@@ -222,6 +222,86 @@ fn git_info_from_cwd() {
 }
 
 #[test]
+fn stop_event_with_last_assistant_message() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    let json = serde_json::json!({
+        "hook_event_name": "Stop",
+        "last_assistant_message": "Refactoring complete. Changed 3 files.",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].badge, "Stop");
+    assert_eq!(notifications[0].badge_color, "green");
+    assert_eq!(
+        notifications[0].body, "Refactoring complete. Changed 3 files."
+    );
+}
+
+#[test]
+fn stop_event_with_long_last_assistant_message() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    let long_msg = "a".repeat(300);
+    let json = serde_json::json!({
+        "hook_event_name": "Stop",
+        "last_assistant_message": long_msg,
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert!(
+        notifications[0].body.len() <= 203,
+        "body should be truncated to ~200 chars + '...'"
+    );
+    assert!(notifications[0].body.ends_with("..."));
+}
+
+#[test]
+fn include_body_false() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let config_dir = tempfile::tempdir().unwrap();
+    setup_db(data_dir.path());
+
+    write_config(
+        config_dir.path(),
+        r#"
+[notification.agents.claude_code]
+include_body = false
+"#,
+    );
+
+    let json = serde_json::json!({
+        "hook_event_name": "Stop",
+        "last_assistant_message": "This should not appear in body",
+        "cwd": env!("CARGO_MANIFEST_DIR")
+    })
+    .to_string();
+
+    let output = run_hook_claude(&json, data_dir.path(), config_dir.path());
+    assert!(output.status.success());
+
+    let notifications = get_notifications(data_dir.path());
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].body, "", "body should be empty when include_body=false");
+}
+
+#[test]
 fn missing_cwd() {
     let data_dir = tempfile::tempdir().unwrap();
     let config_dir = tempfile::tempdir().unwrap();

@@ -125,6 +125,8 @@ pub struct ClaudeCodeHookConfig {
     pub events: Vec<String>,
     #[serde(default)]
     pub focus_events: Vec<String>,
+    #[serde(default = "default_true")]
+    pub include_body: bool,
 }
 
 impl Default for ClaudeCodeHookConfig {
@@ -132,6 +134,7 @@ impl Default for ClaudeCodeHookConfig {
         Self {
             events: default_claude_code_events(),
             focus_events: Vec::new(),
+            include_body: true,
         }
     }
 }
@@ -279,6 +282,9 @@ fn default_config_template() -> &'static str {
 # Events that auto-focus the terminal (default: none)
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
+
+# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
+# include_body = true
 
 # Codex agent settings
 [notification.agents.codex]

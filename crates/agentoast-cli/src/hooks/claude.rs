@@ -4,7 +4,7 @@ use agentoast_shared::{config, models::IconType};
 use serde::Deserialize;
 
 use super::{
-    collect_git_metadata, emit_result, insert_notification, HookContext, HookResult,
+    collect_git_metadata, emit_result, insert_notification, truncate_body, HookContext, HookResult,
     NotificationPayload,
 };
 
@@ -14,6 +14,7 @@ struct ClaudeHookData {
     cwd: Option<String>,
     notification_type: Option<String>,
     message: Option<String>,
+    last_assistant_message: Option<String>,
 }
 
 pub fn run() -> Result<(), String> {
@@ -36,11 +37,25 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
 
-    let is_stop = data.hook_event_name == "Stop";
-    let badge = if is_stop { "Stop" } else { "Notification" };
-    let badge_color = if is_stop { "green" } else { "blue" };
-    let body = data.message.as_deref().unwrap_or("");
     let force_focus = hook_config.focus_events.iter().any(|e| e == event_key);
+
+    let (badge, badge_color, body) = match data.hook_event_name.as_str() {
+        "Stop" => {
+            let body = if hook_config.include_body {
+                data.last_assistant_message
+                    .as_deref()
+                    .map(truncate_body)
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            ("Stop", "green", body)
+        }
+        _ => {
+            let body = data.message.unwrap_or_default();
+            ("Notification", "blue", body)
+        }
+    };
 
     let (repo_name, metadata) = collect_git_metadata(data.cwd.as_deref());
     let ctx = HookContext::from_env();
@@ -49,7 +64,7 @@ pub fn run() -> Result<(), String> {
         &ctx,
         &NotificationPayload {
             badge,
-            body,
+            body: &body,
             badge_color,
             icon: &IconType::ClaudeCode,
             metadata: &metadata,
