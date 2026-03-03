@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.24.0](https://github.com/shuntaka9576/agentoast/compare/v0.23.0...v0.24.0) - 2026-03-03
+- feat: add last_assistant_message body to Claude Code Stop notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/95
+- chore(deps): update songmu/tagpr action to v1.17.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/94
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/81
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/80
+- chore: add postVersionCommand to auto-update Cargo.lock on release by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/97
+- chore: pin linker to Apple clang for macOS builds by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/98
+
 ## [v0.23.0](https://github.com/shuntaka9576/agentoast/compare/v0.22.2...v0.23.0) - 2026-03-01
 - feat: add Agent Teams subgroup display in Sessions tab by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/93
 
