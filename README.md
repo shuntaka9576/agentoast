@@ -95,6 +95,9 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # These events set force_focus=true, causing silent terminal focus without toast (when not muted)
 # focus_events = []
 
+# Include last-assistant-message as notification body (default: true, truncated to 200 chars)
+# include_body = true
+
 # Codex agent settings
 [notification.agents.codex]
 # Events that trigger notifications

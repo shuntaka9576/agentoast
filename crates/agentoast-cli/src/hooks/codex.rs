@@ -2,7 +2,7 @@ use agentoast_shared::{config, models::IconType};
 use serde::Deserialize;
 
 use super::{
-    collect_git_metadata, emit_result, insert_notification, HookContext, HookResult,
+    collect_git_metadata, emit_result, insert_notification, truncate_body, HookContext, HookResult,
     NotificationPayload,
 };
 
@@ -13,23 +13,6 @@ struct CodexHookData {
     cwd: Option<String>,
     #[serde(rename = "last-assistant-message")]
     last_assistant_message: Option<String>,
-}
-
-const BODY_MAX_LEN: usize = 200;
-
-fn truncate_body(msg: &str) -> String {
-    if msg.len() <= BODY_MAX_LEN {
-        return msg.to_string();
-    }
-    let truncate_at = msg
-        .char_indices()
-        .take_while(|(i, _)| *i <= BODY_MAX_LEN)
-        .last()
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-    let mut truncated = msg[..truncate_at].to_string();
-    truncated.push_str("...");
-    truncated
 }
 
 pub fn run(json_arg: &str) -> Result<(), String> {

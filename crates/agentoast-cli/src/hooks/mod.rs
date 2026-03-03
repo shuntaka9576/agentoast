@@ -128,6 +128,25 @@ pub fn collect_git_metadata(cwd_opt: Option<&str>) -> (String, HashMap<String, S
     (repo_name, metadata)
 }
 
+const BODY_MAX_LEN: usize = 200;
+
+/// Truncates a message to BODY_MAX_LEN characters, appending "..." if truncated.
+/// Handles multi-byte characters safely by splitting at char boundaries.
+pub fn truncate_body(msg: &str) -> String {
+    if msg.len() <= BODY_MAX_LEN {
+        return msg.to_string();
+    }
+    let truncate_at = msg
+        .char_indices()
+        .take_while(|(i, _)| *i <= BODY_MAX_LEN)
+        .last()
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    let mut truncated = msg[..truncate_at].to_string();
+    truncated.push_str("...");
+    truncated
+}
+
 /// Serializes a HookResult as JSON and writes it to stdout
 pub fn emit_result(result: HookResult) {
     println!(
