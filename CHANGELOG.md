@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.25.0](https://github.com/shuntaka9576/agentoast/compare/v0.24.0...v0.25.0) - 2026-03-03
+- feat: add TeammateIdle and TaskCompleted hook events for Agent Teams by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/99
+- feat: add delayed auto-expand for pane card body text by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/101
+
 ## [v0.24.0](https://github.com/shuntaka9576/agentoast/compare/v0.23.0...v0.24.0) - 2026-03-03
 - feat: add last_assistant_message body to Claude Code Stop notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/95
 - chore(deps): update songmu/tagpr action to v1.17.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/94
