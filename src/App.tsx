@@ -42,6 +42,8 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
+  const [autoExpandedPaneId, setAutoExpandedPaneId] = useState<string | null>(null);
+  const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needFetchVersionRef = useRef(-1);
   const fetchVersionRef = useRef(fetchVersion);
@@ -361,6 +363,43 @@ export function App() {
     }
   }, [selectedIndex]);
 
+  // Delayed auto-expand: after 300ms on a selected pane with body text, expand it
+  useEffect(() => {
+    if (autoExpandTimerRef.current) {
+      clearTimeout(autoExpandTimerRef.current);
+      autoExpandTimerRef.current = null;
+    }
+    setAutoExpandedPaneId(null);
+
+    if (selectedIndex < 0) return;
+    const item = flatItems[selectedIndex];
+    if (item?.type !== "pane-item" || !item.paneItem.notification?.body) return;
+
+    const paneId = item.paneItem.pane.paneId;
+    autoExpandTimerRef.current = setTimeout(() => {
+      setAutoExpandedPaneId(paneId);
+      autoExpandTimerRef.current = null;
+    }, 300);
+
+    return () => {
+      if (autoExpandTimerRef.current) {
+        clearTimeout(autoExpandTimerRef.current);
+        autoExpandTimerRef.current = null;
+      }
+    };
+  }, [selectedIndex, flatItems]);
+
+  // Scroll into view after auto-expand (card height may change)
+  useEffect(() => {
+    if (!autoExpandedPaneId) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const el = container.querySelector(`[data-nav-index="${selectedIndex}"]`);
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [autoExpandedPaneId, selectedIndex]);
+
   const activatePaneItem = useCallback(
     (paneItem: PaneItem) => {
       if (paneItem.notification) {
@@ -587,6 +626,7 @@ export function App() {
                   selectedId={selectedNotificationId}
                   selectedPaneId={selectedPaneId}
                   flatItems={flatItems}
+                  autoExpandedPaneId={autoExpandedPaneId}
                   onDeleteNotification={(id) => void deleteNotification(id)}
                   onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
                   onToggleRepoMute={(path) => void toggleRepoMute(path)}

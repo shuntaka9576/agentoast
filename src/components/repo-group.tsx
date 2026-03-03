@@ -17,6 +17,7 @@ interface RepoGroupProps {
   selectedId: number | null;
   selectedPaneId: string | null;
   flatItems: FlatItem[];
+  autoExpandedPaneId: string | null;
   onDeleteNotification: (id: number) => void;
   onDeleteByPanes: (paneIds: string[]) => void;
   onToggleRepoMute: (repoPath: string) => void;
@@ -36,6 +37,7 @@ export function RepoGroup({
   selectedId,
   selectedPaneId,
   flatItems,
+  autoExpandedPaneId,
   onDeleteNotification,
   onDeleteByPanes,
   onToggleRepoMute,
@@ -141,6 +143,7 @@ export function RepoGroup({
           newIds={newIds}
           selectedId={selectedId}
           selectedPaneId={selectedPaneId}
+          autoExpandedPaneId={autoExpandedPaneId}
           onDeleteNotification={onDeleteNotification}
         />
       )}
@@ -154,6 +157,7 @@ interface ExpandedPanesProps {
   newIds: Set<number>;
   selectedId: number | null;
   selectedPaneId: string | null;
+  autoExpandedPaneId: string | null;
   onDeleteNotification: (id: number) => void;
 }
 
@@ -163,6 +167,7 @@ function ExpandedPanes({
   newIds,
   selectedId,
   selectedPaneId,
+  autoExpandedPaneId,
   onDeleteNotification,
 }: ExpandedPanesProps) {
   // Group panes by Agent Teams membership (session:window key)
@@ -189,12 +194,14 @@ function ExpandedPanes({
     const isSelected =
       pi.pane.paneId === selectedPaneId ||
       (pi.notification !== null && pi.notification.id === selectedId);
+    const isAutoExpanded = pi.pane.paneId === autoExpandedPaneId;
     return (
       <PaneCard
         key={`pane-${pi.pane.paneId}`}
         paneItem={pi}
         isNew={pi.notification !== null && newIds.has(pi.notification.id)}
         isSelected={isSelected}
+        isAutoExpanded={isAutoExpanded}
         navIndex={navIndex}
         onDeleteNotification={onDeleteNotification}
       />

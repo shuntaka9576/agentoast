@@ -8,6 +8,7 @@ interface PaneCardProps {
   paneItem: PaneItem;
   isNew?: boolean;
   isSelected?: boolean;
+  isAutoExpanded?: boolean;
   navIndex?: number;
   onDeleteNotification: (id: number) => void;
 }
@@ -66,6 +67,7 @@ export function PaneCard({
   paneItem,
   isNew,
   isSelected,
+  isAutoExpanded,
   navIndex,
   onDeleteNotification,
 }: PaneCardProps) {
@@ -157,9 +159,12 @@ export function PaneCard({
             )}
           </div>
 
-          {/* Line 2: body (1 line) */}
+          {/* Line 2: body (1 line, auto-expands when selected for 300ms) */}
           {notification?.body && (
-            <p className="mt-0.5 text-[11px] text-[var(--text-secondary)] line-clamp-1">
+            <p className={cn(
+              "mt-0.5 text-[11px] text-[var(--text-secondary)]",
+              isAutoExpanded ? "" : "line-clamp-1",
+            )}>
               {notification.body}
             </p>
           )}
