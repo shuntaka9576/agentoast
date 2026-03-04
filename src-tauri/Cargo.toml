@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 agentoast-shared = { path = "../crates/agentoast-shared" }
-tauri = { version = "2.10.2", features = ["macos-private-api", "tray-icon", "image-png"] }
+tauri = { version = "2.10.3", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-global-shortcut = "2.3.1"
 tauri-plugin-updater = "2.10.0"
@@ -46,4 +46,4 @@ objc2-quartz-core = { version = "0.3.2", features = ["CALayer"] }
 block2 = "0.6.2"
 
 [build-dependencies]
-tauri-build = { version = "2.5.5", features = [] }
+tauri-build = { version = "2.5.6", features = [] }
