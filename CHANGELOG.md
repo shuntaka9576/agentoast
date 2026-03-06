@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.25.1](https://github.com/shuntaka9576/agentoast/compare/v0.25.0...v0.25.1) - 2026-03-06
+- fix(deps): update dependency lucide-react to ^0.576.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/102
+- chore(deps): update dependency oxlint to ^1.51.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/104
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/106
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/105
+- chore(deps): update oven-sh/setup-bun action to v2.1.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/108
+- fix(deps): update dependency lucide-react to ^0.577.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/107
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/109
+
 ## [v0.25.0](https://github.com/shuntaka9576/agentoast/compare/v0.24.0...v0.25.0) - 2026-03-03
 - feat: add TeammateIdle and TaskCompleted hook events for Agent Teams by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/99
 - feat: add delayed auto-expand for pane card body text by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/101
