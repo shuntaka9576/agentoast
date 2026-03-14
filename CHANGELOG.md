@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.25.2](https://github.com/shuntaka9576/agentoast/compare/v0.25.1...v0.25.2) - 2026-03-14
+- chore(deps): update dependency lefthook to ^2.1.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/111
+- fix(deps): update rust crate toml to 1.0.6 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/110
+- chore(deps): update dependency oxlint to ^1.52.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/113
+- chore(deps): update rust crate tempfile to 3.27.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/114
+- chore(deps): update dependency oxlint to ^1.53.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/115
+- fix(deps): update rust crate clap to 4.6.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/118
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/116
+- chore(deps): update frontend (major) by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/117
+
 ## [v0.25.1](https://github.com/shuntaka9576/agentoast/compare/v0.25.0...v0.25.1) - 2026-03-06
 - fix(deps): update dependency lucide-react to ^0.576.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/102
 - chore(deps): update dependency oxlint to ^1.51.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/104
