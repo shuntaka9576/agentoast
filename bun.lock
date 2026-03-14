@@ -20,7 +20,7 @@
         "@tauri-apps/cli": "^2.10.1",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
-        "@vitejs/plugin-react": "^6.0.0",
+        "@vitejs/plugin-react": "^6.0.1",
         "cspell": "^9.7.0",
         "lefthook": "^2.1.4",
         "oxlint": "^1.55.0",
