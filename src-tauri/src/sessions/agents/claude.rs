@@ -192,7 +192,6 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
                 agent_modes.push(label.to_string());
             }
         }
-
     }
 
     // Scan the status bar area (bottom ~7 lines) for background bash count,
