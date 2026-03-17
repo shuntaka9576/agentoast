@@ -44,6 +44,7 @@
     "pids",
     "pkill",
     "prefs",
+    "rfind",
     "rlib",
     "rsplit",
     "rusqlite",
