@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.26.0](https://github.com/shuntaka9576/agentoast/compare/v0.25.1...v0.26.0) - 2026-03-17
+- chore(deps): update dependency lefthook to ^2.1.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/111
+- fix(deps): update rust crate toml to 1.0.6 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/110
+- chore(deps): update dependency oxlint to ^1.52.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/113
+- chore(deps): update rust crate tempfile to 3.27.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/114
+- chore(deps): update dependency oxlint to ^1.53.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/115
+- fix(deps): update rust crate clap to 4.6.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/118
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/116
+- chore(deps): update frontend (major) by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/117
+- chore(deps): update actions/create-github-app-token action to v3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/121
+- chore(deps): update dependency @vitejs/plugin-react to ^6.0.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/119
+- chore(deps): update github-actions by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/120
+- feat: detect and display Claude Code background bash tasks by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/124
+- fix(deps): update rust crate rusqlite to 0.39.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/122
+
 ## [v0.25.1](https://github.com/shuntaka9576/agentoast/compare/v0.25.0...v0.25.1) - 2026-03-06
 - fix(deps): update dependency lucide-react to ^0.576.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/102
 - chore(deps): update dependency oxlint to ^1.51.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/104
