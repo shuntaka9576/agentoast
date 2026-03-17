@@ -8,6 +8,7 @@ struct ClaudePaneContentInfo {
     at_prompt: bool,
     has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
     has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
+    bash_count: Option<u32>,   // Background bash task count from "· N bash" in mode line
     agent_modes: Vec<String>,
     team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
     team_name: Option<String>, // "@agent-alpha" for teammates
@@ -47,7 +48,10 @@ pub(super) fn detect_claude_status(
         // content still visible on screen.
         (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
-        if let Some(conn) = db_conn {
+        // Background bash tasks mean work is still in progress — treat as Running
+        if info.bash_count.is_some_and(|c| c > 0) {
+            (AgentStatus::Running, None)
+        } else if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
                 (AgentStatus::Waiting, None)
             } else {
@@ -87,6 +91,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         at_prompt: false,
         has_question_dialog: false,
         has_plan_approval: false,
+        bash_count: None,
         agent_modes: Vec::new(),
         team_role: None,
         team_name: None,
@@ -129,6 +134,7 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
     let mut has_selection_cursor = false;
     let mut numbered_option_count: usize = 0;
     let mut agent_modes: Vec<String> = Vec::new();
+    let mut bash_count: Option<u32> = None; // set in status_area scan below
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -186,17 +192,25 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
                 agent_modes.push(label.to_string());
             }
         }
+
     }
 
-    // Agent Teams detection: scan only the status bar area (bottom ~7 lines)
-    // to avoid false positives from conversation text containing "teammate"
-    // or "· ↓ to expand" strings.
+    // Scan the status bar area (bottom ~7 lines) for background bash count,
+    // Agent Teams detection, etc. Limited to 7 lines to avoid false positives
+    // from conversation text.
     let status_area = &last_lines[..last_lines.len().min(7)];
     let mut team_role: Option<String> = None;
     let mut team_name: Option<String> = None;
 
     for line in status_area {
         let trimmed = line.trim();
+
+        // Background bash task detection: "· N bash" pattern anywhere in status area.
+        // Can appear on the mode line ("⏵⏵ bypass permissions on · 1 bash")
+        // or as a standalone status line ("1 bash · PR #1381").
+        if bash_count.is_none() {
+            bash_count = extract_bash_count(trimmed);
+        }
 
         // Lead: mode line (⏵/⏸) containing "teammate"
         //   e.g., "⏸ plan mode on · 3 teammates"
@@ -262,12 +276,25 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         );
     }
 
+    // Add background bash count to agent_modes if detected
+    if let Some(count) = bash_count {
+        if count > 0 {
+            log::debug!(
+                "check_claude_pane_content({}): {} background bash task(s) detected",
+                pane_id,
+                count
+            );
+            agent_modes.push(format!("{} bash", count));
+        }
+    }
+
     ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
         at_prompt,
         has_question_dialog,
         has_plan_approval,
+        bash_count,
         agent_modes,
         team_role,
         team_name,
@@ -287,6 +314,35 @@ fn extract_team_agent_name(line: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Extract background bash task count from a status bar line.
+/// Pattern 1 (mode line suffix): "⏵⏵ bypass permissions on · 1 bash" → Some(1)
+/// Pattern 2 (standalone line):  "1 bash · PR #1381" → Some(1)
+fn extract_bash_count(line: &str) -> Option<u32> {
+    let trimmed = line.trim();
+
+    // Pattern 1: "· N bash" suffix (· = U+00B7 MIDDLE DOT)
+    let marker = "\u{00B7} ";
+    if let Some(pos) = trimmed.rfind(marker) {
+        let after = trimmed[pos + marker.len()..].trim();
+        let mut parts = after.split_whitespace();
+        if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
+            if parts.next() == Some("bash") {
+                return Some(count);
+            }
+        }
+    }
+
+    // Pattern 2: "N bash" at line start (e.g., "1 bash · PR #1381")
+    let mut parts = trimmed.split_whitespace();
+    if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
+        if parts.next() == Some("bash") {
+            return Some(count);
+        }
+    }
+
+    None
 }
 
 /// Check if a line indicates Claude Code is actively running.

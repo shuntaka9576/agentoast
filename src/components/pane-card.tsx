@@ -1,7 +1,7 @@
 import { X, Circle, GitBranch } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { PaneItem, AgentStatus, TmuxPane } from "@/lib/types";
+import type { PaneItem, TmuxPane } from "@/lib/types";
 import { IconPreset, TmuxIcon } from "@/components/icons/source-icon";
 
 interface PaneCardProps {
@@ -13,7 +13,7 @@ interface PaneCardProps {
   onDeleteNotification: (id: number) => void;
 }
 
-function statusDotClass(status: AgentStatus | null): string {
+function statusDotClass(status: TmuxPane["agentStatus"]): string {
   switch (status) {
     case "running":
       return "text-green-500 fill-green-500";
@@ -127,7 +127,10 @@ export function PaneCard({
               </span>
             )}
             {pane.agentModes.map((mode) => (
-              <span key={mode} className="text-[10px] text-[var(--text-muted)] font-medium flex-shrink-0">
+              <span key={mode} className={cn(
+                "text-[10px] font-medium flex-shrink-0",
+                mode.endsWith("bash") ? "text-green-500" : "text-[var(--text-muted)]",
+              )}>
                 {mode}
               </span>
             ))}
