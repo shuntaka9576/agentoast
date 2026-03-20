@@ -41,14 +41,14 @@ args = ["install", "--path", "crates/agentoast-cli"]
 [tasks.install-app]
 description = "Copy built .app to /Applications/"
 script = [
-    "pkill -x agentoast-app || true",
-    "sleep 1",
-    "rm -rf /Applications/Agentoast.app",
-    "cp -r target/release/bundle/macos/Agentoast.app /Applications/",
-    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u /Applications/Agentoast.app || true",
-    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister /Applications/Agentoast.app",
-    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u target/release/bundle/macos/Agentoast.app || true",
-    "rm -rf target/release/bundle/macos/Agentoast.app",
+  "pkill -x agentoast-app || true",
+  "sleep 1",
+  "rm -rf /Applications/Agentoast.app",
+  "cp -r target/release/bundle/macos/Agentoast.app /Applications/",
+  "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u /Applications/Agentoast.app || true",
+  "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister /Applications/Agentoast.app",
+  "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u target/release/bundle/macos/Agentoast.app || true",
+  "rm -rf target/release/bundle/macos/Agentoast.app",
 ]
 
 [tasks.install]
@@ -194,10 +194,15 @@ description = "Run clippy on workspace"
 command = "cargo"
 args = ["clippy", "--workspace", "--", "-D", "warnings"]
 
-[tasks.lint-oxlint]
-description = "Run oxlint"
+[tasks.lint-vp]
+description = "Run vp lint"
 command = "bun"
-args = ["x", "oxlint", ".", "--type-aware", "--type-check", "--deny-warnings"]
+args = ["x", "vp", "lint", ".", "--deny-warnings"]
+
+[tasks.fmt-check-vp]
+description = "Run vp fmt check"
+command = "bun"
+args = ["x", "vp", "fmt", "--check"]
 
 [tasks.spell-check]
 description = "Run cspell"
@@ -206,14 +211,11 @@ args = ["x", "cspell", "lint", ".", "--cache", "--gitignore"]
 
 [tasks.lint]
 description = "Run all linters (Rust + frontend)"
-dependencies = ["fmt-check", "clippy", "lint-oxlint", "spell-check"]
+dependencies = ["fmt-check", "clippy", "fmt-check-vp", "lint-vp", "spell-check"]
 
 # ---------------------------------------------------------------------------
 # Clean
 # ---------------------------------------------------------------------------
 [tasks.clean]
 description = "Remove build artifacts"
-script = [
-    "cargo clean",
-    "rm -rf dist",
-]
+script = ["cargo clean", "rm -rf dist"]

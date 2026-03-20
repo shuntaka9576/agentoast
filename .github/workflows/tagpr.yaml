@@ -3,7 +3,7 @@ name: TAGPR
 on:
   push:
     branches:
-    - "main"
+      - "main"
   workflow_dispatch:
 
 jobs:
@@ -16,13 +16,13 @@ jobs:
     outputs:
       tag: ${{ steps.tagpr.outputs.tag }}
     steps:
-    - name: checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-    - name: tagpr
-      id: tagpr
-      uses: Songmu/tagpr@b3fb89424646b06c8aa460f50307c60b6a541425 # v1.17.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: tagpr
+        id: tagpr
+        uses: Songmu/tagpr@b3fb89424646b06c8aa460f50307c60b6a541425 # v1.17.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-cli:
     needs: tagpr
@@ -31,22 +31,22 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        ref: ${{ needs.tagpr.outputs.tag }}
-    - name: Generate token for homebrew-tap
-      id: app-token
-      uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
-      with:
-        app-id: ${{ vars.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: ${{ github.repository_owner }}
-        repositories: homebrew-tap
-    - uses: ./.github/actions/release-cli
-      with:
-        tag: ${{ needs.tagpr.outputs.tag }}
-        homebrew_tap_token: ${{ steps.app-token.outputs.token }}
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.tagpr.outputs.tag }}
+      - name: Generate token for homebrew-tap
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+      - uses: ./.github/actions/release-cli
+        with:
+          tag: ${{ needs.tagpr.outputs.tag }}
+          homebrew_tap_token: ${{ steps.app-token.outputs.token }}
 
   release-app:
     needs: tagpr
@@ -55,31 +55,31 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        ref: ${{ needs.tagpr.outputs.tag }}
-    - name: Generate token for homebrew-tap
-      id: app-token
-      uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
-      with:
-        app-id: ${{ vars.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: ${{ github.repository_owner }}
-        repositories: homebrew-tap
-    - uses: ./.github/actions/release-app
-      with:
-        tag: ${{ needs.tagpr.outputs.tag }}
-        homebrew_tap_token: ${{ steps.app-token.outputs.token }}
-        tauri_signing_private_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        tauri_signing_private_key_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        apple_certificate: ${{ secrets.APPLE_CERTIFICATE }}
-        apple_certificate_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        apple_signing_identity: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        apple_id: ${{ secrets.APPLE_ID }}
-        apple_password: ${{ secrets.APPLE_PASSWORD }}
-        apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
-        keychain_password: ${{ secrets.KEYCHAIN_PASSWORD }}
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.tagpr.outputs.tag }}
+      - name: Generate token for homebrew-tap
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+      - uses: ./.github/actions/release-app
+        with:
+          tag: ${{ needs.tagpr.outputs.tag }}
+          homebrew_tap_token: ${{ steps.app-token.outputs.token }}
+          tauri_signing_private_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          tauri_signing_private_key_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          apple_certificate: ${{ secrets.APPLE_CERTIFICATE }}
+          apple_certificate_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          apple_signing_identity: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          apple_id: ${{ secrets.APPLE_ID }}
+          apple_password: ${{ secrets.APPLE_PASSWORD }}
+          apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
+          keychain_password: ${{ secrets.KEYCHAIN_PASSWORD }}
 
   publish-release:
     needs: [tagpr, release-cli, release-app]
@@ -88,8 +88,8 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Publish release
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_REPO: ${{ github.repository }}
-      run: gh release edit ${{ needs.tagpr.outputs.tag }} --draft=false
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit ${{ needs.tagpr.outputs.tag }} --draft=false

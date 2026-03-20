@@ -42,12 +42,12 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 
 ### Works With
 
-| Agent | Hook Config | Events | Status Detection |
-|---|---|---|---|
-| [Claude Code](https://github.com/anthropics/claude-code) | `~/.claude/settings.json` | Stop, Permission, Auth, Elicitation | Running / Idle / Waiting / Agent Teams |
-| [Codex](https://github.com/openai/codex) | `~/.codex/config.toml` | Turn Complete | Running / Idle / Waiting |
-| [opencode](https://github.com/anomalyco/opencode) | Plugin (`~/.config/opencode/plugins/`) | Session Idle, Error, Permission | Running / Idle / Waiting |
-| 🚧 [Kiro CLI](https://github.com/aws/kiro-cli) | — | — | — |
+| Agent                                                    | Hook Config                            | Events                              | Status Detection                       |
+| -------------------------------------------------------- | -------------------------------------- | ----------------------------------- | -------------------------------------- |
+| [Claude Code](https://github.com/anthropics/claude-code) | `~/.claude/settings.json`              | Stop, Permission, Auth, Elicitation | Running / Idle / Waiting / Agent Teams |
+| [Codex](https://github.com/openai/codex)                 | `~/.codex/config.toml`                 | Turn Complete                       | Running / Idle / Waiting               |
+| [opencode](https://github.com/anomalyco/opencode)        | Plugin (`~/.config/opencode/plugins/`) | Session Idle, Error, Permission     | Running / Idle / Waiting               |
+| 🚧 [Kiro CLI](https://github.com/aws/kiro-cli)           | —                                      | —                                   | —                                      |
 
 All agents utilize the built-in CLI (`agentoast hook <agent>`). See the [Integration](#integration) section for setup details. If you'd like to see support for other agents, please feel free to [open an issue](https://github.com/shuntaka9576/agentoast/issues).
 
@@ -131,17 +131,17 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 Panel shortcuts (press `?` in the panel to see this list).
 
-| Key | Action |
-|---|---|
-| `j` / `k` | Next / Previous |
-| `Enter` | Open / Fold |
-| `d` | Delete notif |
-| `D` | Delete all notifs |
-| `C` / `E` | Collapse all / Expand all |
-| `F` | Filter notified |
+| Key                 | Action                            |
+| ------------------- | --------------------------------- |
+| `j` / `k`           | Next / Previous                   |
+| `Enter`             | Open / Fold                       |
+| `d`                 | Delete notif                      |
+| `D`                 | Delete all notifs                 |
+| `C` / `E`           | Collapse all / Expand all         |
+| `F`                 | Filter notified                   |
 | `Tab` / `Shift+Tab` | Jump to next / prev notified pane |
-| `Esc` | Close |
-| `?` | Help |
+| `Esc`               | Close                             |
+| `?`                 | Help                              |
 
 The global shortcut to toggle the panel is `Cmd+Ctrl+N` (configurable in `config.toml`).
 
@@ -209,11 +209,11 @@ cp examples/notify/opencode.ts ~/.config/opencode/plugins/
 
 Supported events
 
-| Event | Notification |
-|---|---|
-| `session.status` (idle) | Stop (green) |
-| `session.error` | Error (red) |
-| `permission.asked` | Permission (blue) |
+| Event                   | Notification      |
+| ----------------------- | ----------------- |
+| `session.status` (idle) | Stop (green)      |
+| `session.error`         | Error (red)       |
+| `permission.asked`      | Permission (blue) |
 
 #### Send Notification
 
@@ -228,17 +228,17 @@ agentoast send \
   --meta branch=main
 ```
 
-| Option | Short | Required | Default | Description |
-|---|---|---|---|---|
-| `--badge` | `-B` | No | `""` | Badge text displayed on notification card |
-| `--body` | `-b` | No | `""` | Notification body text |
-| `--badge-color` | `-c` | No | `gray` | Badge color (`green`, `blue`, `red`, `gray`) |
-| `--icon` | `-i` | No | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`) |
-| `--repo` | `-r` | No | auto | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted |
-| `--tmux-pane` | `-t` | No | `""` | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`) |
-| `--bundle-id` | — | No | auto | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified |
-| `--focus` | `-f` | No | `false` | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
-| `--meta` | `-m` | No | - | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards |
+| Option          | Short | Required | Default     | Description                                                                                                                                                                 |
+| --------------- | ----- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--badge`       | `-B`  | No       | `""`        | Badge text displayed on notification card                                                                                                                                   |
+| `--body`        | `-b`  | No       | `""`        | Notification body text                                                                                                                                                      |
+| `--badge-color` | `-c`  | No       | `gray`      | Badge color (`green`, `blue`, `red`, `gray`)                                                                                                                                |
+| `--icon`        | `-i`  | No       | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`)                                                                                                            |
+| `--repo`        | `-r`  | No       | auto        | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted                                                                      |
+| `--tmux-pane`   | `-t`  | No       | `""`        | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`)                                                                                                         |
+| `--bundle-id`   | —     | No       | auto        | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified                                   |
+| `--focus`       | `-f`  | No       | `false`     | Focus terminal automatically when notification is sent. A toast is shown with "Focused: no history" label, but the notification does not appear in the notification history |
+| `--meta`        | `-m`  | No       | -           | Display metadata as key=value pairs (can be specified multiple times). Shown on notification cards                                                                          |
 
 Clicking a notification dismisses it and brings you back to the terminal. With `--tmux-pane`, all notifications sharing the same `--tmux-pane` are dismissed at once. Sending a new notification with the same `--tmux-pane` replaces the previous one, so only the latest notification per pane is kept.
 
@@ -292,4 +292,3 @@ alias an='agentoast send --badge Done --badge-color green --tmux-pane "$TMUX_PAN
 ```bash
 sleep 10; an -b "body"
 ```
-

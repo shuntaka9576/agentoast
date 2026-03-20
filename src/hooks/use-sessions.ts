@@ -51,6 +51,5 @@ export function useSessions() {
     };
   }, [refresh]);
 
-
   return { groups, loading, error, refresh, fetchVersion };
 }

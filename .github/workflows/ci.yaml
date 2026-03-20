@@ -3,20 +3,20 @@ name: CI
 on:
   push:
     branches:
-    - "main"
+      - "main"
   pull_request:
 
 jobs:
   lint:
     runs-on: macos-latest
     steps:
-    - name: checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-    - name: setup bun
-      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-    - name: install dependencies
-      run: bun install --frozen-lockfile
-    - name: install cargo-make
-      run: cargo install cargo-make
-    - name: lint
-      run: cargo make lint
+      - name: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: install dependencies
+        run: bun install --frozen-lockfile
+      - name: install cargo-make
+        run: cargo install cargo-make
+      - name: lint
+        run: cargo make lint

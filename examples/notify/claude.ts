@@ -4,23 +4,23 @@
 // This script is kept as a reference implementation.
 
 interface HookData {
-  session_id: string
-  transcript_path: string
-  hook_event_name: "Stop" | "Notification" | "TeammateIdle" | "TaskCompleted"
-  notification_type?: "permission_prompt" | "idle_prompt" | "auth_success" | "elicitation_dialog"
-  stop_hook_active?: boolean
+  session_id: string;
+  transcript_path: string;
+  hook_event_name: "Stop" | "Notification" | "TeammateIdle" | "TaskCompleted";
+  notification_type?: "permission_prompt" | "idle_prompt" | "auth_success" | "elicitation_dialog";
+  stop_hook_active?: boolean;
   // Agent Teams fields
-  teammate_name?: string
-  team_name?: string
-  task_id?: string
-  task_subject?: string
-  task_description?: string
+  teammate_name?: string;
+  team_name?: string;
+  task_id?: string;
+  task_subject?: string;
+  task_description?: string;
 }
 
 // Set to true to auto-focus terminal on Stop/permission_prompt/elicitation_dialog events
 // When enabled, these notifications will silently focus the terminal without showing a toast
-const ENABLE_FOCUS = false
-const FOCUS_EVENTS = new Set(["Stop", "permission_prompt", "elicitation_dialog"])
+const ENABLE_FOCUS = false;
+const FOCUS_EVENTS = new Set(["Stop", "permission_prompt", "elicitation_dialog"]);
 
 const runCommand = async (
   cmd: string,
@@ -32,55 +32,55 @@ const runCommand = async (
     cwd,
     stdout: "piped",
     stderr: "piped",
-  })
-  const result = await command.output()
+  });
+  const result = await command.output();
   return {
     success: result.success,
     stdout: new TextDecoder().decode(result.stdout).trim(),
-  }
-}
+  };
+};
 
 const getGitInfo = async (cwd: string): Promise<{ repoName: string; branchName: string }> => {
-  const gitCheck = await runCommand("git", ["rev-parse", "--is-inside-work-tree"], cwd)
-  const isGitRepo = gitCheck.success && gitCheck.stdout === "true"
+  const gitCheck = await runCommand("git", ["rev-parse", "--is-inside-work-tree"], cwd);
+  const isGitRepo = gitCheck.success && gitCheck.stdout === "true";
 
-  let repoName = ""
-  let branchName = ""
+  let repoName = "";
+  let branchName = "";
 
   if (isGitRepo) {
-    const remote = await runCommand("git", ["remote", "get-url", "origin"], cwd)
+    const remote = await runCommand("git", ["remote", "get-url", "origin"], cwd);
 
     if (remote.stdout && remote.success) {
-      const match = remote.stdout.match(/[/:]([^/]+?)(?:\.git)?$/)
-      repoName = match ? match[1] : ""
+      const match = remote.stdout.match(/[/:]([^/]+?)(?:\.git)?$/);
+      repoName = match ? match[1] : "";
     }
 
     if (!repoName) {
-      repoName = cwd.split("/").pop() || ""
+      repoName = cwd.split("/").pop() || "";
     }
 
-    const branch = await runCommand("git", ["branch", "--show-current"], cwd)
-    branchName = branch.stdout
+    const branch = await runCommand("git", ["branch", "--show-current"], cwd);
+    branchName = branch.stdout;
   } else {
-    repoName = cwd.split("/").pop() || ""
+    repoName = cwd.split("/").pop() || "";
   }
 
-  return { repoName, branchName }
-}
+  return { repoName, branchName };
+};
 
 const main = async () => {
-  const input = await new Response(Deno.stdin.readable).text()
-  const data: HookData = JSON.parse(input)
+  const input = await new Response(Deno.stdin.readable).text();
+  const data: HookData = JSON.parse(input);
 
-  const isStop = data.hook_event_name === "Stop"
-  const badge = data.hook_event_name
-  const badgeColor = isStop ? "green" : "blue"
-  const eventKey = data.notification_type || data.hook_event_name
-  const focus = ENABLE_FOCUS && FOCUS_EVENTS.has(eventKey)
+  const isStop = data.hook_event_name === "Stop";
+  const badge = data.hook_event_name;
+  const badgeColor = isStop ? "green" : "blue";
+  const eventKey = data.notification_type || data.hook_event_name;
+  const focus = ENABLE_FOCUS && FOCUS_EVENTS.has(eventKey);
 
-  const cwd = Deno.cwd()
-  const { repoName, branchName } = await getGitInfo(cwd)
-  const tmuxPane = Deno.env.get("TMUX_PANE") || ""
+  const cwd = Deno.cwd();
+  const { repoName, branchName } = await getGitInfo(cwd);
+  const tmuxPane = Deno.env.get("TMUX_PANE") || "";
 
   const args = [
     "send",
@@ -92,32 +92,32 @@ const main = async () => {
     "claude-code",
     "--repo",
     repoName,
-  ]
+  ];
 
   if (tmuxPane) {
-    args.push("--tmux-pane", tmuxPane)
+    args.push("--tmux-pane", tmuxPane);
   }
 
   if (branchName) {
-    args.push("--meta", `branch=${branchName}`)
+    args.push("--meta", `branch=${branchName}`);
   }
 
   if (focus) {
-    args.push("--focus")
+    args.push("--focus");
   }
 
-  await runCommand("agentoast", args)
+  await runCommand("agentoast", args);
 
-  console.log(JSON.stringify({ success: true }))
-}
+  console.log(JSON.stringify({ success: true }));
+};
 
 try {
-  await main()
+  await main();
 } catch (error) {
   console.log(
     JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : String(error),
     }),
-  )
+  );
 }
