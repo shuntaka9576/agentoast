@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.27.0](https://github.com/shuntaka9576/agentoast/compare/v0.26.0...v0.27.0) - 2026-03-20
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/123
+- feat: auto-cleanup notifications when agent resumes running by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/128
+- fix(deps): update frontend to ^4.2.2 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/127
+- fix(deps): update rust-workspace - autoclosed by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/126
+
 ## [v0.26.0](https://github.com/shuntaka9576/agentoast/compare/v0.25.1...v0.26.0) - 2026-03-17
 - chore(deps): update dependency lefthook to ^2.1.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/111
 - fix(deps): update rust crate toml to 1.0.6 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/110
