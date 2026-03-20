@@ -13,21 +13,10 @@ import { Bell } from "lucide-react";
 import type { Notification, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
 
 export function App() {
-  const {
-    notifications,
-    loading,
-    deleteNotification,
-    deleteByPanes,
-    deleteAll,
-    newIds,
-  } = useNotifications();
+  const { notifications, loading, deleteNotification, deleteByPanes, deleteAll, newIds } =
+    useNotifications();
 
-  const {
-    globalMuted,
-    isRepoMuted,
-    toggleGlobalMute,
-    toggleRepoMute,
-  } = useMute();
+  const { globalMuted, isRepoMuted, toggleGlobalMute, toggleRepoMute } = useMute();
 
   const { groups: sessionGroups, fetchVersion } = useSessions();
 
@@ -35,7 +24,9 @@ export function App() {
   const { updateStatus, triggerInstall, checkForUpdates } = useAppUpdate();
 
   useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => {});
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
   }, []);
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -51,7 +42,9 @@ export function App() {
 
   // Load filter setting from config on mount
   useEffect(() => {
-    invoke<boolean>("get_filter_notified_only").then((v) => setFilterNotifiedOnly(v)).catch(() => {});
+    invoke<boolean>("get_filter_notified_only")
+      .then((v) => setFilterNotifiedOnly(v))
+      .catch(() => {});
   }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedIndexRef = useRef(selectedIndex);
@@ -400,20 +393,17 @@ export function App() {
     }
   }, [autoExpandedPaneId, selectedIndex]);
 
-  const activatePaneItem = useCallback(
-    (paneItem: PaneItem) => {
-      if (paneItem.notification) {
-        void invoke("delete_notifications_by_pane", {
-          tmuxPane: paneItem.notification.tmuxPane,
-        });
-      }
-      void invoke("focus_terminal", {
-        tmuxPane: paneItem.pane.paneId,
-        terminalBundleId: paneItem.notification?.terminalBundleId ?? "",
+  const activatePaneItem = useCallback((paneItem: PaneItem) => {
+    if (paneItem.notification) {
+      void invoke("delete_notifications_by_pane", {
+        tmuxPane: paneItem.notification.tmuxPane,
       });
-    },
-    [],
-  );
+    }
+    void invoke("focus_terminal", {
+      tmuxPane: paneItem.pane.paneId,
+      terminalBundleId: paneItem.notification?.terminalBundleId ?? "",
+    });
+  }, []);
 
   // Keyboard navigation — ref callback pattern for stable listener
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -491,10 +481,7 @@ export function App() {
           for (const ug of unifiedGroups) {
             if (groupHasNotifications(ug)) {
               next.add(ug.groupKey);
-            } else if (
-              !filterNotifiedOnly &&
-              ug.paneItems.some((pi) => pi.pane.isActive)
-            ) {
+            } else if (!filterNotifiedOnly && ug.paneItems.some((pi) => pi.pane.isActive)) {
               // Active group is auto-expanded, so toggle it to collapse
               next.add(ug.groupKey);
             }
@@ -512,10 +499,7 @@ export function App() {
           for (const ug of unifiedGroups) {
             if (!groupHasNotifications(ug)) {
               // Skip the active group — it's already auto-expanded
-              if (
-                !filterNotifiedOnly &&
-                ug.paneItems.some((pi) => pi.pane.isActive)
-              ) {
+              if (!filterNotifiedOnly && ug.paneItems.some((pi) => pi.pane.isActive)) {
                 continue;
               }
               next.add(ug.groupKey);
@@ -541,9 +525,8 @@ export function App() {
         e.preventDefault();
         const direction = e.shiftKey ? -1 : 1;
         const curIdx = selectedIndexRef.current;
-        let nextIndex = curIdx < 0
-          ? (direction === 1 ? 0 : flatItems.length - 1)
-          : curIdx + direction;
+        let nextIndex =
+          curIdx < 0 ? (direction === 1 ? 0 : flatItems.length - 1) : curIdx + direction;
         while (nextIndex >= 0 && nextIndex < flatItems.length) {
           const fi = flatItems[nextIndex];
           const hasNotif = fi.type === "pane-item" && fi.paneItem.notification !== null;
@@ -566,12 +549,12 @@ export function App() {
   // Derive selected IDs for highlighting
   const currentItem = flatItems[selectedIndexRef.current];
   const selectedNotificationId =
-    currentItem?.type === "pane-item" && currentItem.paneItem.notification ? currentItem.paneItem.notification.id :
-    null;
+    currentItem?.type === "pane-item" && currentItem.paneItem.notification
+      ? currentItem.paneItem.notification.id
+      : null;
   const selectedPaneId =
     currentItem?.type === "pane-item" ? currentItem.paneItem.pane.paneId : null;
-  const selectedGroupHeaderKey =
-    currentItem?.type === "group-header" ? currentItem.groupKey : null;
+  const selectedGroupHeaderKey = currentItem?.type === "group-header" ? currentItem.groupKey : null;
 
   const isEmpty = displayGroups.length === 0;
 

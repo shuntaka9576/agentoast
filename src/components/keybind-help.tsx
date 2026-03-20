@@ -36,10 +36,7 @@ export function KeybindHelp({ onClose }: KeybindHelpProps) {
             >
               {key}
             </span>
-            <span
-              className="text-[11px]"
-              style={{ color: "var(--text-secondary)" }}
-            >
+            <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
               {action}
             </span>
           </div>

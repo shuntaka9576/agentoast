@@ -1,4 +1,14 @@
-import { Bell, BellOff, ChevronDown, ChevronRight, GitBranch, Folder, FolderGit2, Trash2, Users } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  Folder,
+  FolderGit2,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { PaneItem, FlatItem } from "@/lib/types";
@@ -43,9 +53,7 @@ export function RepoGroup({
   onToggleRepoMute,
   onToggleExpand,
 }: RepoGroupProps) {
-
-  const totalNotifications =
-    paneItems.filter((pi) => pi.notification !== null).length;
+  const totalNotifications = paneItems.filter((pi) => pi.notification !== null).length;
 
   const runningCount = paneItems.filter((pi) => pi.pane.agentStatus === "running").length;
   const idleCount = paneItems.filter((pi) => pi.pane.agentStatus === "idle").length;
@@ -223,10 +231,13 @@ function ExpandedPanes({
             (pi.notification !== null && pi.notification.id === selectedId),
         );
         return (
-          <div key={teamKey} className={cn(
-            "mx-3 my-1 border rounded-md",
-            hasSelectedMember ? "border-violet-500/60" : "border-[var(--border-subtle)]",
-          )}>
+          <div
+            key={teamKey}
+            className={cn(
+              "mx-3 my-1 border rounded-md",
+              hasSelectedMember ? "border-violet-500/60" : "border-[var(--border-subtle)]",
+            )}
+          >
             {/* Team sub-header */}
             <div className="flex items-center gap-1.5 px-2 py-1 border-b border-[var(--border-subtle)]">
               <Users size={10} className="text-[var(--text-muted)] flex-shrink-0" />
@@ -238,7 +249,9 @@ function ExpandedPanes({
             {[
               ...(lead ? [lead] : []),
               ...teammates,
-              ...teamPanes.filter((pi) => pi.pane.teamRole !== "lead" && pi.pane.teamRole !== "teammate"),
+              ...teamPanes.filter(
+                (pi) => pi.pane.teamRole !== "lead" && pi.pane.teamRole !== "teammate",
+              ),
             ].map(renderPaneCard)}
           </div>
         );

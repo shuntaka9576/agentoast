@@ -1,12 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  Bell,
-  BellOff,
-  Filter,
-  Trash2,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
+import { Bell, BellOff, Filter, Trash2, Loader2, RefreshCw } from "lucide-react";
 import type { UpdateStatus } from "@/lib/types";
 
 interface PanelHeaderProps {
@@ -37,9 +30,7 @@ function getUpdateTitle(status: UpdateStatus, version: string): string {
     case "installing":
       return "Installing...";
     case "error":
-      return status.message === "Update check failed"
-        ? "Update check failed"
-        : "Update failed";
+      return status.message === "Update check failed" ? "Update check failed" : "Update failed";
   }
 }
 
@@ -82,9 +73,10 @@ export function PanelHeader({
   const isError = updateStatus.status === "error";
   const showUpdateIcon = isReady || isDownloading || isInstalling || isError;
 
-  const iconColorClass = isDownloading || isInstalling
-    ? "text-[var(--text-secondary)]"
-    : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]";
+  const iconColorClass =
+    isDownloading || isInstalling
+      ? "text-[var(--text-secondary)]"
+      : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]";
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-primary)]">
@@ -98,10 +90,7 @@ export function PanelHeader({
         }`}
         title={filterNotifiedOnly ? "Show all" : "Show notified only"}
       >
-        <Filter
-          size={14}
-          fill={filterNotifiedOnly ? "currentColor" : "none"}
-        />
+        <Filter size={14} fill={filterNotifiedOnly ? "currentColor" : "none"} />
       </button>
       <div className="flex items-center gap-1">
         {showUpdateIcon && (

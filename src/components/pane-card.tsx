@@ -106,11 +106,7 @@ export function PaneCard({
     >
       <div className="flex items-start gap-2.5">
         <div className="flex-shrink-0 mt-0.5">
-          <IconPreset
-            icon={icon}
-            size={14}
-            className="text-[var(--text-tertiary)]"
-          />
+          <IconPreset icon={icon} size={14} className="text-[var(--text-tertiary)]" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -127,17 +123,18 @@ export function PaneCard({
               </span>
             )}
             {pane.agentModes.map((mode) => (
-              <span key={mode} className={cn(
-                "text-[10px] font-medium flex-shrink-0",
-                mode.endsWith("bash") ? "text-green-500" : "text-[var(--text-muted)]",
-              )}>
+              <span
+                key={mode}
+                className={cn(
+                  "text-[10px] font-medium flex-shrink-0",
+                  mode.endsWith("bash") ? "text-green-500" : "text-[var(--text-muted)]",
+                )}
+              >
                 {mode}
               </span>
             ))}
             {pane.teamRole === "lead" && (
-              <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">
-                @main
-              </span>
+              <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">@main</span>
             )}
             {pane.teamName && (
               <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">
@@ -164,10 +161,12 @@ export function PaneCard({
 
           {/* Line 2: body (1 line, auto-expands when selected for 300ms) */}
           {notification?.body && (
-            <p className={cn(
-              "mt-0.5 text-[11px] text-[var(--text-secondary)]",
-              isAutoExpanded ? "" : "line-clamp-1",
-            )}>
+            <p
+              className={cn(
+                "mt-0.5 text-[11px] text-[var(--text-secondary)]",
+                isAutoExpanded ? "" : "line-clamp-1",
+              )}
+            >
               {notification.body}
             </p>
           )}
@@ -181,12 +180,14 @@ export function PaneCard({
                     <GitBranch size={10} className="flex-shrink-0" />
                   ) : (
                     <span>{key}:</span>
-                  )}
-                  {" "}{value}
+                  )}{" "}
+                  {value}
                 </span>
               ))}
               {pane.paneId && (
-                <span className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}>
+                <span
+                  className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}
+                >
                   <TmuxIcon size={10} className="flex-shrink-0" /> {pane.paneId}
                 </span>
               )}
