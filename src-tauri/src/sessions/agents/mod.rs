@@ -18,7 +18,7 @@ pub(super) struct AgentDetectionResult {
 
 /// Capture tmux pane content as plain text.
 /// Returns None if tmux is not found or the capture command fails.
-pub(super) fn capture_pane(pane_id: &str) -> Option<String> {
+pub(crate) fn capture_pane(pane_id: &str) -> Option<String> {
     let tmux_path = find_tmux()?;
     let output = Command::new(&tmux_path)
         .env_remove("TMPDIR")
@@ -46,6 +46,51 @@ pub(super) fn is_numbered_option(line: &str) -> bool {
         Some(c) if c.is_ascii_digit() => chars.as_str().starts_with(". "),
         _ => false,
     }
+}
+
+/// Lightweight running check: capture a pane and check for universal running signals.
+/// Does NOT require agent_type or process tree — uses patterns common to all agents.
+pub(crate) fn is_pane_agent_running(pane_id: &str) -> bool {
+    let content = match capture_pane(pane_id) {
+        Some(c) => c,
+        None => return false,
+    };
+
+    content
+        .lines()
+        .rev()
+        .filter(|l| !l.trim().is_empty())
+        .take(30)
+        .any(|line| {
+            let trimmed = line.trim();
+            is_universal_running_line(trimmed)
+        })
+}
+
+/// Running signals common across Claude Code, Codex, and OpenCode.
+fn is_universal_running_line(line: &str) -> bool {
+    // Claude Code: spinner chars (✢✽✶✳✻·) + "esc to interrupt" or "…"
+    if let Some(c) = line.chars().next() {
+        if ['✢', '✽', '✶', '✳', '✻', '·'].contains(&c)
+            && (line.contains("esc to interrupt") || line.contains('…'))
+        {
+            return true;
+        }
+    }
+    // Claude Code: "· esc to interrupt" in status line
+    if line.contains("\u{00B7} esc to interrupt") {
+        return true;
+    }
+    // Claude Code: status bar "(running)" suffix
+    if line.ends_with("(running)") {
+        return true;
+    }
+    // Codex: "esc to interrupt" (covered by spinner check above)
+    // OpenCode: "esc interrupt" (without "to")
+    if line.contains("esc interrupt") {
+        return true;
+    }
+    false
 }
 
 pub(super) fn detect_agent_status(
