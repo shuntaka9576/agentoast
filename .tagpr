@@ -3,4 +3,4 @@
 	releaseBranch = main
 	versionFile = Cargo.toml,src-tauri/tauri.conf.json,package.json
 	release = draft
-	postVersionCommand = cargo update --workspace
+	postVersionCommand = cargo update --workspace && bun x vp fmt
