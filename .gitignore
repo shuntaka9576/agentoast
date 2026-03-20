@@ -17,5 +17,8 @@ src-tauri/gen/schemas/
 __pycache__
 .claude/
 
+# TypeScript
+*.tsbuildinfo
+
 # cspell
 .cspellcache

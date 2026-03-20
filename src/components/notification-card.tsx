@@ -26,9 +26,7 @@ export function NotificationCard({
   navIndex,
   onDelete,
 }: NotificationCardProps) {
-  const metaEntries = Object.entries(notification.metadata).filter(
-    ([, v]) => v !== "",
-  );
+  const metaEntries = Object.entries(notification.metadata).filter(([, v]) => v !== "");
   const badgeClass = badgeColorClasses[notification.badgeColor] || badgeColorClasses.gray;
   return (
     <div
@@ -56,11 +54,7 @@ export function NotificationCard({
       <div className="flex items-start gap-2.5">
         {/* Icon */}
         <div className="flex-shrink-0 mt-1">
-          <IconPreset
-            icon={notification.icon}
-            size={16}
-            className="text-[var(--text-tertiary)]"
-          />
+          <IconPreset icon={notification.icon} size={16} className="text-[var(--text-tertiary)]" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -68,12 +62,7 @@ export function NotificationCard({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               {notification.badge && (
-                <span
-                  className={cn(
-                    "px-1.5 py-0.5 text-[10px] font-medium rounded",
-                    badgeClass,
-                  )}
-                >
+                <span className={cn("px-1.5 py-0.5 text-[10px] font-medium rounded", badgeClass)}>
                   {notification.badge}
                 </span>
               )}
@@ -92,12 +81,14 @@ export function NotificationCard({
                     <GitBranch size={10} className="flex-shrink-0" />
                   ) : (
                     <span>{key}:</span>
-                  )}
-                  {" "}{value}
+                  )}{" "}
+                  {value}
                 </span>
               ))}
               {notification.tmuxPane && (
-                <span className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}>
+                <span
+                  className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}
+                >
                   <TmuxIcon size={10} className="flex-shrink-0" /> {notification.tmuxPane}
                 </span>
               )}

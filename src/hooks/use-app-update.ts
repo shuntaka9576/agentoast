@@ -11,7 +11,9 @@ interface UseAppUpdateReturn {
 }
 
 function wrapAsync(fn: () => Promise<void>): () => void {
-  return () => { fn().catch(console.error); };
+  return () => {
+    fn().catch(console.error);
+  };
 }
 
 export function useAppUpdate(): UseAppUpdateReturn {
@@ -29,7 +31,12 @@ export function useAppUpdate(): UseAppUpdateReturn {
   }, []);
 
   const checkForUpdates = useCallback(async () => {
-    if (inFlightRef.current.checking || inFlightRef.current.downloading || inFlightRef.current.installing) return;
+    if (
+      inFlightRef.current.checking ||
+      inFlightRef.current.downloading ||
+      inFlightRef.current.installing
+    )
+      return;
     if (statusRef.current.status === "ready") return;
 
     try {
@@ -103,9 +110,12 @@ export function useAppUpdate(): UseAppUpdateReturn {
     mountedRef.current = true;
     void checkForUpdates();
 
-    const intervalId = setInterval(() => {
-      void checkForUpdates();
-    }, 15 * 60 * 1000);
+    const intervalId = setInterval(
+      () => {
+        void checkForUpdates();
+      },
+      15 * 60 * 1000,
+    );
 
     return () => {
       mountedRef.current = false;
