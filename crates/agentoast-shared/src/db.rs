@@ -172,9 +172,8 @@ pub fn get_latest_notification_by_pane(
 }
 
 pub fn get_notified_pane_ids(conn: &Connection) -> rusqlite::Result<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "SELECT DISTINCT tmux_pane FROM notifications WHERE tmux_pane != ''",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT DISTINCT tmux_pane FROM notifications WHERE tmux_pane != ''")?;
     let rows = stmt.query_map([], |row| row.get(0))?;
     rows.collect()
 }
