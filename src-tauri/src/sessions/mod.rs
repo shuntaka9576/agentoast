@@ -6,7 +6,7 @@ use agentoast_shared::{config, db};
 
 use crate::terminal::{find_git, find_tmux};
 
-mod agents;
+pub(crate) mod agents;
 use agents::detect_agent_status;
 
 const AGENT_PROCESSES: &[(&str, &str)] = &[

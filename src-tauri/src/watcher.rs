@@ -131,6 +131,7 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
         loop {
             std::thread::sleep(Duration::from_secs(5));
             check_new_notifications(&handle_for_poll, &conn, "polling");
+            cleanup_running_agent_notifications(&handle_for_poll, &conn);
         }
     });
 }
@@ -350,6 +351,44 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
     if let Ok(count) = db::get_unread_count(conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         update_tray_icon(app_handle, count);
+    }
+}
+
+/// Auto-delete notifications for panes where the agent has resumed running.
+/// Only runs capture-pane on panes that have pending notifications (no ps/process tree).
+fn cleanup_running_agent_notifications(app_handle: &AppHandle, conn: &Connection) {
+    let pane_ids = match db::get_notified_pane_ids(conn) {
+        Ok(ids) => ids,
+        Err(e) => {
+            log::debug!("cleanup_running: failed to get notified panes: {}", e);
+            return;
+        }
+    };
+    if pane_ids.is_empty() {
+        return;
+    }
+
+    let mut deleted_any = false;
+    for pane_id in &pane_ids {
+        if crate::sessions::agents::is_pane_agent_running(pane_id) {
+            log::info!(
+                "cleanup_running: pane {} is running, deleting notifications",
+                pane_id
+            );
+            if let Err(e) = db::delete_notifications_by_pane(conn, pane_id) {
+                log::error!("cleanup_running: delete failed for {}: {}", pane_id, e);
+            } else {
+                deleted_any = true;
+            }
+        }
+    }
+
+    if deleted_any {
+        if let Ok(count) = db::get_unread_count(conn) {
+            let _ = app_handle.emit("notifications:unread-count", count);
+            update_tray_icon(app_handle, count);
+        }
+        let _ = app_handle.emit("notifications:refresh", ());
     }
 }
 
