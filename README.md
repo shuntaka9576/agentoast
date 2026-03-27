@@ -120,6 +120,18 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Events that auto-focus the terminal (default: none)
 # focus_events = []
 
+# Copilot CLI agent settings
+[notification.agents.copilot_cli]
+# Events that trigger notifications
+# Available: agentStop, subagentStop, errorOccurred
+# events = ["agentStop"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Include error message as notification body (default: true, truncated to 200 chars)
+# include_body = true
+
 # Keyboard shortcuts
 [keybinding]
 # Shortcut to toggle the notification panel (default: super+ctrl+n)
@@ -215,6 +227,41 @@ Supported events
 | `session.status` (idle) | Stop (green)      |
 | `session.error`         | Error (red)       |
 | `permission.asked`      | Permission (blue) |
+
+##### Copilot CLI
+
+`~/.copilot/config.json` (global) or `.github/hooks/*.json` (per-repo):
+
+```json
+{
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "agentoast hook copilot --event agentStop",
+        "timeoutSec": 10
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "agentoast hook copilot --event errorOccurred",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
+```
+
+Unlike other agents, Copilot CLI configures separate hook entries per event. The `--event` flag tells agentoast which event triggered the hook. The notification body is extracted from the session transcript (`events.jsonl`).
+
+Supported events
+
+| Event           | Notification |
+| --------------- | ------------ |
+| `agentStop`     | Stop (green) |
+| `subagentStop`  | Stop (green) |
+| `errorOccurred` | Error (red)  |
 
 #### Send Notification
 
