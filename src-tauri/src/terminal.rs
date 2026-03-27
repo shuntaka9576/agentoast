@@ -11,21 +11,71 @@ const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
 ];
 
 pub(crate) fn find_tmux() -> Option<PathBuf> {
-    let candidates = [
-        "/opt/homebrew/bin/tmux", // Homebrew (Apple Silicon)
-        "/usr/local/bin/tmux",    // Homebrew (Intel) / manual
-        "/usr/bin/tmux",          // system
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from("/opt/homebrew/bin/tmux"), // Homebrew (Apple Silicon)
+        PathBuf::from("/usr/local/bin/tmux"),    // Homebrew (Intel) / manual
+        PathBuf::from("/usr/bin/tmux"),          // system
     ];
-    candidates.iter().map(PathBuf::from).find(|p| p.exists())
+
+    // Nix Home Manager: /etc/profiles/per-user/<username>/bin/tmux
+    if let Ok(user) = std::env::var("USER") {
+        candidates.push(PathBuf::from(format!(
+            "/etc/profiles/per-user/{}/bin/tmux",
+            user
+        )));
+    }
+    // Nix single-user profile
+    candidates.push(PathBuf::from("/nix/var/nix/profiles/default/bin/tmux"));
+
+    if let Some(found) = candidates.iter().find(|p| p.exists()) {
+        return Some(found.clone());
+    }
+
+    // PATH-based fallback (mise, asdf, custom installs, etc.)
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in path_var.split(':') {
+            let candidate = PathBuf::from(dir).join("tmux");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
 }
 
 pub(crate) fn find_git() -> Option<PathBuf> {
-    let candidates = [
-        "/usr/bin/git",
-        "/opt/homebrew/bin/git",
-        "/usr/local/bin/git",
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from("/usr/bin/git"),          // system (Xcode CLT)
+        PathBuf::from("/opt/homebrew/bin/git"), // Homebrew (Apple Silicon)
+        PathBuf::from("/usr/local/bin/git"),    // Homebrew (Intel) / manual
     ];
-    candidates.iter().map(PathBuf::from).find(|p| p.exists())
+
+    // Nix Home Manager
+    if let Ok(user) = std::env::var("USER") {
+        candidates.push(PathBuf::from(format!(
+            "/etc/profiles/per-user/{}/bin/git",
+            user
+        )));
+    }
+    // Nix single-user profile
+    candidates.push(PathBuf::from("/nix/var/nix/profiles/default/bin/git"));
+
+    if let Some(found) = candidates.iter().find(|p| p.exists()) {
+        return Some(found.clone());
+    }
+
+    // PATH-based fallback
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in path_var.split(':') {
+            let candidate = PathBuf::from(dir).join("git");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
 }
 
 fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
