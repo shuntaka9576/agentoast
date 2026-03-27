@@ -116,6 +116,8 @@ pub struct AgentsConfig {
     #[serde(default)]
     pub codex: CodexHookConfig,
     #[serde(default)]
+    pub copilot_cli: CopilotCliHookConfig,
+    #[serde(default)]
     pub opencode: OpenCodeHookConfig,
 }
 
@@ -161,6 +163,30 @@ impl Default for CodexHookConfig {
 
 fn default_codex_events() -> Vec<String> {
     vec!["agent-turn-complete".to_string()]
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CopilotCliHookConfig {
+    #[serde(default = "default_copilot_cli_events")]
+    pub events: Vec<String>,
+    #[serde(default)]
+    pub focus_events: Vec<String>,
+    #[serde(default = "default_true")]
+    pub include_body: bool,
+}
+
+impl Default for CopilotCliHookConfig {
+    fn default() -> Self {
+        Self {
+            events: default_copilot_cli_events(),
+            focus_events: Vec::new(),
+            include_body: true,
+        }
+    }
+}
+
+fn default_copilot_cli_events() -> Vec<String> {
+    vec!["agentStop".to_string()]
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -306,6 +332,18 @@ fn default_config_template() -> &'static str {
 
 # Events that auto-focus the terminal (default: none)
 # focus_events = []
+
+# Copilot CLI agent settings
+[notification.agents.copilot_cli]
+# Events that trigger notifications
+# Available: agentStop, subagentStop, errorOccurred
+# events = ["agentStop"]
+
+# Events that auto-focus the terminal (default: none)
+# focus_events = []
+
+# Include error message as notification body (default: true, truncated to 200 chars)
+# include_body = true
 
 # Keyboard shortcuts
 [keybinding]

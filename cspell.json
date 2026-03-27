@@ -43,6 +43,7 @@
     "pids",
     "pkill",
     "prefs",
+    "reqs",
     "rfind",
     "rlib",
     "rsplit",

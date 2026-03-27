@@ -12,6 +12,7 @@ use agents::detect_agent_status;
 const AGENT_PROCESSES: &[(&str, &str)] = &[
     ("claude", "claude-code"),
     ("codex", "codex"),
+    ("copilot", "copilot-cli"),
     ("opencode", "opencode"),
     (".opencode", "opencode"), // mise/npm install: actual Go binary is named .opencode
 ];
