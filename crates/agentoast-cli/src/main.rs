@@ -81,6 +81,12 @@ enum HookAgent {
         /// JSON payload (passed as the last argument by Codex)
         json: String,
     },
+    /// Handle Copilot CLI hook events (reads JSON from stdin, event name from --event arg)
+    Copilot {
+        /// Event name (e.g. agentStop, errorOccurred)
+        #[arg(long)]
+        event: String,
+    },
     /// Handle OpenCode hook events (reads JSON from CLI argument)
     Opencode {
         /// JSON payload containing event type, properties, and directory
@@ -105,7 +111,7 @@ fn main() {
         } => {
             let icon_type: IconType = icon.parse().unwrap_or_else(|e: String| {
                 eprintln!(
-                    "{} Use 'agentoast', 'claude-code', 'codex', or 'opencode'.",
+                    "{} Use 'agentoast', 'claude-code', 'codex', 'copilot-cli', or 'opencode'.",
                     e
                 );
                 std::process::exit(1);
@@ -176,6 +182,7 @@ fn main() {
         Commands::Hook { agent } => match agent {
             HookAgent::Claude => hooks::claude::handle(),
             HookAgent::Codex { json } => hooks::codex::handle(&json),
+            HookAgent::Copilot { event } => hooks::copilot::handle(&event),
             HookAgent::Opencode { json } => hooks::opencode::handle(&json),
         },
         Commands::Config => {

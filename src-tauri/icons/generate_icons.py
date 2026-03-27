@@ -35,7 +35,7 @@ TRAY_ICON_NOTIFICATION_PATH = os.path.join(SCRIPT_DIR, "tray-icon-notification.p
 
 # Toast icon paths (source SVGs and output PNGs)
 TOAST_DIR = os.path.join(SCRIPT_DIR, "toast")
-TOAST_ICONS = ["claude-code", "codex", "opencode"]
+TOAST_ICONS = ["claude-code", "codex", "copilot-cli", "opencode"]
 TOAST_ICON_SIZE = 40  # 20pt @2x Retina
 
 # Toast metadata icons (git-branch, tmux)

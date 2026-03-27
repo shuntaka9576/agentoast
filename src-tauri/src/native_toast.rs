@@ -447,7 +447,7 @@ fn build_toast_view(
     let png_bytes: &[u8] = match notification.icon.as_str() {
         "claude-code" => include_bytes!("../icons/toast/claude-code.png"),
         "codex" => include_bytes!("../icons/toast/codex.png"),
-        "copilot-cli" => include_bytes!("../icons/toast/agentoast.png"), // TODO: generate copilot-cli.png
+        "copilot-cli" => include_bytes!("../icons/toast/copilot-cli.png"),
         "opencode" => include_bytes!("../icons/toast/opencode.png"),
         _ => include_bytes!("../icons/toast/agentoast.png"),
     };
