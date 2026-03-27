@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.28.0](https://github.com/shuntaka9576/agentoast/compare/v0.27.0...v0.28.0) - 2026-03-27
+- feat: migrate from oxlint to Vite+ (vp) by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/131
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/133
+- fix(deps): update frontend (major) by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/134
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/129
+- feat: add GitHub Copilot CLI support by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/136
+
 ## [v0.27.0](https://github.com/shuntaka9576/agentoast/compare/v0.26.0...v0.27.0) - 2026-03-20
 
 - chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/123
