@@ -6,6 +6,7 @@ use crate::terminal::find_tmux;
 
 mod claude;
 mod codex;
+mod copilot;
 mod opencode;
 
 pub(super) struct AgentDetectionResult {
@@ -67,13 +68,19 @@ pub(crate) fn is_pane_agent_running(pane_id: &str) -> bool {
         })
 }
 
-/// Running signals common across Claude Code, Codex, and OpenCode.
+/// Running signals common across Claude Code, Codex, OpenCode, and Copilot CLI.
 fn is_universal_running_line(line: &str) -> bool {
     // Claude Code: spinner chars (✢✽✶✳✻·) + "esc to interrupt" or "…"
     if let Some(c) = line.chars().next() {
         if ['✢', '✽', '✶', '✳', '✻', '·'].contains(&c)
             && (line.contains("esc to interrupt") || line.contains('…'))
         {
+            return true;
+        }
+    }
+    // Copilot CLI: spinner chars (◎○◉●) + "Esc to cancel"
+    if let Some(c) = line.chars().next() {
+        if ['◎', '○', '◉', '●'].contains(&c) && line.contains("Esc to cancel") {
             return true;
         }
     }
@@ -101,6 +108,7 @@ pub(super) fn detect_agent_status(
     match agent_type {
         "claude-code" => claude::detect_claude_status(db_conn, pane_id),
         "codex" => codex::detect_codex_status(db_conn, pane_id),
+        "copilot-cli" => copilot::detect_copilot_status(db_conn, pane_id),
         "opencode" => opencode::detect_opencode_status(db_conn, pane_id),
         _ => {
             log::debug!(

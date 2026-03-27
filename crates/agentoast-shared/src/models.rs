@@ -8,6 +8,7 @@ pub enum IconType {
     Agentoast,
     ClaudeCode,
     Codex,
+    CopilotCli,
     OpenCode,
 }
 
@@ -17,6 +18,7 @@ impl IconType {
             IconType::Agentoast => "agentoast",
             IconType::ClaudeCode => "claude-code",
             IconType::Codex => "codex",
+            IconType::CopilotCli => "copilot-cli",
             IconType::OpenCode => "opencode",
         }
     }
@@ -30,6 +32,7 @@ impl FromStr for IconType {
             "agentoast" => Ok(IconType::Agentoast),
             "claude-code" => Ok(IconType::ClaudeCode),
             "codex" => Ok(IconType::Codex),
+            "copilot-cli" => Ok(IconType::CopilotCli),
             "opencode" => Ok(IconType::OpenCode),
             _ => Err(format!("Invalid icon: {}", s)),
         }

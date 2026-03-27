@@ -1,4 +1,4 @@
-export type Icon = "agentoast" | "claude-code" | "codex" | "opencode";
+export type Icon = "agentoast" | "claude-code" | "codex" | "copilot-cli" | "opencode";
 export type AgentStatus = "running" | "idle" | "waiting";
 
 export type UpdateStatus =
