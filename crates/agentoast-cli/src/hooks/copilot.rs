@@ -14,6 +14,9 @@ use super::{
 #[derive(Deserialize)]
 struct CopilotHookData {
     cwd: Option<String>,
+    /// Path to the session transcript (events.jsonl) — present in agentStop/subagentStop
+    #[serde(rename = "transcriptPath")]
+    transcript_path: Option<String>,
     /// errorOccurred event includes an error object
     error: Option<CopilotError>,
 }
@@ -21,6 +24,38 @@ struct CopilotHookData {
 #[derive(Deserialize)]
 struct CopilotError {
     message: Option<String>,
+}
+
+/// A single line in events.jsonl
+#[derive(Deserialize)]
+struct TranscriptEntry {
+    #[serde(rename = "type")]
+    entry_type: String,
+    data: Option<TranscriptData>,
+}
+
+#[derive(Deserialize)]
+struct TranscriptData {
+    content: Option<String>,
+}
+
+/// Read the last assistant message from the events.jsonl transcript file.
+/// Scans from the end of the file, looking for the last `assistant.message` entry.
+fn get_last_assistant_message(path: &str) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    for line in content.lines().rev() {
+        if line.is_empty() {
+            continue;
+        }
+        let entry: TranscriptEntry = match serde_json::from_str(line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if entry.entry_type == "assistant.message" {
+            return entry.data.and_then(|d| d.content);
+        }
+    }
+    None
 }
 
 pub fn run(event_name: &str) -> Result<(), String> {
@@ -43,7 +78,18 @@ pub fn run(event_name: &str) -> Result<(), String> {
     let (repo_name, metadata) = collect_git_metadata(data.cwd.as_deref());
 
     let (badge, badge_color, body) = match event_name {
-        "agentStop" | "subagentStop" => ("Stop", "green", String::new()),
+        "agentStop" | "subagentStop" => {
+            let body = if hook_config.include_body {
+                data.transcript_path
+                    .as_deref()
+                    .and_then(get_last_assistant_message)
+                    .map(|m| truncate_body(&m))
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            ("Stop", "green", body)
+        }
         "errorOccurred" => {
             let msg = if hook_config.include_body {
                 data.error

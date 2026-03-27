@@ -8,7 +8,7 @@
 
 ![main](docs/assets/main.gif)
 
-A macOS menu bar app for tmux users. Get a toast notification whenever an AI coding agent (Claude Code, Codex, opencode) finishes or needs your input — click it to jump right back to the tmux pane it came from.
+A macOS menu bar app for tmux users. Get a toast notification whenever an AI coding agent (Claude Code, Codex, Copilot CLI, opencode) finishes or needs your input — click it to jump right back to the tmux pane it came from.
 
 You kick off a long-running agent task, switch over to a browser or another window, and completely miss the moment it wraps up or asks for permission. agentoast makes sure you never miss it.
 
@@ -46,6 +46,7 @@ brew uninstall shuntaka9576/tap/agentoast-cli
 | -------------------------------------------------------- | -------------------------------------- | ----------------------------------- | -------------------------------------- |
 | [Claude Code](https://github.com/anthropics/claude-code) | `~/.claude/settings.json`              | Stop, Permission, Auth, Elicitation | Running / Idle / Waiting / Agent Teams |
 | [Codex](https://github.com/openai/codex)                 | `~/.codex/config.toml`                 | Turn Complete                       | Running / Idle / Waiting               |
+| [Copilot CLI](https://github.com/github/copilot-cli)     | `.github/hooks/*.json`                 | Agent Stop, Error                   | Running / Idle / Waiting               |
 | [opencode](https://github.com/anomalyco/opencode)        | Plugin (`~/.config/opencode/plugins/`) | Session Idle, Error, Permission     | Running / Idle / Waiting               |
 | 🚧 [Kiro CLI](https://github.com/aws/kiro-cli)           | —                                      | —                                   | —                                      |
 
@@ -233,7 +234,7 @@ agentoast send \
 | `--badge`       | `-B`  | No       | `""`        | Badge text displayed on notification card                                                                                                                                   |
 | `--body`        | `-b`  | No       | `""`        | Notification body text                                                                                                                                                      |
 | `--badge-color` | `-c`  | No       | `gray`      | Badge color (`green`, `blue`, `red`, `gray`)                                                                                                                                |
-| `--icon`        | `-i`  | No       | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `opencode`)                                                                                                            |
+| `--icon`        | `-i`  | No       | `agentoast` | Icon preset (`agentoast` / `claude-code` / `codex` / `copilot-cli` / `opencode`)                                                                                                            |
 | `--repo`        | `-r`  | No       | auto        | Repository name for grouping notifications. Auto-detected from git remote or directory name if omitted                                                                      |
 | `--tmux-pane`   | `-t`  | No       | `""`        | tmux pane ID. Used for focus-on-click and batch dismiss (e.g. `%0`)                                                                                                         |
 | `--bundle-id`   | —     | No       | auto        | Terminal bundle ID for focus-on-click (e.g. `com.github.wez.wezterm`). Auto-detected from `__CFBundleIdentifier` env var if not specified                                   |
