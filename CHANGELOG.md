@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.28.1](https://github.com/shuntaka9576/agentoast/compare/v0.28.0...v0.28.1) - 2026-03-27
+- fix: support Nix-managed tmux/git in find_tmux/find_git by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/137
+
 ## [v0.28.0](https://github.com/shuntaka9576/agentoast/compare/v0.27.0...v0.28.0) - 2026-03-27
 - feat: migrate from oxlint to Vite+ (vp) by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/131
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/133
