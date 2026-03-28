@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.28.4](https://github.com/shuntaka9576/agentoast/compare/v0.28.3...v0.28.4) - 2026-03-28
+- fix: prevent crash when opening panel via shortcut in fullscreen mode by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/143
+
 ## [v0.28.3](https://github.com/shuntaka9576/agentoast/compare/v0.28.2...v0.28.3) - 2026-03-28
 - feat: add --version/-v flag to CLI with git revision by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/141
 
