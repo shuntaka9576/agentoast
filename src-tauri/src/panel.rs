@@ -56,17 +56,26 @@ pub fn position_panel_at_tray_icon(
     icon_position: Position,
     icon_size: Size,
 ) {
-    let window = app_handle.get_webview_window("main").unwrap();
+    let Some(window) = app_handle.get_webview_window("main") else {
+        log::warn!("position_panel_at_tray_icon: main window not found");
+        return;
+    };
 
     let (icon_phys_x, icon_phys_y) = match &icon_position {
         Position::Physical(pos) => (pos.x, pos.y),
         Position::Logical(pos) => (pos.x as i32, pos.y as i32),
     };
 
-    let monitors = window.available_monitors().expect("failed to get monitors");
+    let monitors = match window.available_monitors() {
+        Ok(m) => m,
+        Err(e) => {
+            log::warn!("position_panel_at_tray_icon: failed to get monitors: {}", e);
+            return;
+        }
+    };
     let mut found_monitor = None;
 
-    for m in monitors {
+    for m in &monitors {
         let pos = m.position();
         let size = m.size();
         let x_in = icon_phys_x >= pos.x && icon_phys_x < pos.x + size.width as i32;
@@ -78,9 +87,26 @@ pub fn position_panel_at_tray_icon(
         }
     }
 
-    let monitor = found_monitor.expect("no monitor found containing tray icon position");
+    // Fullscreen mode may cause tray icon coordinates to fall outside monitor bounds.
+    // Fall back to the first available monitor.
+    let monitor = match found_monitor.or_else(|| monitors.first()) {
+        Some(m) => m,
+        None => {
+            log::warn!("position_panel_at_tray_icon: no monitors available");
+            return;
+        }
+    };
     let scale_factor = monitor.scale_factor();
-    let window_size = window.outer_size().unwrap();
+    let window_size = match window.outer_size() {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!(
+                "position_panel_at_tray_icon: failed to get window size: {}",
+                e
+            );
+            return;
+        }
+    };
     let window_width_phys = window_size.width as i32;
 
     let (icon_phys_x, icon_phys_y, icon_width_phys, icon_height_phys) =
@@ -113,6 +139,18 @@ pub fn position_panel_at_tray_icon(
     let nudge_up_points: f64 = 8.0;
     let nudge_up_phys = (nudge_up_points * scale_factor).round() as i32;
     let panel_y_phys = icon_phys_y + icon_height_phys - nudge_up_phys;
+
+    // Clamp panel position within monitor bounds so it doesn't go off-screen
+    // (e.g. fullscreen mode where tray icon coords may be above visible area).
+    let monitor_pos = monitor.position();
+    let monitor_size = monitor.size();
+    let window_height_phys = window_size.height as i32;
+    let panel_y_phys = panel_y_phys.max(monitor_pos.y);
+    let panel_y_phys =
+        panel_y_phys.min(monitor_pos.y + monitor_size.height as i32 - window_height_phys);
+    let panel_x_phys = panel_x_phys.max(monitor_pos.x);
+    let panel_x_phys =
+        panel_x_phys.min(monitor_pos.x + monitor_size.width as i32 - window_width_phys);
 
     let final_pos = tauri::PhysicalPosition::new(panel_x_phys, panel_y_phys);
     let _ = window.set_position(final_pos);
