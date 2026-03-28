@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.28.2](https://github.com/shuntaka9576/agentoast/compare/v0.28.1...v0.28.2) - 2026-03-28
+- fix(deps): update dependency lucide-react to ^1.7.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/135
+- feat: add [system] config for manual tmux/git binary path override by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/140
+
 ## [v0.28.1](https://github.com/shuntaka9576/agentoast/compare/v0.28.0...v0.28.1) - 2026-03-27
 - fix: support Nix-managed tmux/git in find_tmux/find_git by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/137
 
