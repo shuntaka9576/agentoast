@@ -6,11 +6,28 @@ use clap::{Parser, Subcommand};
 
 use hooks::{get_git_info, parse_metadata};
 
+const APP_VERSION: &str = concat!(
+    env!("CARGO_PKG_NAME"),
+    " version ",
+    env!("CARGO_PKG_VERSION"),
+    " (rev:",
+    env!("GIT_HASH"),
+    ")"
+);
+
 #[derive(Parser)]
-#[command(name = "agentoast", about = "Agentoast - CLI notification tool")]
+#[command(
+    name = "agentoast",
+    about = "Agentoast - CLI notification tool",
+    disable_version_flag = true
+)]
 struct Cli {
+    /// Print version
+    #[arg(long, short = 'v')]
+    version: bool,
+
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -97,7 +114,18 @@ enum HookAgent {
 fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
+    if cli.version {
+        println!("{APP_VERSION}");
+        return;
+    }
+
+    let Some(command) = cli.command else {
+        use clap::CommandFactory;
+        Cli::command().print_help().unwrap();
+        std::process::exit(1);
+    };
+
+    match command {
         Commands::Send {
             badge,
             body,
