@@ -1,5 +1,14 @@
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
+
+use agentoast_shared::config::{self, AppConfig};
+
+static CONFIG: OnceLock<AppConfig> = OnceLock::new();
+
+fn get_config() -> &'static AppConfig {
+    CONFIG.get_or_init(config::load_config)
+}
 
 const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
     "com.github.wez.wezterm",
@@ -11,6 +20,18 @@ const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
 ];
 
 pub(crate) fn find_tmux() -> Option<PathBuf> {
+    // config.toml override (highest priority)
+    if let Some(ref path) = get_config().system.tmux {
+        let p = PathBuf::from(path);
+        if p.exists() {
+            return Some(p);
+        }
+        log::warn!(
+            "config.toml system.tmux={} not found, falling back to auto-detection",
+            path
+        );
+    }
+
     let mut candidates: Vec<PathBuf> = vec![
         PathBuf::from("/opt/homebrew/bin/tmux"), // Homebrew (Apple Silicon)
         PathBuf::from("/usr/local/bin/tmux"),    // Homebrew (Intel) / manual
@@ -45,6 +66,18 @@ pub(crate) fn find_tmux() -> Option<PathBuf> {
 }
 
 pub(crate) fn find_git() -> Option<PathBuf> {
+    // config.toml override (highest priority)
+    if let Some(ref path) = get_config().system.git {
+        let p = PathBuf::from(path);
+        if p.exists() {
+            return Some(p);
+        }
+        log::warn!(
+            "config.toml system.git={} not found, falling back to auto-detection",
+            path
+        );
+    }
+
     let mut candidates: Vec<PathBuf> = vec![
         PathBuf::from("/usr/bin/git"),          // system (Xcode CLT)
         PathBuf::from("/opt/homebrew/bin/git"), // Homebrew (Apple Silicon)
