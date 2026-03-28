@@ -22,6 +22,16 @@ A toast pops up whenever an agent completes or needs attention — click it to j
 
 <img src="docs/assets/toast.png" width="400" alt="toast" />
 
+## Requirements
+
+| Command | Purpose                                | Required |
+| ------- | -------------------------------------- | -------- |
+| `tmux`  | Session/pane management, agent status  | Yes      |
+| `git`   | Repository detection, branch info      | Yes      |
+| `ps`    | Agent process detection (process tree) | Built-in |
+
+agentoast auto-detects binary paths by searching well-known locations (Homebrew, system, Nix). If the Sessions panel is empty, see the [`[system]` config](#system-binary-paths) to set paths manually.
+
 ## Installation
 
 ```bash
@@ -138,6 +148,30 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
 # toggle_panel = "super+ctrl+n"
+
+# System settings
+# Override auto-detected binary paths (useful when auto-detection fails)
+# [system]
+# tmux = "/custom/path/to/tmux"
+# git = "/custom/path/to/git"
+```
+
+#### System Binary Paths
+
+agentoast auto-detects `tmux` and `git` by searching in this order.
+
+1. **Well-known paths** — Homebrew (Apple Silicon / Intel), system (`/usr/bin`)
+2. **Nix paths** — Home Manager (`/etc/profiles/per-user/$USER/bin/`), single-user (`/nix/var/nix/profiles/default/bin/`)
+3. **`$PATH` fallback** — scans `$PATH` entries (mise, asdf, etc.)
+
+> **Note:** The `$PATH` fallback only works when the app is launched from a terminal. Finder / Dock / Spotlight launches do not inherit the shell `$PATH`.
+
+If auto-detection fails (Sessions panel is empty), override the path in `config.toml`.
+
+```toml
+[system]
+tmux = "/your/custom/path/to/tmux"
+git = "/your/custom/path/to/git"
 ```
 
 ### Keyboard Shortcuts

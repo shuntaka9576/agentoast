@@ -44,6 +44,8 @@ pub struct AppConfig {
     pub keybinding: KeybindingConfig,
     #[serde(default)]
     pub update: UpdateConfig,
+    #[serde(default)]
+    pub system: SystemConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -230,6 +232,12 @@ impl Default for UpdateConfig {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SystemConfig {
+    pub tmux: Option<String>,
+    pub git: Option<String>,
+}
+
 fn default_claude_code_events() -> Vec<String> {
     vec![
         "Stop".to_string(),
@@ -356,6 +364,12 @@ fn default_config_template() -> &'static str {
 [update]
 # Enable auto-update check (default: true)
 # enabled = true
+
+# System settings
+# Override auto-detected binary paths (useful when auto-detection fails)
+# [system]
+# tmux = "/custom/path/to/tmux"
+# git = "/custom/path/to/git"
 
 "#
 }
