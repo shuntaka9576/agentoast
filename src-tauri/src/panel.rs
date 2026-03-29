@@ -1,3 +1,4 @@
+use tauri::tray::TrayIconId;
 use tauri::{Manager, Position, Size};
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
@@ -154,4 +155,126 @@ pub fn position_panel_at_tray_icon(
 
     let final_pos = tauri::PhysicalPosition::new(panel_x_phys, panel_y_phys);
     let _ = window.set_position(final_pos);
+}
+
+/// Find the monitor whose bounds contain the given physical point.
+fn find_monitor_containing(
+    monitors: &[tauri::Monitor],
+    phys_x: i32,
+    phys_y: i32,
+) -> Option<&tauri::Monitor> {
+    monitors.iter().find(|m| {
+        let pos = m.position();
+        let size = m.size();
+        phys_x >= pos.x
+            && phys_x < pos.x + size.width as i32
+            && phys_y >= pos.y
+            && phys_y < pos.y + size.height as i32
+    })
+}
+
+/// Position panel at the top-right (menu bar area) of the given monitor.
+fn position_panel_on_monitor(window: &tauri::WebviewWindow, monitor: &tauri::Monitor) {
+    let scale = monitor.scale_factor();
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let win_size = match window.outer_size() {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!(
+                "position_panel_on_monitor: failed to get window size: {}",
+                e
+            );
+            return;
+        }
+    };
+
+    // Right-aligned with margin
+    let margin_phys = (16.0 * scale).round() as i32;
+    let panel_x = mon_pos.x + mon_size.width as i32 - win_size.width as i32 - margin_phys;
+
+    // Below the menu bar (~25 logical pt) with nudge up (~8 logical pt)
+    let menu_bar_phys = (25.0 * scale).round() as i32;
+    let nudge_phys = (8.0 * scale).round() as i32;
+    let panel_y = mon_pos.y + menu_bar_phys - nudge_phys;
+
+    // Clamp within monitor bounds
+    let panel_x = panel_x.max(mon_pos.x);
+    let panel_x = panel_x.min(mon_pos.x + mon_size.width as i32 - win_size.width as i32);
+    let panel_y = panel_y.max(mon_pos.y);
+    let panel_y = panel_y.min(mon_pos.y + mon_size.height as i32 - win_size.height as i32);
+
+    let _ = window.set_position(tauri::PhysicalPosition::new(panel_x, panel_y));
+}
+
+/// Position panel for shortcut-triggered toggle.
+/// Uses cursor position to determine the active monitor. If the cursor and tray icon
+/// are on the same monitor, delegates to `position_panel_at_tray_icon` for precise
+/// alignment. Otherwise, positions at the top-right of the cursor's monitor.
+pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
+    let Some(window) = app_handle.get_webview_window("main") else {
+        log::warn!("position_panel_for_shortcut: main window not found");
+        return;
+    };
+
+    let monitors = match window.available_monitors() {
+        Ok(m) if !m.is_empty() => m,
+        Ok(_) => {
+            log::warn!("position_panel_for_shortcut: no monitors available");
+            return;
+        }
+        Err(e) => {
+            log::warn!("position_panel_for_shortcut: failed to get monitors: {}", e);
+            return;
+        }
+    };
+
+    // Determine cursor's monitor
+    let cursor_monitor_pos = match window.cursor_position() {
+        Ok(pos) => {
+            let cx = pos.x as i32;
+            let cy = pos.y as i32;
+            find_monitor_containing(&monitors, cx, cy)
+                .or_else(|| monitors.first())
+                .map(|m| *m.position())
+        }
+        Err(_) => None,
+    };
+
+    // Try to get tray icon rect and its monitor
+    let tray_info = app_handle
+        .tray_by_id(&TrayIconId::new("tray"))
+        .and_then(|tray| tray.rect().ok().flatten())
+        .map(|rect| {
+            let (tx, ty) = match &rect.position {
+                Position::Physical(p) => (p.x, p.y),
+                Position::Logical(p) => (p.x as i32, p.y as i32),
+            };
+            let tray_monitor_pos =
+                find_monitor_containing(&monitors, tx, ty).map(|m| *m.position());
+            (rect, tray_monitor_pos)
+        });
+
+    match (cursor_monitor_pos, &tray_info) {
+        // Cursor and tray on the same monitor → use tray position for precise alignment
+        (Some(cursor_mp), Some((rect, Some(tray_mp)))) if cursor_mp == *tray_mp => {
+            position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+        }
+        // Cursor on a different monitor (or tray monitor unknown) → position on cursor's monitor
+        (Some(cursor_mp), _) => {
+            if let Some(monitor) = monitors.iter().find(|m| *m.position() == cursor_mp) {
+                position_panel_on_monitor(&window, monitor);
+            }
+        }
+        // cursor_position() failed → fallback to tray position if available
+        (None, Some((rect, _))) => {
+            position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+        }
+        // Both failed → fallback to first monitor's top-right
+        (None, None) => {
+            if let Some(monitor) = monitors.first() {
+                position_panel_on_monitor(&window, monitor);
+            }
+        }
+    }
 }
