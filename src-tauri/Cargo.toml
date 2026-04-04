@@ -16,7 +16,7 @@ agentoast-shared = { path = "../crates/agentoast-shared" }
 tauri = { version = "2.10.3", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-global-shortcut = "2.3.1"
-tauri-plugin-updater = "2.10.0"
+tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 log = "0.4.29"
