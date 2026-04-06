@@ -46,7 +46,9 @@ script = [
 # We use ~/.local/bin here because /usr/local/bin may require sudo.
 [tasks.install-cli-symlink]
 description = "Create CLI symlink to the installed .app binary"
-script = ["mkdir -p ~/.local/bin && ln -sf /Applications/Agentoast.app/Contents/MacOS/agentoast ~/.local/bin/agentoast"]
+script = [
+  "mkdir -p ~/.local/bin && ln -sf /Applications/Agentoast.app/Contents/MacOS/agentoast ~/.local/bin/agentoast",
+]
 
 [tasks.install]
 description = "Build and install app + CLI symlink"
