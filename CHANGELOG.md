@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.29.0](https://github.com/shuntaka9576/agentoast/compare/v0.28.5...v0.29.0) - 2026-04-06
+- chore(deps): update dependency vite-plus to ^0.1.15 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/147
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/148
+- feat: unify CLI and app into a single binary by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/152
+
 ## [v0.28.5](https://github.com/shuntaka9576/agentoast/compare/v0.28.4...v0.28.5) - 2026-03-29
 - fix: position panel on active monitor in multi-monitor setups by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/145
 
