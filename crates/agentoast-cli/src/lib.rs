@@ -120,7 +120,16 @@ pub fn try_run_cli() -> bool {
     }
     let first = &args[1];
     let known = [
-        "send", "hook", "list", "config", "--version", "-V", "-v", "--help", "-h", "help",
+        "send",
+        "hook",
+        "list",
+        "config",
+        "--version",
+        "-V",
+        "-v",
+        "--help",
+        "-h",
+        "help",
     ];
     if !known.contains(&first.as_str()) {
         return false;
