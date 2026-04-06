@@ -35,9 +35,10 @@ agentoast auto-detects binary paths by searching well-known locations (Homebrew,
 ## Installation
 
 ```bash
-brew install shuntaka9576/tap/agentoast-cli
 brew install --cask shuntaka9576/tap/agentoast
 ```
+
+This installs the menu bar app and the `agentoast` CLI in one step.
 
 Or download the DMG from [Releases](https://github.com/shuntaka9576/agentoast/releases).
 
@@ -45,7 +46,6 @@ To uninstall:
 
 ```bash
 brew uninstall --cask shuntaka9576/tap/agentoast
-brew uninstall shuntaka9576/tap/agentoast-cli
 ```
 
 ## Usage

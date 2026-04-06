@@ -24,30 +24,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  release-cli:
-    needs: tagpr
-    if: needs.tagpr.outputs.tag != ''
-    runs-on: macos-latest
-    permissions:
-      contents: write
-    steps:
-      - name: checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ needs.tagpr.outputs.tag }}
-      - name: Generate token for homebrew-tap
-        id: app-token
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: homebrew-tap
-      - uses: ./.github/actions/release-cli
-        with:
-          tag: ${{ needs.tagpr.outputs.tag }}
-          homebrew_tap_token: ${{ steps.app-token.outputs.token }}
-
   release-app:
     needs: tagpr
     if: needs.tagpr.outputs.tag != ''
@@ -82,7 +58,7 @@ jobs:
           keychain_password: ${{ secrets.KEYCHAIN_PASSWORD }}
 
   publish-release:
-    needs: [tagpr, release-cli, release-app]
+    needs: [tagpr, release-app]
     if: needs.tagpr.outputs.tag != ''
     runs-on: macos-latest
     permissions:

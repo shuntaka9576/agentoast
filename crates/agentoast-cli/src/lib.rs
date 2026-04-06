@@ -1,4 +1,4 @@
-mod hooks;
+pub mod hooks;
 
 use agentoast_shared::models::IconType;
 use agentoast_shared::{config, db};
@@ -111,9 +111,35 @@ enum HookAgent {
     },
 }
 
-fn main() {
+/// Try to run CLI subcommands. Returns true if a CLI subcommand was handled,
+/// false if no CLI subcommand was detected (caller should launch the GUI).
+pub fn try_run_cli() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        return false;
+    }
+    let first = &args[1];
+    let known = [
+        "send",
+        "hook",
+        "list",
+        "config",
+        "--version",
+        "-V",
+        "-v",
+        "--help",
+        "-h",
+        "help",
+    ];
+    if !known.contains(&first.as_str()) {
+        return false;
+    }
     let cli = Cli::parse();
+    run(cli);
+    true
+}
 
+fn run(cli: Cli) {
     if cli.version {
         println!("{APP_VERSION}");
         return;

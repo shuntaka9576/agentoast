@@ -16,6 +16,7 @@
   "dictionaries": ["npm", "node", "typescript", "html", "css", "bash", "rust"],
   "words": [
     "agentoast",
+    "appdir",
     "bezeled",
     "cdylib",
     "autoincrement",

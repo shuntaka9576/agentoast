@@ -7,12 +7,17 @@ edition = "2021"
 [lints]
 workspace = true
 
+[[bin]]
+name = "agentoast"
+path = "src/main.rs"
+
 [lib]
 name = "agentoast_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 agentoast-shared = { path = "../crates/agentoast-shared" }
+agentoast-cli = { path = "../crates/agentoast-cli" }
 tauri = { version = "2.10.3", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-global-shortcut = "2.3.1"
@@ -57,6 +62,9 @@ objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
 objc2-quartz-core = { version = "0.3.2", features = ["CALayer"] }
 block2 = "0.6.2"
+
+[dev-dependencies]
+tempfile = "3.27.0"
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
