@@ -63,6 +63,7 @@ description = "Stop app, remove .app from /Applications/, uninstall Cask/CLI, an
 dependencies = ["stop-app"]
 script = '''
 rm -rf /Applications/Agentoast.app
+rm -f ~/.local/bin/agentoast
 rm -f /usr/local/bin/agentoast
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u target/release/bundle/macos/Agentoast.app 2>/dev/null || true
 rm -rf target/release/bundle/macos/Agentoast.app
