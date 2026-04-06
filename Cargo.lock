@@ -12,6 +12,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "agentoast-app"
 version = "0.28.5"
 dependencies = [
+ "agentoast-cli",
  "agentoast-shared",
  "block2",
  "fern",
@@ -33,6 +34,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tempfile",
 ]
 
 [[package]]

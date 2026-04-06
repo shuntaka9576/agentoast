@@ -6,9 +6,9 @@ edition = "2021"
 [lints]
 workspace = true
 
-[[bin]]
-name = "agentoast"
-path = "src/main.rs"
+[lib]
+name = "agentoast_cli"
+path = "src/lib.rs"
 
 [dependencies]
 agentoast-shared = { path = "../agentoast-shared" }

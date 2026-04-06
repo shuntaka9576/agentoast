@@ -114,6 +114,7 @@ runs:
 
           auto_updates true
           app "Agentoast.app"
+          binary "#{appdir}/Agentoast.app/Contents/MacOS/agentoast"
 
           zap trash: [
             "~/.local/share/agentoast",

@@ -12,36 +12,26 @@ args = ["install"]
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
-[tasks.build-cli]
-description = "Build CLI in release mode"
-command = "cargo"
-args = ["build", "-p", "agentoast-cli", "--release"]
-
 [tasks.build-app]
-description = "Build Tauri app in release mode"
+description = "Build Tauri app (includes CLI) in release mode"
 command = "bun"
 args = ["run", "tauri", "build"]
 
 [tasks.build]
-description = "Build CLI + Tauri app"
-dependencies = ["build-cli", "build-app"]
+description = "Build Tauri app (includes CLI)"
+dependencies = ["build-app"]
 
 # ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
 [tasks.stop-app]
 description = "Stop running Agentoast app"
-script = ["pkill -x agentoast-app || true"]
-
-[tasks.install-cli]
-description = "Install CLI via cargo install"
-command = "cargo"
-args = ["install", "--path", "crates/agentoast-cli"]
+script = ["pkill -f 'Agentoast.app' || true"]
 
 [tasks.install-app]
 description = "Copy built .app to /Applications/"
 script = [
-  "pkill -x agentoast-app || true",
+  "pkill -f 'Agentoast.app' || true",
   "sleep 1",
   "rm -rf /Applications/Agentoast.app",
   "cp -r target/release/bundle/macos/Agentoast.app /Applications/",
@@ -51,10 +41,17 @@ script = [
   "rm -rf target/release/bundle/macos/Agentoast.app",
 ]
 
+# For local development only. Homebrew Cask uses its own `binary` stanza
+# to create a symlink in /opt/homebrew/bin/agentoast automatically.
+# We use ~/.local/bin here because /usr/local/bin may require sudo.
+[tasks.install-cli-symlink]
+description = "Create CLI symlink to the installed .app binary"
+script = ["mkdir -p ~/.local/bin && ln -sf /Applications/Agentoast.app/Contents/MacOS/agentoast ~/.local/bin/agentoast"]
+
 [tasks.install]
-description = "Build and install CLI + app"
+description = "Build and install app + CLI symlink"
 dependencies = ["stop-app", "build"]
-run_task = { name = ["install-cli", "install-app"], parallel = false }
+run_task = { name = ["install-app", "install-cli-symlink"], parallel = false }
 
 # ---------------------------------------------------------------------------
 # Uninstall
@@ -64,11 +61,10 @@ description = "Stop app, remove .app from /Applications/, uninstall Cask/CLI, an
 dependencies = ["stop-app"]
 script = '''
 rm -rf /Applications/Agentoast.app
+rm -f /usr/local/bin/agentoast
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u target/release/bundle/macos/Agentoast.app 2>/dev/null || true
 rm -rf target/release/bundle/macos/Agentoast.app
 brew uninstall --cask agentoast 2>/dev/null || true
-brew uninstall agentoast-cli 2>/dev/null || true
-cargo uninstall agentoast-cli 2>/dev/null || true
 rm -rf ~/.config/agentoast
 rm -rf ~/.local/share/agentoast
 echo "Done! Uninstalled agentoast"
@@ -124,6 +120,7 @@ cask "agentoast" do
 
   auto_updates true
   app "Agentoast.app"
+  binary "#{appdir}/Agentoast.app/Contents/MacOS/agentoast"
 
   zap trash: [
     "~/.local/share/agentoast",
