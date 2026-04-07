@@ -185,8 +185,7 @@ fn set_panel_position_sync(app_handle: &tauri::AppHandle, phys_x: i32, phys_y: i
         if count == 0 {
             return;
         }
-        let primary: *const objc2::runtime::AnyObject =
-            msg_send![screens, objectAtIndex: 0usize];
+        let primary: *const objc2::runtime::AnyObject = msg_send![screens, objectAtIndex: 0usize];
         if primary.is_null() {
             return;
         }
