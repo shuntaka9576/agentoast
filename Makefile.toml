@@ -214,6 +214,14 @@ description = "Run all linters (Rust + frontend)"
 dependencies = ["fmt-check", "clippy", "fmt-check-vp", "lint-vp", "spell-check"]
 
 # ---------------------------------------------------------------------------
+# Infra (gh-infra)
+# ---------------------------------------------------------------------------
+[tasks.gh-validate]
+description = "Validate GitHub repository config"
+command = "gh"
+args = ["infra", "validate", ".github/infra/"]
+
+# ---------------------------------------------------------------------------
 # Clean
 # ---------------------------------------------------------------------------
 [tasks.clean]
