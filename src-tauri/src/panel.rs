@@ -153,13 +153,19 @@ pub fn position_panel_at_tray_icon(
     let panel_x_phys =
         panel_x_phys.min(monitor_pos.x + monitor_size.width as i32 - window_width_phys);
 
-    set_panel_position_sync(app_handle, panel_x_phys, panel_y_phys, scale_factor);
+    set_panel_position_sync(app_handle, panel_x_phys, panel_y_phys, monitor);
 }
 
 /// Set panel position directly via NSPanel (synchronous, no Tauri async dispatch).
-/// Converts from Tauri physical coordinates (top-left origin) to macOS screen
-/// coordinates (bottom-left origin).
-fn set_panel_position_sync(app_handle: &tauri::AppHandle, phys_x: i32, phys_y: i32, scale: f64) {
+/// Converts from Tauri global physical coordinates (top-left origin) to macOS screen
+/// coordinates (bottom-left origin) using the target monitor for correct mixed-DPI
+/// multi-monitor conversion.
+fn set_panel_position_sync(
+    app_handle: &tauri::AppHandle,
+    phys_x: i32,
+    phys_y: i32,
+    monitor: &tauri::Monitor,
+) {
     let panel_handle = match app_handle.get_webview_panel("main") {
         Ok(p) => p,
         Err(_) => {
@@ -168,16 +174,28 @@ fn set_panel_position_sync(app_handle: &tauri::AppHandle, phys_x: i32, phys_y: i
         }
     };
     let ns_panel = panel_handle.as_panel();
+    let scale = monitor.scale_factor();
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
 
     unsafe {
         use objc2::msg_send;
 
         // Get the panel's current frame to know window height
         let frame: tauri_nspanel::NSRect = msg_send![ns_panel, frame];
+        let win_height = frame.size.height;
 
-        // Get primary screen height for coordinate conversion.
-        // NSScreen.screens[0] is always the primary screen (with menu bar).
-        let screens: *const objc2::runtime::AnyObject = msg_send![objc2::class!(NSScreen), screens];
+        // Convert global physical to local physical (relative to target monitor)
+        let local_phys_x = phys_x - mon_pos.x;
+        let local_phys_y = phys_y - mon_pos.y;
+
+        // Convert local physical to local logical using the target monitor's scale
+        let local_logical_x = local_phys_x as f64 / scale;
+        let local_logical_y = local_phys_y as f64 / scale;
+
+        // Find the matching NSScreen by logical dimensions
+        let screens: *const objc2::runtime::AnyObject =
+            msg_send![objc2::class!(NSScreen), screens];
         if screens.is_null() {
             return;
         }
@@ -185,18 +203,48 @@ fn set_panel_position_sync(app_handle: &tauri::AppHandle, phys_x: i32, phys_y: i
         if count == 0 {
             return;
         }
-        let primary: *const objc2::runtime::AnyObject = msg_send![screens, objectAtIndex: 0usize];
-        if primary.is_null() {
-            return;
+
+        let mon_logical_w = mon_size.width as f64 / scale;
+        let mon_logical_h = mon_size.height as f64 / scale;
+
+        let mut screen_frame: Option<tauri_nspanel::NSRect> = None;
+        for i in 0..count {
+            let scr: *const objc2::runtime::AnyObject =
+                msg_send![screens, objectAtIndex: i];
+            if scr.is_null() {
+                continue;
+            }
+            let sf: tauri_nspanel::NSRect = msg_send![scr, frame];
+            // Match by logical dimensions (tolerance for rounding)
+            if (sf.size.width - mon_logical_w).abs() < 2.0
+                && (sf.size.height - mon_logical_h).abs() < 2.0
+            {
+                screen_frame = Some(sf);
+                break;
+            }
         }
-        let screen_frame: tauri_nspanel::NSRect = msg_send![primary, frame];
 
-        // Convert: physical top-left → logical bottom-left
-        let logical_x = phys_x as f64 / scale;
-        let logical_y = phys_y as f64 / scale;
-        let macos_y = screen_frame.size.height - logical_y - frame.size.height;
+        let screen_frame = match screen_frame {
+            Some(f) => f,
+            None => {
+                // Fallback to primary screen
+                let primary: *const objc2::runtime::AnyObject =
+                    msg_send![screens, objectAtIndex: 0usize];
+                if primary.is_null() {
+                    return;
+                }
+                msg_send![primary, frame]
+            }
+        };
 
-        let origin = tauri_nspanel::NSPoint::new(logical_x, macos_y);
+        // Convert to macOS coordinates using the matched NSScreen's frame.
+        // NSScreen origin is at bottom-left in macOS global logical coords.
+        // local_logical_y is distance from the TOP of the screen (Tauri convention).
+        let macos_x = screen_frame.origin.x + local_logical_x;
+        let macos_y =
+            screen_frame.origin.y + screen_frame.size.height - local_logical_y - win_height;
+
+        let origin = tauri_nspanel::NSPoint::new(macos_x, macos_y);
         let _: () = msg_send![ns_panel, setFrameOrigin: origin];
     }
 }
@@ -252,7 +300,7 @@ fn position_panel_on_monitor(
     let panel_y = panel_y.max(mon_pos.y);
     let panel_y = panel_y.min(mon_pos.y + mon_size.height as i32 - win_size.height as i32);
 
-    set_panel_position_sync(app_handle, panel_x, panel_y, scale);
+    set_panel_position_sync(app_handle, panel_x, panel_y, monitor);
 }
 
 /// Position panel for shortcut-triggered toggle.
