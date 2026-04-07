@@ -206,7 +206,13 @@ fn set_panel_position_sync(
         let mon_logical_w = mon_size.width as f64 / scale;
         let mon_logical_h = mon_size.height as f64 / scale;
 
+        // Approximate expected NSScreen origin.x from Tauri physical position.
+        // Exact for uniform-DPI setups (the only case where duplicate sizes occur
+        // in practice); reasonable heuristic for mixed-DPI.
+        let expected_x = mon_pos.x as f64 / scale;
+
         let mut screen_frame: Option<tauri_nspanel::NSRect> = None;
+        let mut best_dist = f64::MAX;
         for i in 0..count {
             let scr: *const objc2::runtime::AnyObject = msg_send![screens, objectAtIndex: i];
             if scr.is_null() {
@@ -217,8 +223,13 @@ fn set_panel_position_sync(
             if (sf.size.width - mon_logical_w).abs() < 2.0
                 && (sf.size.height - mon_logical_h).abs() < 2.0
             {
-                screen_frame = Some(sf);
-                break;
+                // Among size-matched screens, pick the one closest to the
+                // expected origin to disambiguate identical monitors.
+                let dist = (sf.origin.x - expected_x).abs();
+                if dist < best_dist {
+                    best_dist = dist;
+                    screen_frame = Some(sf);
+                }
             }
         }
 
