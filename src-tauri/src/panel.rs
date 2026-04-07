@@ -194,8 +194,7 @@ fn set_panel_position_sync(
         let local_logical_y = local_phys_y as f64 / scale;
 
         // Find the matching NSScreen by logical dimensions
-        let screens: *const objc2::runtime::AnyObject =
-            msg_send![objc2::class!(NSScreen), screens];
+        let screens: *const objc2::runtime::AnyObject = msg_send![objc2::class!(NSScreen), screens];
         if screens.is_null() {
             return;
         }
@@ -209,8 +208,7 @@ fn set_panel_position_sync(
 
         let mut screen_frame: Option<tauri_nspanel::NSRect> = None;
         for i in 0..count {
-            let scr: *const objc2::runtime::AnyObject =
-                msg_send![screens, objectAtIndex: i];
+            let scr: *const objc2::runtime::AnyObject = msg_send![screens, objectAtIndex: i];
             if scr.is_null() {
                 continue;
             }
