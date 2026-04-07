@@ -48,8 +48,10 @@ pub fn toggle_panel(app_handle: &AppHandle) {
         panel.hide();
     } else {
         let _ = app_handle.emit("notifications:refresh", ());
+        panel.set_alpha_value(0.0);
         panel.show_and_make_key();
         crate::panel::position_panel_for_shortcut(app_handle);
+        panel.set_alpha_value(1.0);
     }
 }
 
@@ -114,8 +116,10 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
                         return;
                     }
 
+                    panel.set_alpha_value(0.0);
                     panel.show_and_make_key();
                     position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+                    panel.set_alpha_value(1.0);
                 }
             }
         })

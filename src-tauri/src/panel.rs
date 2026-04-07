@@ -153,8 +153,53 @@ pub fn position_panel_at_tray_icon(
     let panel_x_phys =
         panel_x_phys.min(monitor_pos.x + monitor_size.width as i32 - window_width_phys);
 
-    let final_pos = tauri::PhysicalPosition::new(panel_x_phys, panel_y_phys);
-    let _ = window.set_position(final_pos);
+    set_panel_position_sync(app_handle, panel_x_phys, panel_y_phys, scale_factor);
+}
+
+/// Set panel position directly via NSPanel (synchronous, no Tauri async dispatch).
+/// Converts from Tauri physical coordinates (top-left origin) to macOS screen
+/// coordinates (bottom-left origin).
+fn set_panel_position_sync(app_handle: &tauri::AppHandle, phys_x: i32, phys_y: i32, scale: f64) {
+    let panel_handle = match app_handle.get_webview_panel("main") {
+        Ok(p) => p,
+        Err(_) => {
+            log::warn!("set_panel_position_sync: panel not found");
+            return;
+        }
+    };
+    let ns_panel = panel_handle.as_panel();
+
+    unsafe {
+        use objc2::msg_send;
+
+        // Get the panel's current frame to know window height
+        let frame: tauri_nspanel::NSRect = msg_send![ns_panel, frame];
+
+        // Get primary screen height for coordinate conversion.
+        // NSScreen.screens[0] is always the primary screen (with menu bar).
+        let screens: *const objc2::runtime::AnyObject = msg_send![objc2::class!(NSScreen), screens];
+        if screens.is_null() {
+            return;
+        }
+        let count: usize = msg_send![screens, count];
+        if count == 0 {
+            return;
+        }
+        let primary: *const objc2::runtime::AnyObject =
+            msg_send![screens, objectAtIndex: 0usize];
+        if primary.is_null() {
+            return;
+        }
+        let screen_frame: tauri_nspanel::NSRect = msg_send![primary, frame];
+
+        // Convert: physical top-left → logical bottom-left
+        let logical_x = phys_x as f64 / scale;
+        let logical_y = phys_y as f64 / scale;
+        let macos_y = screen_frame.size.height - logical_y - frame.size.height;
+
+        let origin = tauri_nspanel::NSPoint::new(logical_x, macos_y);
+        let _: () = msg_send![ns_panel, setFrameOrigin: origin];
+    }
 }
 
 /// Find the monitor whose bounds contain the given physical point.
@@ -174,7 +219,11 @@ fn find_monitor_containing(
 }
 
 /// Position panel at the top-right (menu bar area) of the given monitor.
-fn position_panel_on_monitor(window: &tauri::WebviewWindow, monitor: &tauri::Monitor) {
+fn position_panel_on_monitor(
+    app_handle: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    monitor: &tauri::Monitor,
+) {
     let scale = monitor.scale_factor();
     let mon_pos = monitor.position();
     let mon_size = monitor.size();
@@ -204,7 +253,7 @@ fn position_panel_on_monitor(window: &tauri::WebviewWindow, monitor: &tauri::Mon
     let panel_y = panel_y.max(mon_pos.y);
     let panel_y = panel_y.min(mon_pos.y + mon_size.height as i32 - win_size.height as i32);
 
-    let _ = window.set_position(tauri::PhysicalPosition::new(panel_x, panel_y));
+    set_panel_position_sync(app_handle, panel_x, panel_y, scale);
 }
 
 /// Position panel for shortcut-triggered toggle.
@@ -263,7 +312,7 @@ pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
         // Cursor on a different monitor (or tray monitor unknown) → position on cursor's monitor
         (Some(cursor_mp), _) => {
             if let Some(monitor) = monitors.iter().find(|m| *m.position() == cursor_mp) {
-                position_panel_on_monitor(&window, monitor);
+                position_panel_on_monitor(app_handle, &window, monitor);
             }
         }
         // cursor_position() failed → fallback to tray position if available
@@ -273,7 +322,7 @@ pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
         // Both failed → fallback to first monitor's top-right
         (None, None) => {
             if let Some(monitor) = monitors.first() {
-                position_panel_on_monitor(&window, monitor);
+                position_panel_on_monitor(app_handle, &window, monitor);
             }
         }
     }
