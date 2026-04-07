@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.29.1](https://github.com/shuntaka9576/agentoast/compare/v0.29.0...v0.29.1) - 2026-04-07
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/150
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/151
+- chore(deps): update songmu/tagpr action to v1.18.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/154
+- chore: add gh-infra config for repository settings management by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/156
+- chore(deps): update songmu/tagpr action to v1.18.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/155
+- chore(deps): update dependency cspell to v10 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/158
+- fix(panel): eliminate flicker when showing panel via shortcut or tray click by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/159
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/157
+
 ## [v0.29.0](https://github.com/shuntaka9576/agentoast/compare/v0.28.5...v0.29.0) - 2026-04-06
 - chore(deps): update dependency vite-plus to ^0.1.15 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/147
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/148
