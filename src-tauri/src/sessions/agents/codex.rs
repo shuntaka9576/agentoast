@@ -68,7 +68,10 @@ fn check_codex_pane_content(pane_id: &str, content: Option<&str>) -> CodexPaneCo
     let content = match content {
         Some(c) => c,
         None => {
-            log::debug!("check_codex_pane_content({}): no content available", pane_id);
+            log::debug!(
+                "check_codex_pane_content({}): no content available",
+                pane_id
+            );
             return default;
         }
     };

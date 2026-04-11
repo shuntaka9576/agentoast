@@ -74,7 +74,11 @@ fn resolve_single_git_info(git_path: &std::path::Path, path: &str) -> Option<Git
         .and_then(|o| {
             if o.status.success() {
                 let b = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                if b.is_empty() { None } else { Some(b) }
+                if b.is_empty() {
+                    None
+                } else {
+                    Some(b)
+                }
             } else {
                 None
             }
@@ -110,14 +114,16 @@ fn resolve_git_info(paths: &[String]) -> HashMap<String, Option<GitInfo>> {
             .map(|path| {
                 let git_path = &git_path;
                 let path_str = path.as_str();
-                s.spawn(move || (path_str.to_string(), resolve_single_git_info(git_path, path_str)))
+                s.spawn(move || {
+                    (
+                        path_str.to_string(),
+                        resolve_single_git_info(git_path, path_str),
+                    )
+                })
             })
             .collect();
 
-        handles
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .collect()
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
     })
 }
 
@@ -288,9 +294,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
             let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
                 if let Some(ref at) = rp.agent_type {
-                    let content = captured_contents
-                        .get(&idx)
-                        .and_then(|c| c.as_deref());
+                    let content = captured_contents.get(&idx).and_then(|c| c.as_deref());
                     let r = detect_agent_status_with_content(&db_conn, &rp.pane_id, at, content);
                     (
                         Some(r.status),
