@@ -37,6 +37,7 @@ export function App() {
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needFetchVersionRef = useRef(-1);
+  const repositionCancelledRef = useRef(false);
   const fetchVersionRef = useRef(fetchVersion);
   fetchVersionRef.current = fetchVersion;
 
@@ -297,8 +298,9 @@ export function App() {
 
   // Reset selection when panel is shown
   useEffect(() => {
-    const unlisten = listen("notifications:refresh", () => {
+    const unlisten = listen("panel:shown", () => {
       setSelectedIndex(-1);
+      repositionCancelledRef.current = false;
       needFetchVersionRef.current = fetchVersionRef.current;
     });
     return () => {
@@ -306,11 +308,11 @@ export function App() {
     };
   }, []);
 
-  // Clamp selectedIndex when items change
+  // Clamp selectedIndex when items change; reposition cursor when fresh data arrives
   useEffect(() => {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
-      if (prev < 0) {
+      if (prev < 0 && !repositionCancelledRef.current) {
         // Wait until sessions data is fresh after panel show
         if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
           return -1;
@@ -424,6 +426,7 @@ export function App() {
       case "j":
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
           setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
         }
@@ -431,6 +434,7 @@ export function App() {
       case "k":
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
           setSelectedIndex((prev) => Math.max(prev - 1, 0));
         }
@@ -446,8 +450,8 @@ export function App() {
         if (item.type === "group-header") {
           toggleGroupExpanded(item.groupKey);
         } else if (item.type === "pane-item") {
-          activatePaneItem(item.paneItem);
           void invoke("hide_panel");
+          activatePaneItem(item.paneItem);
         }
         break;
       }

@@ -100,16 +100,30 @@ fn is_universal_running_line(line: &str) -> bool {
     false
 }
 
+#[allow(dead_code)]
 pub(super) fn detect_agent_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     agent_type: &str,
 ) -> AgentDetectionResult {
+    let content = capture_pane(pane_id);
+    detect_agent_status_with_content(db_conn, pane_id, agent_type, content.as_deref())
+}
+
+/// Detect agent status using pre-captured pane content.
+/// This avoids redundant capture-pane calls when content is already available
+/// (e.g., captured in parallel by the caller).
+pub(super) fn detect_agent_status_with_content(
+    db_conn: &Option<db::Connection>,
+    pane_id: &str,
+    agent_type: &str,
+    content: Option<&str>,
+) -> AgentDetectionResult {
     match agent_type {
-        "claude-code" => claude::detect_claude_status(db_conn, pane_id),
-        "codex" => codex::detect_codex_status(db_conn, pane_id),
-        "copilot-cli" => copilot::detect_copilot_status(db_conn, pane_id),
-        "opencode" => opencode::detect_opencode_status(db_conn, pane_id),
+        "claude-code" => claude::detect_claude_status(db_conn, pane_id, content),
+        "codex" => codex::detect_codex_status(db_conn, pane_id, content),
+        "copilot-cli" => copilot::detect_copilot_status(db_conn, pane_id, content),
+        "opencode" => opencode::detect_opencode_status(db_conn, pane_id, content),
         _ => {
             log::debug!(
                 "detect_agent_status({}): unknown agent_type='{}', defaulting to Running",

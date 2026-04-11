@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::{capture_pane, AgentDetectionResult};
+use super::AgentDetectionResult;
 
 /// OpenCode mode patterns: (substring after ▣ prefix, label for frontend)
 const OPENCODE_MODE_PATTERNS: &[(&str, &str)] = &[("Plan", "plan"), ("Build", "build")];
@@ -15,8 +15,9 @@ struct OpencodePaneContentInfo {
 pub(super) fn detect_opencode_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
+    content: Option<&str>,
 ) -> AgentDetectionResult {
-    let info = check_opencode_pane_content(pane_id);
+    let info = check_opencode_pane_content(pane_id, content);
 
     log::debug!(
         "detect_opencode_status({}): running={} permission={} selection={}",
@@ -53,7 +54,7 @@ pub(super) fn detect_opencode_status(
     }
 }
 
-fn check_opencode_pane_content(pane_id: &str) -> OpencodePaneContentInfo {
+fn check_opencode_pane_content(pane_id: &str, content: Option<&str>) -> OpencodePaneContentInfo {
     let default = OpencodePaneContentInfo {
         is_running: false,
         has_selection_dialog: false,
@@ -61,11 +62,11 @@ fn check_opencode_pane_content(pane_id: &str) -> OpencodePaneContentInfo {
         agent_modes: Vec::new(),
     };
 
-    let content = match capture_pane(pane_id) {
+    let content = match content {
         Some(c) => c,
         None => {
             log::debug!(
-                "check_opencode_pane_content({}): capture-pane failed",
+                "check_opencode_pane_content({}): no content available",
                 pane_id
             );
             return default;

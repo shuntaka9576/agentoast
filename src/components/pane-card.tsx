@@ -77,6 +77,7 @@ export function PaneCard({
     : [];
 
   const handleClick = () => {
+    void invoke("hide_panel");
     if (notification) {
       void invoke("delete_notifications_by_pane", {
         tmuxPane: notification.tmuxPane,
@@ -86,7 +87,6 @@ export function PaneCard({
       tmuxPane: pane.paneId,
       terminalBundleId: notification?.terminalBundleId ?? "",
     });
-    void invoke("hide_panel");
   };
 
   const icon = pane.agentType ?? notification?.icon ?? "agentoast";

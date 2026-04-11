@@ -7,7 +7,7 @@ use agentoast_shared::{config, db};
 use crate::terminal::{find_git, find_tmux};
 
 pub(crate) mod agents;
-use agents::detect_agent_status;
+use agents::{capture_pane, detect_agent_status_with_content};
 
 const AGENT_PROCESSES: &[(&str, &str)] = &[
     ("claude", "claude-code"),
@@ -23,95 +23,108 @@ struct GitInfo {
     branch: Option<String>,
 }
 
-/// Resolve git info for each unique path. Caches results per polling cycle.
-fn resolve_git_info(paths: &[String]) -> HashMap<String, Option<GitInfo>> {
-    let mut cache: HashMap<String, Option<GitInfo>> = HashMap::new();
+/// Resolve git info for a single path (3 git commands: rev-parse, remote, branch).
+fn resolve_single_git_info(git_path: &std::path::Path, path: &str) -> Option<GitInfo> {
+    // git rev-parse --show-toplevel
+    let repo_root = Command::new(git_path)
+        .env_remove("TMPDIR")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })?;
 
+    // git remote get-url origin → extract repo name from URL
+    let repo_name = Command::new(git_path)
+        .env_remove("TMPDIR")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                extract_repo_name_from_url(&url)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| {
+            // Fallback: last component of repo_root
+            repo_root
+                .rsplit('/')
+                .next()
+                .unwrap_or(&repo_root)
+                .to_string()
+        });
+
+    // git branch --show-current
+    let branch = Command::new(git_path)
+        .env_remove("TMPDIR")
+        .args(["branch", "--show-current"])
+        .current_dir(path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let b = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                if b.is_empty() {
+                    None
+                } else {
+                    Some(b)
+                }
+            } else {
+                None
+            }
+        });
+
+    Some(GitInfo {
+        repo_root,
+        repo_name,
+        branch,
+    })
+}
+
+/// Resolve git info for each unique path in parallel.
+fn resolve_git_info(paths: &[String]) -> HashMap<String, Option<GitInfo>> {
     let git_path = match find_git() {
         Some(p) => p,
         None => {
-            for path in paths {
-                cache.insert(path.clone(), None);
-            }
-            return cache;
+            return paths.iter().map(|p| (p.clone(), None)).collect();
         }
     };
 
-    for path in paths {
-        if cache.contains_key(path) {
-            continue;
-        }
+    // Deduplicate paths
+    let unique: Vec<&String> = paths
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
 
-        // git rev-parse --show-toplevel
-        let repo_root = Command::new(&git_path)
-            .env_remove("TMPDIR")
-            .args(["rev-parse", "--show-toplevel"])
-            .current_dir(path)
-            .output()
-            .ok()
-            .and_then(|o| {
-                if o.status.success() {
-                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-                } else {
-                    None
-                }
-            });
-
-        let info = match repo_root {
-            Some(root) => {
-                // git remote get-url origin → extract repo name from URL
-                let repo_name = Command::new(&git_path)
-                    .env_remove("TMPDIR")
-                    .args(["remote", "get-url", "origin"])
-                    .current_dir(path)
-                    .output()
-                    .ok()
-                    .and_then(|o| {
-                        if o.status.success() {
-                            let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                            extract_repo_name_from_url(&url)
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or_else(|| {
-                        // Fallback: last component of repo_root
-                        root.rsplit('/').next().unwrap_or(&root).to_string()
-                    });
-
-                // git branch --show-current
-                let branch = Command::new(&git_path)
-                    .env_remove("TMPDIR")
-                    .args(["branch", "--show-current"])
-                    .current_dir(path)
-                    .output()
-                    .ok()
-                    .and_then(|o| {
-                        if o.status.success() {
-                            let b = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                            if b.is_empty() {
-                                None
-                            } else {
-                                Some(b)
-                            }
-                        } else {
-                            None
-                        }
-                    });
-
-                Some(GitInfo {
-                    repo_root: root,
-                    repo_name,
-                    branch,
+    // Resolve git info in parallel (one thread per unique path)
+    std::thread::scope(|s| {
+        let handles: Vec<_> = unique
+            .iter()
+            .map(|path| {
+                let git_path = &git_path;
+                let path_str = path.as_str();
+                s.spawn(move || {
+                    (
+                        path_str.to_string(),
+                        resolve_single_git_info(git_path, path_str),
+                    )
                 })
-            }
-            None => None,
-        };
+            })
+            .collect();
 
-        cache.insert(path.clone(), info);
-    }
-
-    cache
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    })
 }
 
 /// Extract repository name from a git remote URL.
@@ -234,23 +247,55 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
     // Open DB connection for agent status detection (read-only, no schema init)
     let db_conn = db::open_reader(&config::db_path()).ok();
 
-    // Resolve git info for all unique paths
+    // Collect unique paths and agent panes for parallel execution
     let unique_paths: Vec<String> = raw_panes
         .iter()
         .map(|p| p.current_path.clone())
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect();
-    let git_cache = resolve_git_info(&unique_paths);
 
-    // Build TmuxPane with git info and agent status
+    // Collect agent pane indices for parallel capture-pane
+    let agent_pane_indices: Vec<usize> = raw_panes
+        .iter()
+        .enumerate()
+        .filter(|(_, rp)| rp.agent_type.is_some())
+        .map(|(i, _)| i)
+        .collect();
+
+    // Run git info resolution and capture-pane in parallel
+    let (git_cache, captured_contents) = std::thread::scope(|s| {
+        // Git info: one thread per unique path
+        let git_handle = s.spawn(|| resolve_git_info(&unique_paths));
+
+        // Capture-pane: one thread per agent pane
+        let capture_handles: Vec<_> = agent_pane_indices
+            .iter()
+            .map(|&idx| {
+                let pane_id = raw_panes[idx].pane_id.as_str();
+                s.spawn(move || (idx, capture_pane(pane_id)))
+            })
+            .collect();
+
+        let git_cache = git_handle.join().unwrap();
+        let captured: HashMap<usize, Option<String>> = capture_handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect();
+
+        (git_cache, captured)
+    });
+
+    // Build TmuxPane with git info and agent status (DB lookups on main thread)
     let panes: Vec<TmuxPane> = raw_panes
         .into_iter()
-        .map(|rp| {
+        .enumerate()
+        .map(|(idx, rp)| {
             let git_info = git_cache.get(&rp.current_path).and_then(|o| o.as_ref());
             let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
                 if let Some(ref at) = rp.agent_type {
-                    let r = detect_agent_status(&db_conn, &rp.pane_id, at);
+                    let content = captured_contents.get(&idx).and_then(|c| c.as_deref());
+                    let r = detect_agent_status_with_content(&db_conn, &rp.pane_id, at, content);
                     (
                         Some(r.status),
                         r.waiting_reason,

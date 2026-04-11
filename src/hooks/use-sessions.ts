@@ -1,7 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { TmuxPaneGroup } from "@/lib/types";
+import type { TmuxPane, TmuxPaneGroup } from "@/lib/types";
+
+function shallowEqualPanes(a: TmuxPane, b: TmuxPane): boolean {
+  return (
+    a.paneId === b.paneId &&
+    a.agentType === b.agentType &&
+    a.agentStatus === b.agentStatus &&
+    a.waitingReason === b.waitingReason &&
+    a.teamRole === b.teamRole &&
+    a.teamName === b.teamName &&
+    a.isActive === b.isActive &&
+    a.agentModes.length === b.agentModes.length &&
+    a.agentModes.every((m, i) => m === b.agentModes[i])
+  );
+}
+
+function shallowEqualGroups(a: TmuxPaneGroup[], b: TmuxPaneGroup[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].currentPath !== b[i].currentPath) return false;
+    if (a[i].gitBranch !== b[i].gitBranch) return false;
+    if (a[i].panes.length !== b[i].panes.length) return false;
+    for (let j = 0; j < a[i].panes.length; j++) {
+      if (!shallowEqualPanes(a[i].panes[j], b[i].panes[j])) return false;
+    }
+  }
+  return true;
+}
 
 export function useSessions() {
   const [groups, setGroups] = useState<TmuxPaneGroup[]>([]);
@@ -15,7 +42,7 @@ export function useSessions() {
       const result = await invoke<TmuxPaneGroup[]>("get_sessions");
       if (mountedRef.current) {
         setGroups((prev) => {
-          if (JSON.stringify(prev) === JSON.stringify(result)) return prev;
+          if (shallowEqualGroups(prev, result)) return prev;
           return result;
         });
         setFetchVersion((v) => v + 1);

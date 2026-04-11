@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::{capture_pane, is_numbered_option, AgentDetectionResult};
+use super::{is_numbered_option, AgentDetectionResult};
 
 struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
@@ -17,8 +17,9 @@ struct ClaudePaneContentInfo {
 pub(super) fn detect_claude_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
+    content: Option<&str>,
 ) -> AgentDetectionResult {
-    let info = check_claude_pane_content(pane_id);
+    let info = check_claude_pane_content(pane_id, content);
 
     log::debug!(
         "detect_claude_status({}): spinner={} status_running={} question_dialog={} plan_approval={} prompt={}",
@@ -84,7 +85,7 @@ const MODE_PATTERNS: &[(&str, &str)] = &[
     ("accept edits on", "accept"),
 ];
 
-fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
+fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePaneContentInfo {
     let default = ClaudePaneContentInfo {
         has_spinner: false,
         has_status_running: false,
@@ -97,11 +98,11 @@ fn check_claude_pane_content(pane_id: &str) -> ClaudePaneContentInfo {
         team_name: None,
     };
 
-    let content = match capture_pane(pane_id) {
+    let content = match content {
         Some(c) => c,
         None => {
             log::debug!(
-                "check_claude_pane_content({}): capture-pane failed",
+                "check_claude_pane_content({}): no content available",
                 pane_id
             );
             return default;
