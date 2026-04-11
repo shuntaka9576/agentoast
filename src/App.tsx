@@ -446,8 +446,8 @@ export function App() {
         if (item.type === "group-header") {
           toggleGroupExpanded(item.groupKey);
         } else if (item.type === "pane-item") {
-          activatePaneItem(item.paneItem);
           void invoke("hide_panel");
+          activatePaneItem(item.paneItem);
         }
         break;
       }

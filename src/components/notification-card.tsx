@@ -37,6 +37,7 @@ export function NotificationCard({
         isSelected && "bg-[var(--hover-bg)]",
       )}
       onClick={() => {
+        void invoke("hide_panel");
         if (notification.tmuxPane) {
           void invoke("delete_notifications_by_pane", {
             tmuxPane: notification.tmuxPane,
@@ -48,7 +49,6 @@ export function NotificationCard({
           tmuxPane: notification.tmuxPane,
           terminalBundleId: notification.terminalBundleId,
         });
-        void invoke("hide_panel");
       }}
     >
       <div className="flex items-start gap-2.5">
