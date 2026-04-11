@@ -37,7 +37,7 @@ export function App() {
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needFetchVersionRef = useRef(-1);
-  const pendingRepositionRef = useRef(true); // true for initial mount
+  const repositionCancelledRef = useRef(false);
   const fetchVersionRef = useRef(fetchVersion);
   fetchVersionRef.current = fetchVersion;
 
@@ -296,10 +296,11 @@ export function App() {
     return result;
   }, [displayGroups, collapsedGroups]);
 
-  // Mark for cursor repositioning when panel is shown (don't reset selectedIndex)
+  // Reset selection when panel is shown
   useEffect(() => {
-    const unlisten = listen("notifications:refresh", () => {
-      pendingRepositionRef.current = true;
+    const unlisten = listen("panel:shown", () => {
+      setSelectedIndex(-1);
+      repositionCancelledRef.current = false;
       needFetchVersionRef.current = fetchVersionRef.current;
     });
     return () => {
@@ -311,15 +312,11 @@ export function App() {
   useEffect(() => {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
-
-      if (pendingRepositionRef.current) {
+      if (prev < 0 && !repositionCancelledRef.current) {
         // Wait until sessions data is fresh after panel show
         if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
-          // Keep current cursor position (optimistic UI — don't reset to -1)
-          return prev < 0 ? prev : Math.min(prev, flatItems.length - 1);
+          return -1;
         }
-        // Fresh data arrived — reposition cursor
-        pendingRepositionRef.current = false;
         needFetchVersionRef.current = -1;
 
         // If notifications exist, focus the pane with the most recent notification
@@ -347,7 +344,6 @@ export function App() {
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }
-
       return Math.min(prev, flatItems.length - 1);
     });
   }, [flatItems, filterNotifiedOnly, fetchVersion]);
@@ -430,6 +426,7 @@ export function App() {
       case "j":
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
           setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
         }
@@ -437,6 +434,7 @@ export function App() {
       case "k":
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
           setSelectedIndex((prev) => Math.max(prev - 1, 0));
         }

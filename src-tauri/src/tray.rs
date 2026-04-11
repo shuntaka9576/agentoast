@@ -35,6 +35,7 @@ macro_rules! get_or_init_panel {
 
 fn show_panel(app_handle: &AppHandle) {
     if let Some(panel) = get_or_init_panel!(app_handle) {
+        let _ = app_handle.emit("panel:shown", ());
         let _ = app_handle.emit("notifications:refresh", ());
         panel.show_and_make_key();
     }
@@ -47,6 +48,7 @@ pub fn toggle_panel(app_handle: &AppHandle) {
     if panel.is_visible() {
         panel.hide();
     } else {
+        let _ = app_handle.emit("panel:shown", ());
         let _ = app_handle.emit("notifications:refresh", ());
         panel.set_alpha_value(0.0);
         panel.show_and_make_key();
@@ -116,6 +118,8 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
                         return;
                     }
 
+                    let _ = app_handle.emit("panel:shown", ());
+                    let _ = app_handle.emit("notifications:refresh", ());
                     panel.set_alpha_value(0.0);
                     panel.show_and_make_key();
                     position_panel_at_tray_icon(app_handle, rect.position, rect.size);

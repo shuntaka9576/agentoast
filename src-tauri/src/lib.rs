@@ -86,6 +86,7 @@ fn show_panel(app_handle: tauri::AppHandle) {
     panel::init(&app_handle).ok();
     use tauri_nspanel::ManagerExt;
     if let Ok(panel) = app_handle.get_webview_panel("main") {
+        let _ = app_handle.emit("panel:shown", ());
         let _ = app_handle.emit("notifications:refresh", ());
         panel.show();
     }
