@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.30.0](https://github.com/shuntaka9576/agentoast/compare/v0.29.2...v0.30.0) - 2026-04-11
+- chore(deps): update dependency @types/node to ^25.6.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/165
+- style(panel): add inset ring to selected item for cursor visibility by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/167
+
 ## [v0.29.2](https://github.com/shuntaka9576/agentoast/compare/v0.29.1...v0.29.2) - 2026-04-11
 - fix(deps): update frontend to ^19.2.5 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/160
 - fix(deps): update rust crate toml_edit to 0.25.11 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/161
