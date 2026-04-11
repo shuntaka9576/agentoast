@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.29.2](https://github.com/shuntaka9576/agentoast/compare/v0.29.1...v0.29.2) - 2026-04-11
+- fix(deps): update frontend to ^19.2.5 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/160
+- fix(deps): update rust crate toml_edit to 0.25.11 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/161
+- fix(deps): update dependency lucide-react to ^1.8.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/163
+- perf(panel): parallelize get_sessions and eliminate panel open/close lag by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/164
+
 ## [v0.29.1](https://github.com/shuntaka9576/agentoast/compare/v0.29.0...v0.29.1) - 2026-04-07
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/150
 - fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/151
