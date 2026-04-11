@@ -37,6 +37,7 @@ export function App() {
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needFetchVersionRef = useRef(-1);
+  const pendingRepositionRef = useRef(true); // true for initial mount
   const fetchVersionRef = useRef(fetchVersion);
   fetchVersionRef.current = fetchVersion;
 
@@ -295,10 +296,10 @@ export function App() {
     return result;
   }, [displayGroups, collapsedGroups]);
 
-  // Reset selection when panel is shown
+  // Mark for cursor repositioning when panel is shown (don't reset selectedIndex)
   useEffect(() => {
     const unlisten = listen("notifications:refresh", () => {
-      setSelectedIndex(-1);
+      pendingRepositionRef.current = true;
       needFetchVersionRef.current = fetchVersionRef.current;
     });
     return () => {
@@ -306,15 +307,19 @@ export function App() {
     };
   }, []);
 
-  // Clamp selectedIndex when items change
+  // Clamp selectedIndex when items change; reposition cursor when fresh data arrives
   useEffect(() => {
     setSelectedIndex((prev) => {
       if (flatItems.length === 0) return -1;
-      if (prev < 0) {
+
+      if (pendingRepositionRef.current) {
         // Wait until sessions data is fresh after panel show
         if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
-          return -1;
+          // Keep current cursor position (optimistic UI — don't reset to -1)
+          return prev < 0 ? prev : Math.min(prev, flatItems.length - 1);
         }
+        // Fresh data arrived — reposition cursor
+        pendingRepositionRef.current = false;
         needFetchVersionRef.current = -1;
 
         // If notifications exist, focus the pane with the most recent notification
@@ -342,6 +347,7 @@ export function App() {
         const idx = flatItems.findIndex((f) => f.type !== "group-header");
         return idx >= 0 ? idx : 0;
       }
+
       return Math.min(prev, flatItems.length - 1);
     });
   }, [flatItems, filterNotifiedOnly, fetchVersion]);

@@ -105,10 +105,12 @@ fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), S
 }
 
 #[tauri::command]
-fn get_sessions() -> Result<Vec<TmuxPaneGroup>, String> {
+async fn get_sessions() -> Result<Vec<TmuxPaneGroup>, String> {
     #[cfg(target_os = "macos")]
     {
-        sessions::list_tmux_panes_grouped()
+        tauri::async_runtime::spawn_blocking(sessions::list_tmux_panes_grouped)
+            .await
+            .map_err(|e| e.to_string())?
     }
     #[cfg(not(target_os = "macos"))]
     {

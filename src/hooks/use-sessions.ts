@@ -17,10 +17,7 @@ function shallowEqualPanes(a: TmuxPane, b: TmuxPane): boolean {
   );
 }
 
-function shallowEqualGroups(
-  a: TmuxPaneGroup[],
-  b: TmuxPaneGroup[],
-): boolean {
+function shallowEqualGroups(a: TmuxPaneGroup[], b: TmuxPaneGroup[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].currentPath !== b[i].currentPath) return false;
