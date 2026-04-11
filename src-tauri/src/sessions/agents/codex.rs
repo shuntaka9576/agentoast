@@ -1,6 +1,6 @@
 use agentoast_shared::{db, models::AgentStatus};
 
-use super::{capture_pane, is_numbered_option, AgentDetectionResult};
+use super::{is_numbered_option, AgentDetectionResult};
 
 struct CodexPaneContentInfo {
     is_running: bool,          // "(XXs • esc to interrupt)" pattern
@@ -12,8 +12,9 @@ struct CodexPaneContentInfo {
 pub(super) fn detect_codex_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
+    content: Option<&str>,
 ) -> AgentDetectionResult {
-    let info = check_codex_pane_content(pane_id);
+    let info = check_codex_pane_content(pane_id, content);
 
     log::debug!(
         "detect_codex_status({}): running={} question_dialog={} plan_approval={} prompt={}",
@@ -56,7 +57,7 @@ pub(super) fn detect_codex_status(
     }
 }
 
-fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
+fn check_codex_pane_content(pane_id: &str, content: Option<&str>) -> CodexPaneContentInfo {
     let default = CodexPaneContentInfo {
         is_running: false,
         has_question_dialog: false,
@@ -64,10 +65,10 @@ fn check_codex_pane_content(pane_id: &str) -> CodexPaneContentInfo {
         at_prompt: false,
     };
 
-    let content = match capture_pane(pane_id) {
+    let content = match content {
         Some(c) => c,
         None => {
-            log::debug!("check_codex_pane_content({}): capture-pane failed", pane_id);
+            log::debug!("check_codex_pane_content({}): no content available", pane_id);
             return default;
         }
     };

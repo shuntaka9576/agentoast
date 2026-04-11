@@ -44,7 +44,6 @@ export function useNotifications() {
 
     const unlisten2 = listen<number>("notifications:unread-count", (event) => {
       setUnreadCount(event.payload);
-      void refresh();
     });
 
     const unlisten3 = listen("notifications:refresh", () => {
