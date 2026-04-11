@@ -35,6 +35,7 @@
   --badge-focus-text: #7c3aed;
 
   --new-highlight-bg: rgba(59, 130, 246, 0.08);
+  --selection-ring: inset 0 0 0 1.5px rgba(0, 0, 0, 0.15);
 }
 
 /* Dark mode */
@@ -73,6 +74,7 @@
     --badge-focus-text: #a78bfa;
 
     --new-highlight-bg: rgba(59, 130, 246, 0.12);
+    --selection-ring: inset 0 0 0 1.5px rgba(255, 255, 255, 0.2);
   }
 }
 

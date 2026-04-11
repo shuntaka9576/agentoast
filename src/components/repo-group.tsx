@@ -69,6 +69,7 @@ export function RepoGroup({
           "w-full px-4 py-2 text-left hover:bg-[var(--hover-bg)]",
           isHeaderSelected && "bg-[var(--hover-bg)]",
         )}
+        style={isHeaderSelected ? { boxShadow: "var(--selection-ring)" } : undefined}
       >
         {/* Line 1: chevron + icon + repoName + notification actions */}
         <div className="flex items-center gap-2">

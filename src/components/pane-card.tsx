@@ -102,6 +102,7 @@ export function PaneCard({
         isNew && "animate-new-highlight",
         isSelected && "bg-[var(--hover-bg)]",
       )}
+      style={isSelected ? { boxShadow: "var(--selection-ring)" } : undefined}
       onClick={handleClick}
     >
       <div className="flex items-start gap-2.5">
