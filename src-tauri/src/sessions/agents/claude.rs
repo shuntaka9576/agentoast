@@ -8,7 +8,7 @@ struct ClaudePaneContentInfo {
     at_prompt: bool,
     has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
     has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
-    shell_count: Option<u32>,  // Background shell task count from "· N shell" (or "· N bash") in mode line
+    shell_count: Option<u32>, // Background shell task count from "· N shell" (or "· N bash") in mode line
     agent_modes: Vec<String>,
     team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
     team_name: Option<String>, // "@agent-alpha" for teammates

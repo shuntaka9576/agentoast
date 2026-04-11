@@ -214,6 +214,23 @@ description = "Run all linters (Rust + frontend)"
 dependencies = ["fmt-check", "clippy", "fmt-check-vp", "lint-vp", "spell-check"]
 
 # ---------------------------------------------------------------------------
+# Fix
+# ---------------------------------------------------------------------------
+[tasks.fmt]
+description = "Format Rust code"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.fmt-vp]
+description = "Format frontend code"
+command = "bun"
+args = ["x", "vp", "fmt"]
+
+[tasks.fix]
+description = "Auto-fix formatting (Rust + frontend)"
+dependencies = ["fmt", "fmt-vp"]
+
+# ---------------------------------------------------------------------------
 # Infra (gh-infra)
 # ---------------------------------------------------------------------------
 [tasks.gh-validate]
