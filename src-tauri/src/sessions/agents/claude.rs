@@ -8,7 +8,7 @@ struct ClaudePaneContentInfo {
     at_prompt: bool,
     has_question_dialog: bool, // "Enter to select" navigation hint (AskUserQuestion dialog)
     has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
-    bash_count: Option<u32>,   // Background bash task count from "· N bash" in mode line
+    shell_count: Option<u32>,  // Background shell task count from "· N shell" (or "· N bash") in mode line
     agent_modes: Vec<String>,
     team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
     team_name: Option<String>, // "@agent-alpha" for teammates
@@ -49,8 +49,8 @@ pub(super) fn detect_claude_status(
         // content still visible on screen.
         (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
-        // Background bash tasks mean work is still in progress — treat as Running
-        if info.bash_count.is_some_and(|c| c > 0) {
+        // Background shell tasks mean work is still in progress — treat as Running
+        if info.shell_count.is_some_and(|c| c > 0) {
             (AgentStatus::Running, None)
         } else if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
@@ -92,7 +92,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         at_prompt: false,
         has_question_dialog: false,
         has_plan_approval: false,
-        bash_count: None,
+        shell_count: None,
         agent_modes: Vec::new(),
         team_role: None,
         team_name: None,
@@ -135,7 +135,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
     let mut has_selection_cursor = false;
     let mut numbered_option_count: usize = 0;
     let mut agent_modes: Vec<String> = Vec::new();
-    let mut bash_count: Option<u32> = None; // set in status_area scan below
+    let mut shell_count: Option<u32> = None; // set in status_area scan below
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -195,7 +195,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         }
     }
 
-    // Scan the status bar area (bottom ~7 lines) for background bash count,
+    // Scan the status bar area (bottom ~7 lines) for background shell count,
     // Agent Teams detection, etc. Limited to 7 lines to avoid false positives
     // from conversation text.
     let status_area = &last_lines[..last_lines.len().min(7)];
@@ -205,11 +205,11 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
     for line in status_area {
         let trimmed = line.trim();
 
-        // Background bash task detection: "· N bash" pattern anywhere in status area.
-        // Can appear on the mode line ("⏵⏵ bypass permissions on · 1 bash")
-        // or as a standalone status line ("1 bash · PR #1381").
-        if bash_count.is_none() {
-            bash_count = extract_bash_count(trimmed);
+        // Background shell task detection: "· N shell" (or legacy "· N bash") pattern.
+        // Can appear on the mode line ("⏵⏵ bypass permissions on · 1 shell")
+        // or as a standalone status line ("1 shell · PR #1381").
+        if shell_count.is_none() {
+            shell_count = extract_shell_count(trimmed);
         }
 
         // Lead: mode line (⏵/⏸) containing "teammate"
@@ -276,15 +276,15 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         );
     }
 
-    // Add background bash count to agent_modes if detected
-    if let Some(count) = bash_count {
+    // Add background shell count to agent_modes if detected
+    if let Some(count) = shell_count {
         if count > 0 {
             log::debug!(
-                "check_claude_pane_content({}): {} background bash task(s) detected",
+                "check_claude_pane_content({}): {} background shell task(s) detected",
                 pane_id,
                 count
             );
-            agent_modes.push(format!("{} bash", count));
+            agent_modes.push(format!("{} shell", count));
         }
     }
 
@@ -294,7 +294,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         at_prompt,
         has_question_dialog,
         has_plan_approval,
-        bash_count,
+        shell_count,
         agent_modes,
         team_role,
         team_name,
@@ -316,29 +316,42 @@ fn extract_team_agent_name(line: &str) -> Option<String> {
     }
 }
 
-/// Extract background bash task count from a status bar line.
-/// Pattern 1 (mode line suffix): "⏵⏵ bypass permissions on · 1 bash" → Some(1)
-/// Pattern 2 (standalone line):  "1 bash · PR #1381" → Some(1)
-fn extract_bash_count(line: &str) -> Option<u32> {
+/// Extract background shell task count from a status bar line.
+/// Matches both "shell" (current) and "bash" (legacy) keywords.
+/// Pattern 1 (mode line suffix): "⏵⏵ bypass permissions on · 1 shell" → Some(1)
+/// Pattern 2 (standalone line):  "1 shell · PR #1381" → Some(1)
+fn extract_shell_count(line: &str) -> Option<u32> {
     let trimmed = line.trim();
 
-    // Pattern 1: "· N bash" suffix (· = U+00B7 MIDDLE DOT)
+    // Pattern 1: "· N shell" or "· N bash" suffix (· = U+00B7 MIDDLE DOT)
+    // The next token after the keyword must be absent or "·" to avoid matching
+    // conversation text like "· 7 bash commands".
     let marker = "\u{00B7} ";
     if let Some(pos) = trimmed.rfind(marker) {
         let after = trimmed[pos + marker.len()..].trim();
         let mut parts = after.split_whitespace();
         if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-            if parts.next() == Some("bash") {
-                return Some(count);
+            let keyword = parts.next();
+            if keyword == Some("shell") || keyword == Some("bash") {
+                let next = parts.next();
+                if next.is_none() || next == Some("\u{00B7}") {
+                    return Some(count);
+                }
             }
         }
     }
 
-    // Pattern 2: "N bash" at line start (e.g., "1 bash · PR #1381")
+    // Pattern 2: "N shell" or "N bash" at line start (e.g., "1 shell · PR #1381")
+    // The next token after the keyword must be absent or "·" (middle dot) to avoid
+    // matching conversation text like "7 bash commands".
     let mut parts = trimmed.split_whitespace();
     if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-        if parts.next() == Some("bash") {
-            return Some(count);
+        let keyword = parts.next();
+        if keyword == Some("shell") || keyword == Some("bash") {
+            let next = parts.next();
+            if next.is_none() || next == Some("\u{00B7}") {
+                return Some(count);
+            }
         }
     }
 
