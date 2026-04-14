@@ -128,9 +128,7 @@ export function PaneCard({
                 key={mode}
                 className={cn(
                   "text-[10px] font-medium flex-shrink-0",
-                  mode.endsWith("shell") ||
-                    mode.endsWith("bash") ||
-                    mode.endsWith("local agent")
+                  mode.endsWith("shell") || mode.endsWith("bash") || mode.endsWith("local agent")
                     ? "text-green-500"
                     : "text-[var(--text-muted)]",
                 )}
