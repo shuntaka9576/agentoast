@@ -51,8 +51,7 @@ pub(super) fn detect_claude_status(
         (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         // Background shell tasks mean work is still in progress — treat as Running
-        if info.shell_count.is_some_and(|c| c > 0)
-            || info.local_agent_count.is_some_and(|c| c > 0)
+        if info.shell_count.is_some_and(|c| c > 0) || info.local_agent_count.is_some_and(|c| c > 0)
         {
             (AgentStatus::Running, None)
         } else if let Some(conn) = db_conn {
