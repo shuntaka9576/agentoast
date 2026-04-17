@@ -77,8 +77,21 @@ pub fn emit_cached_sessions(app_handle: &tauri::AppHandle) {
 }
 
 #[cfg(target_os = "macos")]
+fn read_show_non_agent_panes(app_handle: &tauri::AppHandle) -> bool {
+    app_handle
+        .try_state::<Mutex<AppState>>()
+        .and_then(|s| {
+            s.lock()
+                .ok()
+                .map(|g| g.config.notification.show_non_agent_panes)
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
 fn refresh_and_emit(app_handle: &tauri::AppHandle, ctrl: Option<&sessions::TmuxCtrl>) {
-    match sessions::list_tmux_panes_grouped(ctrl) {
+    let show_non_agent = read_show_non_agent_panes(app_handle);
+    match sessions::list_tmux_panes_grouped(ctrl, show_non_agent) {
         Ok(groups) => {
             if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
                 if let Ok(mut guard) = cache.lock() {
@@ -200,8 +213,9 @@ async fn get_sessions(app_handle: tauri::AppHandle) -> Result<Vec<TmuxPaneGroup>
         let ctrl = app_handle
             .try_state::<sessions::TmuxCtrl>()
             .map(|s| s.inner().clone());
+        let show_non_agent = read_show_non_agent_panes(&app_handle);
         let result = tauri::async_runtime::spawn_blocking(move || {
-            sessions::list_tmux_panes_grouped(ctrl.as_ref())
+            sessions::list_tmux_panes_grouped(ctrl.as_ref(), show_non_agent)
         })
         .await
         .map_err(|e| e.to_string())?;
@@ -334,6 +348,39 @@ fn save_filter_notified_only(
 }
 
 #[tauri::command]
+fn get_show_non_agent_panes(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.notification.show_non_agent_panes)
+}
+
+#[tauri::command]
+fn save_show_non_agent_panes(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<AppState>>,
+    value: bool,
+) -> Result<(), String> {
+    {
+        let mut state = state.lock().map_err(|e| e.to_string())?;
+        state.config.notification.show_non_agent_panes = value;
+    }
+    if let Err(e) = config::save_notification_show_non_agent_panes(value) {
+        log::warn!("Failed to save show_non_agent_panes to config.toml: {}", e);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let ctrl = app_handle
+            .try_state::<sessions::TmuxCtrl>()
+            .map(|s| s.inner().clone());
+        refresh_and_emit(&app_handle, ctrl.as_ref());
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app_handle;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn get_update_enabled(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     Ok(state.config.update.enabled)
@@ -403,6 +450,8 @@ pub fn run() {
             get_update_enabled,
             get_filter_notified_only,
             save_filter_notified_only,
+            get_show_non_agent_panes,
+            save_show_non_agent_panes,
             get_mute_state,
             toggle_global_mute,
             toggle_repo_mute,

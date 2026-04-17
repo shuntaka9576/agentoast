@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Bell, BellOff, Filter, Trash2, Loader2, RefreshCw } from "lucide-react";
+import { TmuxIcon } from "@/components/icons/source-icon";
 import type { UpdateStatus } from "@/lib/types";
 
 interface PanelHeaderProps {
   globalMuted: boolean;
   filterNotifiedOnly: boolean;
+  showNonAgentPanes: boolean;
   onToggleFilter: () => void;
+  onToggleShowNonAgentPanes: () => void;
   onDeleteAll: () => void;
   onToggleGlobalMute: () => void;
   appVersion: string;
@@ -37,7 +40,9 @@ function getUpdateTitle(status: UpdateStatus, version: string): string {
 export function PanelHeader({
   globalMuted,
   filterNotifiedOnly,
+  showNonAgentPanes,
   onToggleFilter,
+  onToggleShowNonAgentPanes,
   onDeleteAll,
   onToggleGlobalMute,
   appVersion,
@@ -80,18 +85,32 @@ export function PanelHeader({
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-primary)]">
-      <button
-        tabIndex={-1}
-        onClick={onToggleFilter}
-        className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${
-          filterNotifiedOnly
-            ? "text-[var(--text-primary)]"
-            : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-        }`}
-        title={filterNotifiedOnly ? "Show all" : "Show notified only"}
-      >
-        <Filter size={14} fill={filterNotifiedOnly ? "currentColor" : "none"} />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          tabIndex={-1}
+          onClick={onToggleFilter}
+          className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${
+            filterNotifiedOnly
+              ? "text-[var(--text-primary)]"
+              : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+          }`}
+          title={filterNotifiedOnly ? "Show all" : "Show notified only"}
+        >
+          <Filter size={14} fill={filterNotifiedOnly ? "currentColor" : "none"} />
+        </button>
+        <button
+          tabIndex={-1}
+          onClick={onToggleShowNonAgentPanes}
+          className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${
+            showNonAgentPanes
+              ? "text-[var(--text-primary)]"
+              : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+          }`}
+          title={showNonAgentPanes ? "Hide non-agent panes" : "Show non-agent panes"}
+        >
+          <TmuxIcon size={14} />
+        </button>
+      </div>
       <div className="flex items-center gap-1">
         {showUpdateIcon && (
           <div className="relative" ref={dropdownRef}>

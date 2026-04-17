@@ -71,6 +71,8 @@ pub struct NotificationConfig {
     pub muted: bool,
     #[serde(default = "default_filter_notified_only")]
     pub filter_notified_only: bool,
+    #[serde(default = "default_show_non_agent_panes")]
+    pub show_non_agent_panes: bool,
     #[serde(default)]
     pub agents: AgentsConfig,
 }
@@ -80,12 +82,17 @@ impl Default for NotificationConfig {
         Self {
             muted: false,
             filter_notified_only: default_filter_notified_only(),
+            show_non_agent_panes: default_show_non_agent_panes(),
             agents: AgentsConfig::default(),
         }
     }
 }
 
 fn default_filter_notified_only() -> bool {
+    false
+}
+
+fn default_show_non_agent_panes() -> bool {
     false
 }
 
@@ -282,6 +289,15 @@ pub fn save_notification_filter_notified_only(value: bool) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
+/// Update [notification] show_non_agent_panes in config.toml, preserving existing comments and formatting.
+pub fn save_notification_show_non_agent_panes(value: bool) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["notification"]["show_non_agent_panes"] = toml_edit::value(value);
+    std::fs::write(&path, doc.to_string())
+}
+
 /// Default config.toml template.
 fn default_config_template() -> &'static str {
     r#"# agentoast configuration
@@ -305,6 +321,9 @@ fn default_config_template() -> &'static str {
 
 # Show only groups with notifications (default: false)
 # filter_notified_only = false
+
+# Show tmux panes without an AI coding agent (default: false)
+# show_non_agent_panes = false
 
 # Claude Code agent settings
 [notification.agents.claude_code]

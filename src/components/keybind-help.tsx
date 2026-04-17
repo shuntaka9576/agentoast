@@ -11,6 +11,7 @@ const KEYBINDS = [
   { key: "C", action: "Collapse all" },
   { key: "E", action: "Expand all" },
   { key: "F", action: "Filter action needed" },
+  { key: "T", action: "Toggle non-agent panes" },
   { key: "Esc", action: "Close" },
   { key: "?", action: "Help" },
 ] as const;

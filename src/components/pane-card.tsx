@@ -109,7 +109,11 @@ export function PaneCard({
     >
       <div className="flex items-start gap-2.5">
         <div className="flex-shrink-0 mt-0.5">
-          <IconPreset icon={icon} size={14} className="text-[var(--text-tertiary)]" />
+          {pane.agentType || notification ? (
+            <IconPreset icon={icon} size={14} className="text-[var(--text-tertiary)]" />
+          ) : (
+            <TmuxIcon size={14} className="text-[var(--text-tertiary)]" />
+          )}
         </div>
 
         <div className="flex-1 min-w-0">

@@ -32,6 +32,7 @@ export function App() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
+  const [showNonAgentPanes, setShowNonAgentPanes] = useState(false);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const [autoExpandedPaneId, setAutoExpandedPaneId] = useState<string | null>(null);
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,6 +46,9 @@ export function App() {
   useEffect(() => {
     invoke<boolean>("get_filter_notified_only")
       .then((v) => setFilterNotifiedOnly(v))
+      .catch(() => {});
+    invoke<boolean>("get_show_non_agent_panes")
+      .then((v) => setShowNonAgentPanes(v))
       .catch(() => {});
   }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -525,6 +529,17 @@ export function App() {
         setSelectedIndex(0);
         break;
       }
+      case "T": {
+        if (showHelp) break;
+        e.preventDefault();
+        setShowNonAgentPanes((prev) => {
+          const next = !prev;
+          void invoke("save_show_non_agent_panes", { value: next });
+          return next;
+        });
+        setSelectedIndex(0);
+        break;
+      }
       case "Tab": {
         if (showHelp) break;
         e.preventDefault();
@@ -571,10 +586,18 @@ export function App() {
         <PanelHeader
           globalMuted={globalMuted}
           filterNotifiedOnly={filterNotifiedOnly}
+          showNonAgentPanes={showNonAgentPanes}
           onToggleFilter={() => {
             setFilterNotifiedOnly((prev) => {
               const next = !prev;
               void invoke("save_filter_notified_only", { value: next });
+              return next;
+            });
+          }}
+          onToggleShowNonAgentPanes={() => {
+            setShowNonAgentPanes((prev) => {
+              const next = !prev;
+              void invoke("save_show_non_agent_panes", { value: next });
               return next;
             });
           }}

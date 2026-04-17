@@ -150,8 +150,15 @@ fn extract_repo_name_from_url(url: &str) -> Option<String> {
     }
 }
 
-pub fn list_tmux_panes_grouped(ctrl: Option<&TmuxCtrl>) -> Result<Vec<TmuxPaneGroup>, String> {
-    log::info!("sessions: get_sessions called (ctrl={})", ctrl.is_some());
+pub fn list_tmux_panes_grouped(
+    ctrl: Option<&TmuxCtrl>,
+    show_non_agent: bool,
+) -> Result<Vec<TmuxPaneGroup>, String> {
+    log::info!(
+        "sessions: get_sessions called (ctrl={}, show_non_agent={})",
+        ctrl.is_some(),
+        show_non_agent
+    );
     log::info!(
         "sessions: TMPDIR={:?}, TMUX_TMPDIR={:?}",
         std::env::var("TMPDIR").ok(),
@@ -383,36 +390,38 @@ pub fn list_tmux_panes_grouped(ctrl: Option<&TmuxCtrl>) -> Result<Vec<TmuxPaneGr
         })
         .collect();
 
-    // Promote is_active to a sibling agent pane when the tmux-focused pane is
-    // a shell (not an agent) in the same tmux window. Match by (session, window)
-    // rather than by group key — panes in the same window can have different
-    // current_paths, which puts them in different git-rooted groups.
-    let active_windows: HashSet<(String, String)> = groups
-        .iter()
-        .flat_map(|g| g.panes.iter())
-        .filter(|p| p.is_active)
-        .map(|p| (p.session_name.clone(), p.window_name.clone()))
-        .collect();
-    for group in &mut groups {
-        let any_agent_active = group
-            .panes
+    if !show_non_agent {
+        // Promote is_active to a sibling agent pane when the tmux-focused pane is
+        // a shell (not an agent) in the same tmux window. Match by (session, window)
+        // rather than by group key — panes in the same window can have different
+        // current_paths, which puts them in different git-rooted groups.
+        let active_windows: HashSet<(String, String)> = groups
             .iter()
-            .any(|p| p.is_active && p.agent_type.is_some());
-        if !any_agent_active {
-            if let Some(first_agent) = group.panes.iter_mut().find(|p| {
-                p.agent_type.is_some()
-                    && active_windows.contains(&(p.session_name.clone(), p.window_name.clone()))
-            }) {
-                log::debug!(
-                    "sessions: promoted is_active to agent pane {} (session={} window={})",
-                    first_agent.pane_id,
-                    first_agent.session_name,
-                    first_agent.window_name
-                );
-                first_agent.is_active = true;
+            .flat_map(|g| g.panes.iter())
+            .filter(|p| p.is_active)
+            .map(|p| (p.session_name.clone(), p.window_name.clone()))
+            .collect();
+        for group in &mut groups {
+            let any_agent_active = group
+                .panes
+                .iter()
+                .any(|p| p.is_active && p.agent_type.is_some());
+            if !any_agent_active {
+                if let Some(first_agent) = group.panes.iter_mut().find(|p| {
+                    p.agent_type.is_some()
+                        && active_windows.contains(&(p.session_name.clone(), p.window_name.clone()))
+                }) {
+                    log::debug!(
+                        "sessions: promoted is_active to agent pane {} (session={} window={})",
+                        first_agent.pane_id,
+                        first_agent.session_name,
+                        first_agent.window_name
+                    );
+                    first_agent.is_active = true;
+                }
             }
+            group.panes.retain(|p| p.agent_type.is_some());
         }
-        group.panes.retain(|p| p.agent_type.is_some());
     }
     groups.retain(|g| !g.panes.is_empty());
     log::debug!(
