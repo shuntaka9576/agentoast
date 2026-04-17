@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.31.1](https://github.com/shuntaka9576/agentoast/compare/v0.31.0...v0.31.1) - 2026-04-17
+- fix(panel): jump cursor to active tmux pane on Shift+T by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/178
+
 ## [v0.31.0](https://github.com/shuntaka9576/agentoast/compare/v0.30.0...v0.31.0) - 2026-04-17
 - chore(deps): update actions/create-github-app-token action to v3.1.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/170
 - chore(deps): update actions/create-github-app-token action to v3.1.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/171
