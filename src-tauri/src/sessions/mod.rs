@@ -402,22 +402,29 @@ pub fn list_tmux_panes_grouped(
             .map(|p| (p.session_name.clone(), p.window_name.clone()))
             .collect();
         for group in &mut groups {
-            let any_agent_active = group
-                .panes
-                .iter()
-                .any(|p| p.is_active && p.agent_type.is_some());
-            if !any_agent_active {
-                if let Some(first_agent) = group.panes.iter_mut().find(|p| {
-                    p.agent_type.is_some()
-                        && active_windows.contains(&(p.session_name.clone(), p.window_name.clone()))
-                }) {
-                    log::debug!(
-                        "sessions: promoted is_active to agent pane {} (session={} window={})",
-                        first_agent.pane_id,
-                        first_agent.session_name,
-                        first_agent.window_name
-                    );
-                    first_agent.is_active = true;
+            // Only promote within the group that actually hosts the attached pane.
+            // The same tmux (session, window) can span multiple worktree groups;
+            // promoting across groups makes the UI cursor land on the wrong worktree.
+            let has_active_in_group = group.panes.iter().any(|p| p.is_active);
+            if has_active_in_group {
+                let any_agent_active = group
+                    .panes
+                    .iter()
+                    .any(|p| p.is_active && p.agent_type.is_some());
+                if !any_agent_active {
+                    if let Some(first_agent) = group.panes.iter_mut().find(|p| {
+                        p.agent_type.is_some()
+                            && active_windows
+                                .contains(&(p.session_name.clone(), p.window_name.clone()))
+                    }) {
+                        log::debug!(
+                            "sessions: promoted is_active to agent pane {} (session={} window={})",
+                            first_agent.pane_id,
+                            first_agent.session_name,
+                            first_agent.window_name
+                        );
+                        first_agent.is_active = true;
+                    }
                 }
             }
             group.panes.retain(|p| p.agent_type.is_some());

@@ -59,6 +59,7 @@
     "unlisten",
     "untap",
     "wezterm",
+    "worktree",
     "xattr"
   ],
   "flagWords": []
