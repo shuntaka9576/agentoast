@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::Command;
 
 use agentoast_shared::models::{TmuxPane, TmuxPaneGroup};
@@ -7,7 +7,11 @@ use agentoast_shared::{config, db};
 use crate::terminal::{find_git, find_tmux};
 
 pub(crate) mod agents;
+pub mod ctrl;
 use agents::{capture_pane, detect_agent_status_with_content};
+pub use ctrl::TmuxCtrl;
+#[allow(unused_imports)]
+pub use ctrl::TopologyChanged;
 
 const AGENT_PROCESSES: &[(&str, &str)] = &[
     ("claude", "claude-code"),
@@ -146,15 +150,13 @@ fn extract_repo_name_from_url(url: &str) -> Option<String> {
     }
 }
 
-pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
-    log::info!("sessions: get_sessions called");
+pub fn list_tmux_panes_grouped(ctrl: Option<&TmuxCtrl>) -> Result<Vec<TmuxPaneGroup>, String> {
+    log::info!("sessions: get_sessions called (ctrl={})", ctrl.is_some());
     log::info!(
         "sessions: TMPDIR={:?}, TMUX_TMPDIR={:?}",
         std::env::var("TMPDIR").ok(),
         std::env::var("TMUX_TMPDIR").ok()
     );
-    let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
-    log::debug!("sessions: tmux found at {:?}", tmux_path);
 
     // Use "|||" as delimiter instead of "\t" because macOS Launch Services
     // (Finder double-click) sanitizes control characters in process arguments,
@@ -165,34 +167,40 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         d = DELIM
     );
 
-    let output = Command::new(&tmux_path)
-        .env_remove("TMPDIR")
-        .args(["list-panes", "-a", "-F", &format_str])
-        .output()
-        .map_err(|e| {
-            log::error!("sessions: tmux list-panes exec failed: {}", e);
-            format!("tmux list-panes failed: {}", e)
-        })?;
+    let stdout_lines: Vec<String> = if let Some(ctrl) = ctrl {
+        ctrl.send(&format!("list-panes -a -F \"{}\"", format_str))
+            .map_err(|e| {
+                log::error!("sessions: ctrl list-panes failed: {}", e);
+                format!("tmux list-panes failed: {}", e)
+            })?
+    } else {
+        let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
+        log::debug!("sessions: tmux found at {:?}", tmux_path);
+        let output = Command::new(&tmux_path)
+            .env_remove("TMPDIR")
+            .args(["list-panes", "-a", "-F", &format_str])
+            .output()
+            .map_err(|e| {
+                log::error!("sessions: tmux list-panes exec failed: {}", e);
+                format!("tmux list-panes failed: {}", e)
+            })?;
+        if !output.status.success() {
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+            log::error!("sessions: tmux list-panes returned error: {}", stderr_str);
+            return Err(format!("tmux list-panes failed: {}", stderr_str));
+        }
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .collect()
+    };
 
-    let stderr_str = String::from_utf8_lossy(&output.stderr);
-    log::info!(
-        "sessions: tmux list-panes exit={}, stderr={:?}",
-        output.status,
-        stderr_str.as_ref()
-    );
+    log::info!("sessions: tmux list-panes {} lines", stdout_lines.len());
 
-    if !output.status.success() {
-        log::error!("sessions: tmux list-panes returned error: {}", stderr_str);
-        return Err(format!("tmux list-panes failed: {}", stderr_str));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    log::info!(
-        "sessions: tmux list-panes stdout len={} lines={}",
-        stdout.len(),
-        stdout.lines().count()
-    );
-    log::debug!("sessions: tmux list-panes stdout:\n{}", stdout);
+    // Our own control client bumps `#{session_attached}` for the session it
+    // attached to. Subtract that contribution when computing `is_active`,
+    // otherwise the "jump to focused pane on panel open" behavior breaks.
+    let ctrl_attached_session: Option<String> = ctrl.and_then(|c| c.attached_session());
 
     // Build process tree once for all panes
     let process_tree = build_process_tree();
@@ -215,7 +223,7 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
 
     let mut raw_panes: Vec<RawPane> = Vec::new();
 
-    for line in stdout.lines() {
+    for line in &stdout_lines {
         let parts: Vec<&str> = line.splitn(8, DELIM).collect();
         if parts.len() < 8 {
             continue;
@@ -223,7 +231,13 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
 
         let pane_pid: u32 = parts[1].parse().unwrap_or(0);
         let agent_type = detect_agent(&process_tree, pane_pid);
-        let is_active = parts[5] == "1" && parts[6] == "1" && parts[7] == "1";
+        let raw_attached: u32 = parts[7].parse().unwrap_or(0);
+        let effective_attached = if Some(parts[2]) == ctrl_attached_session.as_deref() {
+            raw_attached.saturating_sub(1)
+        } else {
+            raw_attached
+        };
+        let is_active = parts[5] == "1" && parts[6] == "1" && effective_attached >= 1;
         log::debug!(
             "sessions: pane {} pid={} agent={:?} is_active={}",
             parts[0],
@@ -268,20 +282,28 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         // Git info: one thread per unique path
         let git_handle = s.spawn(|| resolve_git_info(&unique_paths));
 
-        // Capture-pane: one thread per agent pane
-        let capture_handles: Vec<_> = agent_pane_indices
-            .iter()
-            .map(|&idx| {
-                let pane_id = raw_panes[idx].pane_id.as_str();
-                s.spawn(move || (idx, capture_pane(pane_id)))
-            })
-            .collect();
+        // Capture-pane: when ctrl is available, serialize via the single ctrl pipe.
+        // Otherwise fan out threads to parallelize fork+exec overhead.
+        let captured: HashMap<usize, Option<String>> = if let Some(ctrl) = ctrl {
+            agent_pane_indices
+                .iter()
+                .map(|&idx| {
+                    let pane_id = raw_panes[idx].pane_id.as_str();
+                    (idx, capture_pane(Some(ctrl), pane_id))
+                })
+                .collect()
+        } else {
+            let handles: Vec<_> = agent_pane_indices
+                .iter()
+                .map(|&idx| {
+                    let pane_id = raw_panes[idx].pane_id.as_str();
+                    s.spawn(move || (idx, capture_pane(None, pane_id)))
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        };
 
         let git_cache = git_handle.join().unwrap();
-        let captured: HashMap<usize, Option<String>> = capture_handles
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .collect();
 
         (git_cache, captured)
     });
@@ -361,8 +383,35 @@ pub fn list_tmux_panes_grouped() -> Result<Vec<TmuxPaneGroup>, String> {
         })
         .collect();
 
-    // Keep only panes with active agents, remove empty groups
+    // Promote is_active to a sibling agent pane when the tmux-focused pane is
+    // a shell (not an agent) in the same tmux window. Match by (session, window)
+    // rather than by group key — panes in the same window can have different
+    // current_paths, which puts them in different git-rooted groups.
+    let active_windows: HashSet<(String, String)> = groups
+        .iter()
+        .flat_map(|g| g.panes.iter())
+        .filter(|p| p.is_active)
+        .map(|p| (p.session_name.clone(), p.window_name.clone()))
+        .collect();
     for group in &mut groups {
+        let any_agent_active = group
+            .panes
+            .iter()
+            .any(|p| p.is_active && p.agent_type.is_some());
+        if !any_agent_active {
+            if let Some(first_agent) = group.panes.iter_mut().find(|p| {
+                p.agent_type.is_some()
+                    && active_windows.contains(&(p.session_name.clone(), p.window_name.clone()))
+            }) {
+                log::debug!(
+                    "sessions: promoted is_active to agent pane {} (session={} window={})",
+                    first_agent.pane_id,
+                    first_agent.session_name,
+                    first_agent.window_name
+                );
+                first_agent.is_active = true;
+            }
+        }
         group.panes.retain(|p| p.agent_type.is_some());
     }
     groups.retain(|g| !g.panes.is_empty());

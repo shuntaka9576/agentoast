@@ -36,6 +36,7 @@ macro_rules! get_or_init_panel {
 fn show_panel(app_handle: &AppHandle) {
     if let Some(panel) = get_or_init_panel!(app_handle) {
         let _ = app_handle.emit("panel:shown", ());
+        crate::emit_cached_sessions(app_handle);
         let _ = app_handle.emit("notifications:refresh", ());
         panel.show_and_make_key();
     }
@@ -49,6 +50,7 @@ pub fn toggle_panel(app_handle: &AppHandle) {
         panel.hide();
     } else {
         let _ = app_handle.emit("panel:shown", ());
+        crate::emit_cached_sessions(app_handle);
         let _ = app_handle.emit("notifications:refresh", ());
         panel.set_alpha_value(0.0);
         panel.show_and_make_key();
@@ -119,6 +121,7 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
                     }
 
                     let _ = app_handle.emit("panel:shown", ());
+                    crate::emit_cached_sessions(app_handle);
                     let _ = app_handle.emit("notifications:refresh", ());
                     panel.set_alpha_value(0.0);
                     panel.show_and_make_key();

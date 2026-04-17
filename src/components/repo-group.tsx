@@ -28,6 +28,7 @@ interface RepoGroupProps {
   selectedPaneId: string | null;
   flatItems: FlatItem[];
   autoExpandedPaneId: string | null;
+  statusReady: boolean;
   onDeleteNotification: (id: number) => void;
   onDeleteByPanes: (paneIds: string[]) => void;
   onToggleRepoMute: (repoPath: string) => void;
@@ -48,6 +49,7 @@ export function RepoGroup({
   selectedPaneId,
   flatItems,
   autoExpandedPaneId,
+  statusReady,
   onDeleteNotification,
   onDeleteByPanes,
   onToggleRepoMute,
@@ -120,8 +122,8 @@ export function RepoGroup({
             </span>
           </div>
         )}
-        {/* Line 3: agent status counts */}
-        {(runningCount > 0 || idleCount > 0 || waitingCount > 0) && (
+        {/* Line 3: agent status counts (only after status is confirmed) */}
+        {statusReady && (runningCount > 0 || idleCount > 0 || waitingCount > 0) && (
           <div className="flex items-center gap-3 pl-[33px] mt-0.5">
             {runningCount > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-green-500 font-medium">
@@ -153,6 +155,7 @@ export function RepoGroup({
           selectedId={selectedId}
           selectedPaneId={selectedPaneId}
           autoExpandedPaneId={autoExpandedPaneId}
+          statusReady={statusReady}
           onDeleteNotification={onDeleteNotification}
         />
       )}
@@ -167,6 +170,7 @@ interface ExpandedPanesProps {
   selectedId: number | null;
   selectedPaneId: string | null;
   autoExpandedPaneId: string | null;
+  statusReady: boolean;
   onDeleteNotification: (id: number) => void;
 }
 
@@ -177,6 +181,7 @@ function ExpandedPanes({
   selectedId,
   selectedPaneId,
   autoExpandedPaneId,
+  statusReady,
   onDeleteNotification,
 }: ExpandedPanesProps) {
   // Group panes by Agent Teams membership (session:window key)
@@ -212,6 +217,7 @@ function ExpandedPanes({
         isSelected={isSelected}
         isAutoExpanded={isAutoExpanded}
         navIndex={navIndex}
+        statusReady={statusReady}
         onDeleteNotification={onDeleteNotification}
       />
     );

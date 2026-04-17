@@ -10,6 +10,7 @@ interface PaneCardProps {
   isSelected?: boolean;
   isAutoExpanded?: boolean;
   navIndex?: number;
+  statusReady?: boolean;
   onDeleteNotification: (id: number) => void;
 }
 
@@ -69,6 +70,7 @@ export function PaneCard({
   isSelected,
   isAutoExpanded,
   navIndex,
+  statusReady = true,
   onDeleteNotification,
 }: PaneCardProps) {
   const { pane, notification } = paneItem;
@@ -114,28 +116,39 @@ export function PaneCard({
           {/* Line 1: Running status + notification badge + session info + time */}
           <div className="flex items-center gap-1.5">
             {pane.agentType && (
-              <span className="flex-shrink-0 flex items-center gap-1" title={statusTooltip(pane)}>
-                <Circle size={7} className={statusDotClass(pane.agentStatus)} />
-                {pane.waitingReason && (
+              <span
+                className="flex-shrink-0 flex items-center gap-1"
+                title={statusReady ? statusTooltip(pane) : undefined}
+              >
+                <Circle
+                  size={7}
+                  className={
+                    statusReady
+                      ? statusDotClass(pane.agentStatus)
+                      : "text-transparent fill-transparent"
+                  }
+                />
+                {statusReady && pane.waitingReason && (
                   <span className="text-[10px] text-amber-500 font-medium">
                     {pane.waitingReason}
                   </span>
                 )}
               </span>
             )}
-            {pane.agentModes.map((mode) => (
-              <span
-                key={mode}
-                className={cn(
-                  "text-[10px] font-medium flex-shrink-0",
-                  mode.endsWith("shell") || mode.endsWith("bash")
-                    ? "text-green-500"
-                    : "text-[var(--text-muted)]",
-                )}
-              >
-                {mode}
-              </span>
-            ))}
+            {statusReady &&
+              pane.agentModes.map((mode) => (
+                <span
+                  key={mode}
+                  className={cn(
+                    "text-[10px] font-medium flex-shrink-0",
+                    mode.endsWith("shell") || mode.endsWith("bash")
+                      ? "text-green-500"
+                      : "text-[var(--text-muted)]",
+                  )}
+                >
+                  {mode}
+                </span>
+              ))}
             {pane.teamRole === "lead" && (
               <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">@main</span>
             )}

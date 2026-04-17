@@ -55,6 +55,7 @@
     "subviews",
     "staticlib",
     "tauri",
+    "topo",
     "unlisten",
     "untap",
     "wezterm",

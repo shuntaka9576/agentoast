@@ -18,7 +18,7 @@ export function App() {
 
   const { globalMuted, isRepoMuted, toggleGlobalMute, toggleRepoMute } = useMute();
 
-  const { groups: sessionGroups, fetchVersion } = useSessions();
+  const { groups: sessionGroups, fetchVersion, statusReady } = useSessions();
 
   const [appVersion, setAppVersion] = useState("");
   const { updateStatus, triggerInstall, checkForUpdates } = useAppUpdate();
@@ -442,6 +442,7 @@ export function App() {
       case "Enter": {
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         const item = flatItems[selectedIndexRef.current];
         if (!item) {
           void invoke("hide_panel");
@@ -527,6 +528,7 @@ export function App() {
       case "Tab": {
         if (showHelp) break;
         e.preventDefault();
+        repositionCancelledRef.current = true;
         const direction = e.shiftKey ? -1 : 1;
         const curIdx = selectedIndexRef.current;
         let nextIndex =
@@ -614,6 +616,7 @@ export function App() {
                   selectedPaneId={selectedPaneId}
                   flatItems={flatItems}
                   autoExpandedPaneId={autoExpandedPaneId}
+                  statusReady={statusReady}
                   onDeleteNotification={(id) => void deleteNotification(id)}
                   onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
                   onToggleRepoMute={(path) => void toggleRepoMute(path)}

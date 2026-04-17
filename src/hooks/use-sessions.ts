@@ -35,6 +35,7 @@ export function useSessions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchVersion, setFetchVersion] = useState(0);
+  const [statusReady, setStatusReady] = useState(false);
   const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -46,6 +47,7 @@ export function useSessions() {
           return result;
         });
         setFetchVersion((v) => v + 1);
+        setStatusReady(true);
         setError(null);
       }
     } catch (e) {
@@ -78,5 +80,44 @@ export function useSessions() {
     };
   }, [refresh]);
 
-  return { groups, loading, error, refresh, fetchVersion };
+  // Receive cached sessions emitted by show_panel before the live get_sessions completes.
+  // This populates the UI immediately on panel re-open, avoiding a blank flash while
+  // get_sessions runs (150-300ms). Skip setLoading/setFetchVersion so the cache is treated
+  // as a render hint, not a data source — the live refresh still drives canonical state.
+  useEffect(() => {
+    const unlisten = listen<TmuxPaneGroup[]>("sessions:cached", (event) => {
+      if (!mountedRef.current) return;
+      const cached = event.payload;
+      setGroups((prev) => {
+        if (shallowEqualGroups(prev, cached)) return prev;
+        return cached;
+      });
+      setLoading(false);
+    });
+    return () => {
+      unlisten.then((f) => f()).catch(() => {});
+    };
+  }, []);
+
+  // Push updates from the topology-driven event loop in the backend. Treated as a
+  // render hint (like sessions:cached) — never bumps fetchVersion. Cursor reposition
+  // on panel open is driven exclusively by the invoke(get_sessions) round-trip via
+  // notifications:refresh, so backend-initiated pushes must not race with the
+  // panel:shown → needFetchVersionRef capture sequence in App.tsx.
+  useEffect(() => {
+    const unlisten = listen<TmuxPaneGroup[]>("sessions:updated", (event) => {
+      if (!mountedRef.current) return;
+      const next = event.payload;
+      setGroups((prev) => {
+        if (shallowEqualGroups(prev, next)) return prev;
+        return next;
+      });
+      setLoading(false);
+    });
+    return () => {
+      unlisten.then((f) => f()).catch(() => {});
+    };
+  }, []);
+
+  return { groups, loading, error, refresh, fetchVersion, statusReady };
 }
