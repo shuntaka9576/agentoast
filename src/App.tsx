@@ -322,6 +322,24 @@ export function App() {
         if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
           return -1;
         }
+
+        // Hold selection if the active pane's group is manually collapsed.
+        // The auto-expand useEffect will remove it from manuallyToggledGroups,
+        // re-render will include the active pane in flatItems, and this effect
+        // will re-run and pick the active pane below.
+        if (!filterNotifiedOnly) {
+          const activeGroup = displayGroups.find((ug) =>
+            ug.paneItems.some((pi) => pi.pane.isActive),
+          );
+          if (
+            activeGroup &&
+            manuallyToggledGroups.has(activeGroup.groupKey) &&
+            collapsedGroups.has(activeGroup.groupKey)
+          ) {
+            return -1;
+          }
+        }
+
         needFetchVersionRef.current = -1;
 
         // If notifications exist, focus the pane with the most recent notification
@@ -351,7 +369,36 @@ export function App() {
       }
       return Math.min(prev, flatItems.length - 1);
     });
-  }, [flatItems, filterNotifiedOnly, fetchVersion]);
+  }, [
+    flatItems,
+    filterNotifiedOnly,
+    fetchVersion,
+    displayGroups,
+    manuallyToggledGroups,
+    collapsedGroups,
+  ]);
+
+  // On panel show, auto-expand the active pane's group if it was manually
+  // collapsed, so the cursor can reach the active pane. Runs only while the
+  // initial cursor positioning is pending (selectedIndex < 0, no user interaction).
+  useEffect(() => {
+    if (selectedIndexRef.current >= 0) return;
+    if (repositionCancelledRef.current) return;
+    if (filterNotifiedOnly) return;
+    if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
+      return;
+    }
+    const activeGroup = displayGroups.find((ug) => ug.paneItems.some((pi) => pi.pane.isActive));
+    if (!activeGroup) return;
+    if (!manuallyToggledGroups.has(activeGroup.groupKey)) return;
+    if (!collapsedGroups.has(activeGroup.groupKey)) return;
+    setManuallyToggledGroups((prev) => {
+      if (!prev.has(activeGroup.groupKey)) return prev;
+      const next = new Set(prev);
+      next.delete(activeGroup.groupKey);
+      return next;
+    });
+  }, [displayGroups, manuallyToggledGroups, collapsedGroups, filterNotifiedOnly, fetchVersion]);
 
   // Shift+T: jump cursor to the currently active tmux pane once it appears in flatItems
   useEffect(() => {
