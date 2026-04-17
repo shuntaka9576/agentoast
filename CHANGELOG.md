@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.31.0](https://github.com/shuntaka9576/agentoast/compare/v0.30.0...v0.31.0) - 2026-04-17
+- chore(deps): update actions/create-github-app-token action to v3.1.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/170
+- chore(deps): update actions/create-github-app-token action to v3.1.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/171
+- chore(deps): update songmu/tagpr action to v1.18.2 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/172
+- perf(sessions): tmux control mode + event-driven refresh by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/176
+- feat(panes): add toggle to show non-agent tmux panes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/177
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/174
+
 ## [v0.30.0](https://github.com/shuntaka9576/agentoast/compare/v0.29.2...v0.30.0) - 2026-04-11
 - chore(deps): update dependency @types/node to ^25.6.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/165
 - style(panel): add inset ring to selected item for cursor visibility by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/167
