@@ -29,8 +29,8 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "cspell": "^10.0.0",
-    "lefthook": "^2.1.5",
+    "lefthook": "^2.1.6",
     "typescript": "~6.0.2",
-    "vite-plus": "^0.1.16"
+    "vite-plus": "^0.1.18"
   }
 }
