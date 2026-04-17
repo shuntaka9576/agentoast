@@ -197,6 +197,11 @@ pub fn list_tmux_panes_grouped(ctrl: Option<&TmuxCtrl>) -> Result<Vec<TmuxPaneGr
 
     log::info!("sessions: tmux list-panes {} lines", stdout_lines.len());
 
+    // Our own control client bumps `#{session_attached}` for the session it
+    // attached to. Subtract that contribution when computing `is_active`,
+    // otherwise the "jump to focused pane on panel open" behavior breaks.
+    let ctrl_attached_session: Option<String> = ctrl.and_then(|c| c.attached_session());
+
     // Build process tree once for all panes
     let process_tree = build_process_tree();
     log::debug!(
@@ -226,7 +231,13 @@ pub fn list_tmux_panes_grouped(ctrl: Option<&TmuxCtrl>) -> Result<Vec<TmuxPaneGr
 
         let pane_pid: u32 = parts[1].parse().unwrap_or(0);
         let agent_type = detect_agent(&process_tree, pane_pid);
-        let is_active = parts[5] == "1" && parts[6] == "1" && parts[7] == "1";
+        let raw_attached: u32 = parts[7].parse().unwrap_or(0);
+        let effective_attached = if Some(parts[2]) == ctrl_attached_session.as_deref() {
+            raw_attached.saturating_sub(1)
+        } else {
+            raw_attached
+        };
+        let is_active = parts[5] == "1" && parts[6] == "1" && effective_attached >= 1;
         log::debug!(
             "sessions: pane {} pid={} agent={:?} is_active={}",
             parts[0],
