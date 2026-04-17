@@ -11,7 +11,11 @@ mod tray;
 mod watcher;
 
 use std::collections::HashSet;
+#[cfg(target_os = "macos")]
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::sync::Mutex;
+#[cfg(target_os = "macos")]
+use std::time::Duration;
 
 use agentoast_shared::config::{self, AppConfig};
 use agentoast_shared::db;
@@ -20,9 +24,22 @@ use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+#[cfg(target_os = "macos")]
+const SAFETY_POLL_INTERVAL: Duration = Duration::from_secs(30);
+#[cfg(target_os = "macos")]
+const TOPOLOGY_DEBOUNCE: Duration = Duration::from_millis(200);
+#[cfg(target_os = "macos")]
+#[allow(dead_code)]
+const FALLBACK_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
 pub struct AppState {
     pub db_path: std::path::PathBuf,
     pub config: AppConfig,
+}
+
+#[derive(Default)]
+pub struct SessionsCache {
+    pub groups: Option<Vec<TmuxPaneGroup>>,
 }
 
 #[derive(Default)]
@@ -47,6 +64,76 @@ impl MuteState {
             muted_repos: repos,
         }
     }
+}
+
+pub fn emit_cached_sessions(app_handle: &tauri::AppHandle) {
+    if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
+        if let Ok(guard) = cache.lock() {
+            if let Some(groups) = guard.groups.as_ref() {
+                let _ = app_handle.emit("sessions:cached", groups);
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn refresh_and_emit(app_handle: &tauri::AppHandle, ctrl: Option<&sessions::TmuxCtrl>) {
+    match sessions::list_tmux_panes_grouped(ctrl) {
+        Ok(groups) => {
+            if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
+                if let Ok(mut guard) = cache.lock() {
+                    guard.groups = Some(groups.clone());
+                }
+            }
+            let _ = app_handle.emit("sessions:updated", &groups);
+        }
+        Err(e) => {
+            log::debug!("sessions refresh: list_tmux_panes_grouped failed: {}", e);
+        }
+    }
+}
+
+/// Topology-driven refresh loop. Wakes on `%window-add` / `%session-changed`
+/// notifications from tmux ctrl, debounces bursts (a single user action often
+/// fires multiple events), and falls back to a 30s safety refresh so a missed
+/// event eventually self-heals. Replaces the fixed 2s polling we had in Phase 1.
+#[cfg(target_os = "macos")]
+fn start_sessions_event_loop(
+    app_handle: tauri::AppHandle,
+    ctrl: sessions::TmuxCtrl,
+    rx: Receiver<sessions::TopologyChanged>,
+) {
+    std::thread::spawn(move || loop {
+        match rx.recv_timeout(SAFETY_POLL_INTERVAL) {
+            Ok(_) => {
+                std::thread::sleep(TOPOLOGY_DEBOUNCE);
+                while rx.try_recv().is_ok() {}
+                refresh_and_emit(&app_handle, Some(&ctrl));
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                refresh_and_emit(&app_handle, Some(&ctrl));
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                log::error!("sessions event loop: channel disconnected");
+                break;
+            }
+        }
+    });
+}
+
+/// Fixed-interval fallback poller used when tmux ctrl is unavailable
+/// (e.g. tmux binary missing). Kept for non-macOS or future Linux paths.
+#[cfg(target_os = "macos")]
+#[allow(dead_code)]
+fn start_sessions_safety_poller(
+    app_handle: tauri::AppHandle,
+    ctrl: Option<sessions::TmuxCtrl>,
+    interval: Duration,
+) {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(interval);
+        refresh_and_emit(&app_handle, ctrl.as_ref());
+    });
 }
 
 pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStatePayload, String> {
@@ -87,6 +174,7 @@ fn show_panel(app_handle: tauri::AppHandle) {
     use tauri_nspanel::ManagerExt;
     if let Ok(panel) = app_handle.get_webview_panel("main") {
         let _ = app_handle.emit("panel:shown", ());
+        emit_cached_sessions(&app_handle);
         let _ = app_handle.emit("notifications:refresh", ());
         panel.show();
     }
@@ -106,15 +194,30 @@ fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), S
 }
 
 #[tauri::command]
-async fn get_sessions() -> Result<Vec<TmuxPaneGroup>, String> {
+async fn get_sessions(app_handle: tauri::AppHandle) -> Result<Vec<TmuxPaneGroup>, String> {
     #[cfg(target_os = "macos")]
     {
-        tauri::async_runtime::spawn_blocking(sessions::list_tmux_panes_grouped)
-            .await
-            .map_err(|e| e.to_string())?
+        let ctrl = app_handle
+            .try_state::<sessions::TmuxCtrl>()
+            .map(|s| s.inner().clone());
+        let result = tauri::async_runtime::spawn_blocking(move || {
+            sessions::list_tmux_panes_grouped(ctrl.as_ref())
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+        if let Ok(ref groups) = result {
+            if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
+                if let Ok(mut guard) = cache.lock() {
+                    guard.groups = Some(groups.clone());
+                }
+            }
+            let _ = app_handle.emit("sessions:updated", groups);
+        }
+        result
     }
     #[cfg(not(target_os = "macos"))]
     {
+        let _ = app_handle;
         Err("Sessions are only supported on macOS".to_string())
     }
 }
@@ -329,6 +432,8 @@ pub fn run() {
                 config: app_config,
             }));
 
+            app.manage(Mutex::new(SessionsCache { groups: None }));
+
             app.manage(Mutex::new(MuteState {
                 global_muted: initial_muted,
                 muted_repos: HashSet::new(),
@@ -386,6 +491,18 @@ pub fn run() {
 
             // Start DB watcher
             watcher::start(app.handle().clone(), db_path);
+
+            // Spawn tmux control-mode client and register it so subsequent
+            // calls reuse a single long-lived tmux process. The Sender side of
+            // the topology channel is moved into TmuxCtrl, the Receiver into
+            // the event loop below.
+            #[cfg(target_os = "macos")]
+            {
+                let (topo_tx, topo_rx) = mpsc::channel::<sessions::TopologyChanged>();
+                let ctrl = sessions::TmuxCtrl::spawn(Some(topo_tx));
+                app.manage(ctrl.clone());
+                start_sessions_event_loop(app.handle().clone(), ctrl, topo_rx);
+            }
 
             Ok(())
         })

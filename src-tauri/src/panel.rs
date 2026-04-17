@@ -74,22 +74,25 @@ pub fn position_panel_at_tray_icon(
             return;
         }
     };
-    let mut found_monitor = None;
-
-    for m in &monitors {
+    // Find the monitor containing the tray icon.
+    // When the menu bar is hidden (auto-hide or fullscreen), the tray icon Y coordinate
+    // may fall outside monitor bounds. In that case, fall back to X-only matching so
+    // that the correct monitor is used for scale factor and coordinate conversion.
+    let found_monitor = monitors.iter().find(|m| {
         let pos = m.position();
         let size = m.size();
         let x_in = icon_phys_x >= pos.x && icon_phys_x < pos.x + size.width as i32;
         let y_in = icon_phys_y >= pos.y && icon_phys_y < pos.y + size.height as i32;
+        x_in && y_in
+    });
+    let found_monitor = found_monitor.or_else(|| {
+        monitors.iter().find(|m| {
+            let pos = m.position();
+            let size = m.size();
+            icon_phys_x >= pos.x && icon_phys_x < pos.x + size.width as i32
+        })
+    });
 
-        if x_in && y_in {
-            found_monitor = Some(m);
-            break;
-        }
-    }
-
-    // Fullscreen mode may cause tray icon coordinates to fall outside monitor bounds.
-    // Fall back to the first available monitor.
     let monitor = match found_monitor.or_else(|| monitors.first()) {
         Some(m) => m,
         None => {
@@ -141,12 +144,15 @@ pub fn position_panel_at_tray_icon(
     let nudge_up_phys = (nudge_up_points * scale_factor).round() as i32;
     let panel_y_phys = icon_phys_y + icon_height_phys - nudge_up_phys;
 
-    // Clamp panel position within monitor bounds so it doesn't go off-screen
-    // (e.g. fullscreen mode where tray icon coords may be above visible area).
+    // Clamp panel position within monitor bounds.
+    // Use menu-bar-bottom as the Y minimum so that the panel never sticks to
+    // the very top of the screen (happens when menu bar is auto-hidden or
+    // in fullscreen mode — tray.rect() returns y≈0 in these cases).
     let monitor_pos = monitor.position();
     let monitor_size = monitor.size();
     let window_height_phys = window_size.height as i32;
-    let panel_y_phys = panel_y_phys.max(monitor_pos.y);
+    let menu_bar_bottom_phys = monitor_pos.y + (25.0 * scale_factor).round() as i32 - nudge_up_phys;
+    let panel_y_phys = panel_y_phys.max(menu_bar_bottom_phys);
     let panel_y_phys =
         panel_y_phys.min(monitor_pos.y + monitor_size.height as i32 - window_height_phys);
     let panel_x_phys = panel_x_phys.max(monitor_pos.x);
@@ -357,22 +363,39 @@ pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
             };
             let tray_monitor_pos =
                 find_monitor_containing(&monitors, tx, ty).map(|m| *m.position());
-            (rect, tray_monitor_pos)
+            (rect, tx, tray_monitor_pos)
         });
 
     match (cursor_monitor_pos, &tray_info) {
         // Cursor and tray on the same monitor → use tray position for precise alignment
-        (Some(cursor_mp), Some((rect, Some(tray_mp)))) if cursor_mp == *tray_mp => {
+        (Some(cursor_mp), Some((rect, _, Some(tray_mp)))) if cursor_mp == *tray_mp => {
             position_panel_at_tray_icon(app_handle, rect.position, rect.size);
         }
-        // Cursor on a different monitor (or tray monitor unknown) → position on cursor's monitor
+        // Tray Y out of bounds but X on cursor's monitor (hidden menu bar / fullscreen)
+        // → still use tray position so the panel aligns with the tray icon horizontally
+        (Some(cursor_mp), Some((rect, tx, None))) => {
+            let tray_x_on_cursor_monitor = monitors
+                .iter()
+                .find(|m| *m.position() == cursor_mp)
+                .is_some_and(|mon| {
+                    let mp = mon.position();
+                    let ms = mon.size();
+                    *tx >= mp.x && *tx < mp.x + ms.width as i32
+                });
+            if tray_x_on_cursor_monitor {
+                position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+            } else if let Some(monitor) = monitors.iter().find(|m| *m.position() == cursor_mp) {
+                position_panel_on_monitor(app_handle, &window, monitor);
+            }
+        }
+        // Cursor on a different monitor → position on cursor's monitor
         (Some(cursor_mp), _) => {
             if let Some(monitor) = monitors.iter().find(|m| *m.position() == cursor_mp) {
                 position_panel_on_monitor(app_handle, &window, monitor);
             }
         }
         // cursor_position() failed → fallback to tray position if available
-        (None, Some((rect, _))) => {
+        (None, Some((rect, _, _))) => {
             position_panel_at_tray_icon(app_handle, rect.position, rect.size);
         }
         // Both failed → fallback to first monitor's top-right

@@ -2,6 +2,7 @@ use std::process::Command;
 
 use agentoast_shared::{db, models::AgentStatus};
 
+use crate::sessions::ctrl::TmuxCtrl;
 use crate::terminal::find_tmux;
 
 mod claude;
@@ -18,24 +19,35 @@ pub(super) struct AgentDetectionResult {
 }
 
 /// Capture tmux pane content as plain text.
-/// Returns None if tmux is not found or the capture command fails.
-pub(crate) fn capture_pane(pane_id: &str) -> Option<String> {
-    let tmux_path = find_tmux()?;
-    let output = Command::new(&tmux_path)
-        .env_remove("TMPDIR")
-        .args(["capture-pane", "-t", pane_id, "-p"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        log::debug!(
-            "capture_pane({}): exit={} stderr={}",
-            pane_id,
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
-        );
-        return None;
+/// When `ctrl` is provided, uses the long-lived control-mode client. Otherwise
+/// falls back to spawning `tmux capture-pane` directly.
+pub(crate) fn capture_pane(ctrl: Option<&TmuxCtrl>, pane_id: &str) -> Option<String> {
+    if let Some(ctrl) = ctrl {
+        match ctrl.send(&format!("capture-pane -t {} -p", pane_id)) {
+            Ok(lines) => Some(lines.join("\n")),
+            Err(e) => {
+                log::debug!("capture_pane({}): ctrl failed: {}", pane_id, e);
+                None
+            }
+        }
+    } else {
+        let tmux_path = find_tmux()?;
+        let output = Command::new(&tmux_path)
+            .env_remove("TMPDIR")
+            .args(["capture-pane", "-t", pane_id, "-p"])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            log::debug!(
+                "capture_pane({}): exit={} stderr={}",
+                pane_id,
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return None;
+        }
+        Some(String::from_utf8_lossy(&output.stdout).into_owned())
     }
-    Some(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 /// Check if a line is a numbered option (e.g., "1. Yes", "2. No").
@@ -51,8 +63,8 @@ pub(super) fn is_numbered_option(line: &str) -> bool {
 
 /// Lightweight running check: capture a pane and check for universal running signals.
 /// Does NOT require agent_type or process tree — uses patterns common to all agents.
-pub(crate) fn is_pane_agent_running(pane_id: &str) -> bool {
-    let content = match capture_pane(pane_id) {
+pub(crate) fn is_pane_agent_running(ctrl: Option<&TmuxCtrl>, pane_id: &str) -> bool {
+    let content = match capture_pane(ctrl, pane_id) {
         Some(c) => c,
         None => return false,
     };
@@ -102,11 +114,12 @@ fn is_universal_running_line(line: &str) -> bool {
 
 #[allow(dead_code)]
 pub(super) fn detect_agent_status(
+    ctrl: Option<&TmuxCtrl>,
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     agent_type: &str,
 ) -> AgentDetectionResult {
-    let content = capture_pane(pane_id);
+    let content = capture_pane(ctrl, pane_id);
     detect_agent_status_with_content(db_conn, pane_id, agent_type, content.as_deref())
 }
 
