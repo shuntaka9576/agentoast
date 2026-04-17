@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.32.0](https://github.com/shuntaka9576/agentoast/compare/v0.31.1...v0.32.0) - 2026-04-17
+- feat(sessions): detect local agent count and auto mode by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/180
+- fix(deps): update rust crate clap to 4.6.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/175
+
 ## [v0.31.1](https://github.com/shuntaka9576/agentoast/compare/v0.31.0...v0.31.1) - 2026-04-17
 - fix(panel): jump cursor to active tmux pane on Shift+T by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/178
 
