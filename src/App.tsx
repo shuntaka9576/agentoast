@@ -39,6 +39,7 @@ export function App() {
 
   const needFetchVersionRef = useRef(-1);
   const repositionCancelledRef = useRef(false);
+  const pendingJumpToActiveRef = useRef(false);
   const fetchVersionRef = useRef(fetchVersion);
   fetchVersionRef.current = fetchVersion;
 
@@ -352,6 +353,19 @@ export function App() {
     });
   }, [flatItems, filterNotifiedOnly, fetchVersion]);
 
+  // Shift+T: jump cursor to the currently active tmux pane once it appears in flatItems
+  useEffect(() => {
+    if (!pendingJumpToActiveRef.current) return;
+    const activeIdx = flatItems.findIndex(
+      (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
+    );
+    if (activeIdx >= 0) {
+      pendingJumpToActiveRef.current = false;
+      repositionCancelledRef.current = true;
+      setSelectedIndex(activeIdx);
+    }
+  }, [flatItems]);
+
   // Scroll selected item into view
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -532,12 +546,12 @@ export function App() {
       case "T": {
         if (showHelp) break;
         e.preventDefault();
+        pendingJumpToActiveRef.current = true;
         setShowNonAgentPanes((prev) => {
           const next = !prev;
           void invoke("save_show_non_agent_panes", { value: next });
           return next;
         });
-        setSelectedIndex(0);
         break;
       }
       case "Tab": {
