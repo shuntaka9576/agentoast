@@ -160,6 +160,7 @@ export function App() {
           teamName: null,
           gitRepoRoot: null,
           gitBranch: null,
+          currentCommand: null,
         },
         notification: n,
       });

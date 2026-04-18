@@ -209,6 +209,11 @@ export function PaneCard({
                   className={cn("flex items-center gap-0.5", metaEntries.length > 0 ? "ml-1" : "")}
                 >
                   <TmuxIcon size={10} className="flex-shrink-0" /> {pane.paneId}
+                  {pane.currentCommand && !pane.agentType && (
+                    <span className="ml-1 text-[var(--text-tertiary)]">
+                      · {pane.currentCommand}
+                    </span>
+                  )}
                 </span>
               )}
             </div>

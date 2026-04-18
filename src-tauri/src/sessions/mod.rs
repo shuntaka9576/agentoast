@@ -162,7 +162,7 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     // converting tabs to underscores.
     const DELIM: &str = "|||";
     let format_str = format!(
-        "#{{pane_id}}{d}#{{pane_pid}}{d}#{{session_name}}{d}#{{window_name}}{d}#{{pane_current_path}}{d}#{{pane_active}}{d}#{{window_active}}{d}#{{session_attached}}",
+        "#{{pane_id}}{d}#{{pane_pid}}{d}#{{session_name}}{d}#{{window_name}}{d}#{{pane_current_path}}{d}#{{pane_active}}{d}#{{window_active}}{d}#{{session_attached}}{d}#{{pane_current_command}}",
         d = DELIM
     );
 
@@ -207,13 +207,14 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
         current_path: String,
         is_active: bool,
         agent_type: Option<String>,
+        current_command: Option<String>,
     }
 
     let mut raw_panes: Vec<RawPane> = Vec::new();
 
     for line in &stdout_lines {
-        let parts: Vec<&str> = line.splitn(8, DELIM).collect();
-        if parts.len() < 8 {
+        let parts: Vec<&str> = line.splitn(9, DELIM).collect();
+        if parts.len() < 9 {
             continue;
         }
 
@@ -229,6 +230,12 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
             is_active
         );
 
+        let current_command = if parts[8].is_empty() {
+            None
+        } else {
+            Some(parts[8].to_string())
+        };
+
         raw_panes.push(RawPane {
             pane_id: parts[0].to_string(),
             pane_pid,
@@ -237,6 +244,7 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
             current_path: parts[4].to_string(),
             is_active,
             agent_type,
+            current_command,
         });
     }
     log::debug!("sessions: parsed {} panes total", raw_panes.len());
@@ -317,6 +325,7 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
                 team_name,
                 git_repo_root: git_info.map(|g| g.repo_root.clone()),
                 git_branch: git_info.and_then(|g| g.branch.clone()),
+                current_command: rp.current_command,
             }
         })
         .collect();
