@@ -370,7 +370,7 @@ fn cleanup_running_agent_notifications(app_handle: &AppHandle, conn: &Connection
 
     let mut deleted_any = false;
     for pane_id in &pane_ids {
-        if crate::sessions::agents::is_pane_agent_running(None, pane_id) {
+        if crate::sessions::agents::is_pane_agent_running(pane_id) {
             log::info!(
                 "cleanup_running: pane {} is running, deleting notifications",
                 pane_id
