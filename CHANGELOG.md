@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.33.0](https://github.com/shuntaka9576/agentoast/compare/v0.32.3...v0.33.0) - 2026-04-18
+- feat(panel): show fg process name on non-agent panes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/196
+
 ## [v0.32.3](https://github.com/shuntaka9576/agentoast/compare/v0.32.2...v0.32.3) - 2026-04-18
 - fix(panel): stabilize session list sort order across polls by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/195
 
