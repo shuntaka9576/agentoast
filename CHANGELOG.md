@@ -5,13 +5,6 @@
 - fix(panel): auto-expand manually-collapsed active pane group by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/185
 - ci(tagpr): wait for commit-PR association before running tagpr by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/188
 
-## [v0.32.1](https://github.com/shuntaka9576/agentoast/compare/v0.32.0...v0.32.1) - 2026-04-17
-- fix(panel): simplify T key help description by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/182
-- fix(panel): auto-expand manually-collapsed active pane group by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/185
-
-## [v0.32.1](https://github.com/shuntaka9576/agentoast/compare/v0.32.0...v0.32.1) - 2026-04-17
-- fix(panel): simplify T key help description by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/182
-
 ## [v0.32.0](https://github.com/shuntaka9576/agentoast/compare/v0.31.1...v0.32.0) - 2026-04-17
 - feat(sessions): detect local agent count and auto mode by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/180
 - fix(deps): update rust crate clap to 4.6.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/175
