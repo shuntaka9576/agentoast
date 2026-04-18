@@ -1,6 +1,6 @@
 {
   "name": "agentoast",
-  "version": "0.32.3",
+  "version": "0.33.0",
   "private": true,
   "type": "module",
   "scripts": {
