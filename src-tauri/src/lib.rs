@@ -414,6 +414,12 @@ pub fn run() {
 
     let file_logger = fern::log_file(&log_path).expect("Failed to create log file");
 
+    let sessions_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -424,7 +430,7 @@ pub fn run() {
             ))
         })
         .level(log::LevelFilter::Info)
-        .level_for("agentoast_app_lib::sessions", log::LevelFilter::Debug)
+        .level_for("agentoast_app_lib::sessions", sessions_level)
         .chain(std::io::stderr())
         .chain(file_logger)
         .apply()
