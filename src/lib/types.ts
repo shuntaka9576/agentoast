@@ -45,6 +45,7 @@ export interface TmuxPane {
   teamName: string | null; // "@agent-alpha" for teammates
   gitRepoRoot: string | null;
   gitBranch: string | null;
+  currentCommand: string | null;
 }
 
 export interface TmuxPaneGroup {

@@ -87,6 +87,7 @@ pub struct TmuxPane {
     pub team_name: Option<String>, // "@agent-alpha" (teammate only)
     pub git_repo_root: Option<String>,
     pub git_branch: Option<String>,
+    pub current_command: Option<String>, // tmux #{pane_current_command}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
