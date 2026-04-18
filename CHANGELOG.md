@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.32.3](https://github.com/shuntaka9576/agentoast/compare/v0.32.2...v0.32.3) - 2026-04-18
+- fix(panel): stabilize session list sort order across polls by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/195
+
 ## [v0.32.2](https://github.com/shuntaka9576/agentoast/compare/v0.32.1...v0.32.2) - 2026-04-18
 - chore(deps): update dependency typescript to ~6.0.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/186
 - chore(deps): update songmu/tagpr action to v1.18.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/190
