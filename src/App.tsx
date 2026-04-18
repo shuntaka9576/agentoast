@@ -168,7 +168,8 @@ export function App() {
     const result = Array.from(map.values());
 
     // Sort panes within each group: notified panes first (latest notification on top),
-    // then by agent status priority (waiting > running > idle > none)
+    // then waiting panes, then everything else in a stable order driven by pane
+    // identity so running↔idle flips during polling don't reshuffle siblings.
     for (const ug of result) {
       ug.paneItems.sort((a, b) => {
         if (a.notification && b.notification) {
@@ -181,7 +182,11 @@ export function App() {
         const bPri = getPaneAgentPriority(b);
         if (aPri !== bPri) return aPri - bPri;
 
-        return 0;
+        const bySession = a.pane.sessionName.localeCompare(b.pane.sessionName);
+        if (bySession !== 0) return bySession;
+        const byWindow = a.pane.windowName.localeCompare(b.pane.windowName);
+        if (byWindow !== 0) return byWindow;
+        return a.pane.paneId.localeCompare(b.pane.paneId);
       });
     }
 
@@ -216,7 +221,9 @@ export function App() {
       ug.paneItems = reordered;
     }
 
-    // Sort: notifications first (createdAt desc), then by agent status (waiting > running > idle > none), then alphabetically
+    // Sort: notifications first (createdAt desc), then waiting groups, then
+    // alphabetical by repoName with groupKey as a stable secondary key so
+    // worktree siblings (same repoName, different paths) don't swap on polls.
     result.sort((a, b) => {
       const aLatestTime = getLatestTime(a);
       const bLatestTime = getLatestTime(b);
@@ -230,7 +237,9 @@ export function App() {
       const bPriority = getGroupAgentPriority(b);
       if (aPriority !== bPriority) return aPriority - bPriority;
 
-      return a.repoName.localeCompare(b.repoName);
+      const byRepo = a.repoName.localeCompare(b.repoName);
+      if (byRepo !== 0) return byRepo;
+      return a.groupKey.localeCompare(b.groupKey);
     });
 
     return result;
@@ -801,21 +810,22 @@ function getLatestTime(ug: UnifiedGroup): string | null {
   return latest;
 }
 
+// Only `waiting` is surfaced by sort order. `running`/`idle` share a bucket so
+// status flips during polling don't shuffle neighboring rows. `none` sinks to
+// the bottom when shell panes are mixed in via show_non_agent.
 function getPaneAgentPriority(pi: PaneItem): number {
   const s = pi.pane.agentStatus;
   if (s === "waiting") return 1;
-  if (s === "running") return 2;
-  if (s === "idle") return 3;
-  return 4;
+  if (s === "running" || s === "idle") return 2;
+  return 3;
 }
 
 function getGroupAgentPriority(ug: UnifiedGroup): number {
-  let best = 4;
+  let best = 3;
   for (const pi of ug.paneItems) {
     const s = pi.pane.agentStatus;
-    if (s === "waiting" && best > 1) best = 1;
-    else if (s === "running" && best > 2) best = 2;
-    else if (s === "idle" && best > 3) best = 3;
+    if (s === "waiting") return 1;
+    if ((s === "running" || s === "idle") && best > 2) best = 2;
   }
   return best;
 }
