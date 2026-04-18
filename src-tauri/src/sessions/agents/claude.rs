@@ -127,7 +127,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         .copied()
         .collect();
 
-    log::debug!(
+    log::trace!(
         "check_claude_pane_content({}): last lines (bottom→up, first 5): {:?}",
         pane_id,
         &last_lines[..last_lines.len().min(5)]
