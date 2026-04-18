@@ -18,6 +18,22 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Wait for commit-PR association to be indexed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          for i in $(seq 1 30); do
+            count=$(gh api "repos/${GH_REPO}/commits/${COMMIT_SHA}/pulls" --jq 'length')
+            if [ "${count}" -gt 0 ]; then
+              echo "commit ${COMMIT_SHA} is associated with ${count} PR(s)"
+              exit 0
+            fi
+            echo "attempt ${i}: no PR association yet, sleeping 5s"
+            sleep 5
+          done
+          echo "giving up after 30 attempts; proceeding anyway"
       - name: tagpr
         id: tagpr
         uses: Songmu/tagpr@84850af451fc53753c6685a3a6a2af7beef23607 # v1.18.2
