@@ -111,32 +111,91 @@ pub(crate) fn find_git() -> Option<PathBuf> {
     None
 }
 
-fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
-    let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
-
-    // Switch the attached session to the one containing the target pane
-    Command::new(&tmux_path)
+/// Resolve a pane id (%NN) to a concrete `session:window.pane` target by
+/// asking tmux. Returns `None` when the pane no longer exists, which lets the
+/// caller decide to fall back to the raw pane id or report failure upstream.
+fn resolve_pane_target(tmux_path: &std::path::Path, pane_id: &str) -> Option<(String, String)> {
+    let output = Command::new(tmux_path)
         .env_remove("TMPDIR")
-        .args(["switch-client", "-t", tmux_pane])
+        .args([
+            "display-message",
+            "-t",
+            pane_id,
+            "-p",
+            "#{session_name}\t#{session_name}:#{window_index}.#{pane_index}",
+        ])
         .output()
-        .map_err(|e| format!("tmux switch-client failed: {}", e))?;
+        .ok()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        log::warn!(
+            "switch_tmux_pane: display-message failed for pane={} exit={:?} stderr={}",
+            pane_id,
+            output.status.code(),
+            stderr.trim()
+        );
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.lines().next()?;
+    let mut parts = line.splitn(2, '\t');
+    let session = parts.next()?.trim().to_string();
+    let target = parts.next()?.trim().to_string();
+    if session.is_empty() || target.is_empty() {
+        return None;
+    }
+    Some((session, target))
+}
 
-    Command::new(&tmux_path)
+fn run_tmux_subcmd(tmux_path: &std::path::Path, subcmd: &str, target: &str) -> Result<(), String> {
+    let output = Command::new(tmux_path)
         .env_remove("TMPDIR")
-        .args(["select-window", "-t", tmux_pane])
+        .args([subcmd, "-t", target])
         .output()
-        .map_err(|e| format!("tmux select-window failed: {}", e))?;
-
-    Command::new(&tmux_path)
-        .env_remove("TMPDIR")
-        .args(["select-pane", "-t", tmux_pane])
-        .output()
-        .map_err(|e| format!("tmux select-pane failed: {}", e))?;
-
+        .map_err(|e| format!("tmux {} failed to spawn: {}", subcmd, e))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let msg = format!(
+            "tmux {} -t {} exit={:?} stderr={}",
+            subcmd,
+            target,
+            output.status.code(),
+            stderr.trim()
+        );
+        log::warn!("switch_tmux_pane: {}", msg);
+        return Err(msg);
+    }
     Ok(())
 }
 
-fn activate_terminal(bundle_id: &str) -> Result<(), String> {
+pub(crate) fn switch_tmux_pane(tmux_pane: &str) -> Result<(), String> {
+    let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
+
+    // Resolve pane-id to session+window+pane so switch-client gets a valid
+    // target-session (its -t flag expects a session, not a pane id).
+    let (session_target, full_target) = match resolve_pane_target(&tmux_path, tmux_pane) {
+        Some(pair) => pair,
+        None => {
+            // Pane likely vanished; fall back to the raw id so at least
+            // select-pane has a chance to succeed. The three sub-calls
+            // below will surface real errors via their exit status.
+            (tmux_pane.to_string(), tmux_pane.to_string())
+        }
+    };
+
+    run_tmux_subcmd(&tmux_path, "switch-client", &session_target)?;
+    run_tmux_subcmd(&tmux_path, "select-window", &full_target)?;
+    run_tmux_subcmd(&tmux_path, "select-pane", &full_target)?;
+
+    log::info!(
+        "switch_tmux_pane ok pane={} target={}",
+        tmux_pane,
+        full_target
+    );
+    Ok(())
+}
+
+pub(crate) fn activate_terminal(bundle_id: &str) -> Result<(), String> {
     if bundle_id.is_empty() {
         return Err("No terminal bundle ID specified".to_string());
     }
@@ -289,7 +348,7 @@ pub fn is_pane_visible_to_user(terminal_bundle_id: &str, tmux_pane: &str) -> boo
     pane_active
 }
 
-fn activate_any_terminal() -> Result<(), String> {
+pub(crate) fn activate_any_terminal() -> Result<(), String> {
     for &bid in KNOWN_TERMINAL_BUNDLE_IDS {
         if activate_terminal(bid).is_ok() {
             return Ok(());
