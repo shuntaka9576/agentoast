@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.32.2](https://github.com/shuntaka9576/agentoast/compare/v0.32.1...v0.32.2) - 2026-04-18
+- chore(deps): update dependency typescript to ~6.0.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/186
+- chore(deps): update songmu/tagpr action to v1.18.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/190
+- fix(panel): track selection by stable key and harden tmux switch by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/191
+- perf(logging): gate sessions debug logs to debug builds only by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/192
+- fix(sessions): drop tmux control-mode, revert to periodic polling by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/193
+
 ## [v0.32.1](https://github.com/shuntaka9576/agentoast/compare/v0.32.0...v0.32.1) - 2026-04-18
 - fix(panel): simplify T key help description by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/182
 - fix(panel): auto-expand manually-collapsed active pane group by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/185
