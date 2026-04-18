@@ -181,10 +181,7 @@ fn focus_terminal(
         }
 
         if tmux_failed {
-            let ctrl = app_handle
-                .try_state::<sessions::TmuxCtrl>()
-                .map(|s| s.inner().clone());
-            refresh_and_emit(&app_handle, ctrl.as_ref());
+            refresh_and_emit(&app_handle);
         }
 
         if terminal_bundle_id.is_empty() {
