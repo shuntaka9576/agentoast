@@ -194,14 +194,45 @@ fn show_panel(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn focus_terminal(tmux_pane: String, terminal_bundle_id: String) -> Result<(), String> {
+fn focus_terminal(
+    app_handle: tauri::AppHandle,
+    tmux_pane: String,
+    terminal_bundle_id: String,
+) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        terminal::focus_terminal(&tmux_pane, &terminal_bundle_id)
+        // Split out the tmux switch from the terminal activation so we can
+        // react when the pane id is stale: if tmux errors, refresh sessions
+        // immediately so the frontend's next keypress uses fresh ids instead
+        // of waiting for the user to nudge tmux manually.
+        let mut tmux_failed = false;
+        if !tmux_pane.is_empty() {
+            if let Err(e) = terminal::switch_tmux_pane(&tmux_pane) {
+                log::warn!(
+                    "focus_terminal: switch_tmux_pane failed pane={}: {}",
+                    tmux_pane,
+                    e
+                );
+                tmux_failed = true;
+            }
+        }
+
+        if tmux_failed {
+            let ctrl = app_handle
+                .try_state::<sessions::TmuxCtrl>()
+                .map(|s| s.inner().clone());
+            refresh_and_emit(&app_handle, ctrl.as_ref());
+        }
+
+        if terminal_bundle_id.is_empty() {
+            terminal::activate_any_terminal()
+        } else {
+            terminal::activate_terminal(&terminal_bundle_id)
+        }
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (tmux_pane, terminal_bundle_id);
+        let _ = (app_handle, tmux_pane, terminal_bundle_id);
         Err("focus_terminal is only supported on macOS".to_string())
     }
 }

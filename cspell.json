@@ -51,6 +51,7 @@
     "rusqlite",
     "shuntaka",
     "splitn",
+    "subcmd",
     "subview",
     "subviews",
     "staticlib",

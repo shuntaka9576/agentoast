@@ -29,7 +29,7 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [selectedKey, setSelectedKey] = useState<SelectedKey | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [showNonAgentPanes, setShowNonAgentPanes] = useState(false);
@@ -53,8 +53,9 @@ export function App() {
       .catch(() => {});
   }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const selectedIndexRef = useRef(selectedIndex);
-  selectedIndexRef.current = selectedIndex;
+  const selectedKeyRef = useRef(selectedKey);
+  selectedKeyRef.current = selectedKey;
+  const lastIndexRef = useRef(-1);
 
   const toggleGroupExpanded = useCallback((groupKey: string) => {
     setManuallyToggledGroups((prev) => {
@@ -301,10 +302,31 @@ export function App() {
     return result;
   }, [displayGroups, collapsedGroups]);
 
+  // Resolve the numeric index of the currently-selected key. Falls back to the
+  // last known index (clamped) when the key disappears so the cursor stays near
+  // its old position instead of snapping to the top or activating a random item.
+  const selectedIndex = useMemo(() => {
+    if (flatItems.length === 0) {
+      lastIndexRef.current = -1;
+      return -1;
+    }
+    const hit = indexOfKey(flatItems, selectedKey);
+    if (hit >= 0) {
+      lastIndexRef.current = hit;
+      return hit;
+    }
+    if (selectedKey === null) {
+      return -1;
+    }
+    const clamped = Math.min(Math.max(lastIndexRef.current, 0), flatItems.length - 1);
+    return clamped;
+  }, [flatItems, selectedKey]);
+
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("panel:shown", () => {
-      setSelectedIndex(-1);
+      setSelectedKey(null);
+      lastIndexRef.current = -1;
       repositionCancelledRef.current = false;
       needFetchVersionRef.current = fetchVersionRef.current;
     });
@@ -313,66 +335,70 @@ export function App() {
     };
   }, []);
 
-  // Clamp selectedIndex when items change; reposition cursor when fresh data arrives
+  // Pick the initial cursor position when fresh data arrives and no selection
+  // exists yet. Once a key is set, we never overwrite it here — the derived
+  // selectedIndex memo handles "item disappeared" via nearest-index fallback.
   useEffect(() => {
-    setSelectedIndex((prev) => {
-      if (flatItems.length === 0) return -1;
-      if (prev < 0 && !repositionCancelledRef.current) {
-        // Wait until sessions data is fresh after panel show
-        if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
-          return -1;
-        }
+    if (flatItems.length === 0) {
+      if (selectedKey !== null) setSelectedKey(null);
+      return;
+    }
+    if (selectedKey !== null) return;
+    if (repositionCancelledRef.current) return;
+    // Wait until sessions data is fresh after panel show
+    if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
+      return;
+    }
 
-        // Hold selection if the active pane's group is manually collapsed.
-        // The auto-expand useEffect will remove it from manuallyToggledGroups,
-        // re-render will include the active pane in flatItems, and this effect
-        // will re-run and pick the active pane below.
-        if (!filterNotifiedOnly) {
-          const activeGroup = displayGroups.find((ug) =>
-            ug.paneItems.some((pi) => pi.pane.isActive),
-          );
-          if (
-            activeGroup &&
-            manuallyToggledGroups.has(activeGroup.groupKey) &&
-            collapsedGroups.has(activeGroup.groupKey)
-          ) {
-            return -1;
-          }
-        }
-
-        needFetchVersionRef.current = -1;
-
-        // If notifications exist, focus the pane with the most recent notification
-        let latestNotifIdx = -1;
-        let latestCreatedAt = "";
-        for (let i = 0; i < flatItems.length; i++) {
-          const f = flatItems[i];
-          if (f.type === "pane-item" && f.paneItem.notification) {
-            if (f.paneItem.notification.createdAt > latestCreatedAt) {
-              latestCreatedAt = f.paneItem.notification.createdAt;
-              latestNotifIdx = i;
-            }
-          }
-        }
-        if (latestNotifIdx >= 0) return latestNotifIdx;
-
-        if (!filterNotifiedOnly) {
-          // No notifications: focus the active tmux pane
-          const activeIdx = flatItems.findIndex(
-            (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
-          );
-          if (activeIdx >= 0) return activeIdx;
-        }
-        // No notifications and no active pane: focus first non-header item
-        const idx = flatItems.findIndex((f) => f.type !== "group-header");
-        return idx >= 0 ? idx : 0;
+    // Hold selection if the active pane's group is manually collapsed.
+    // The auto-expand useEffect will remove it from manuallyToggledGroups,
+    // re-render will include the active pane in flatItems, and this effect
+    // will re-run and pick the active pane below.
+    if (!filterNotifiedOnly) {
+      const activeGroup = displayGroups.find((ug) => ug.paneItems.some((pi) => pi.pane.isActive));
+      if (
+        activeGroup &&
+        manuallyToggledGroups.has(activeGroup.groupKey) &&
+        collapsedGroups.has(activeGroup.groupKey)
+      ) {
+        return;
       }
-      return Math.min(prev, flatItems.length - 1);
-    });
+    }
+
+    needFetchVersionRef.current = -1;
+
+    // If notifications exist, focus the pane with the most recent notification
+    let latest: { idx: number; at: string } | null = null;
+    for (let i = 0; i < flatItems.length; i++) {
+      const f = flatItems[i];
+      if (f.type === "pane-item" && f.paneItem.notification) {
+        if (!latest || f.paneItem.notification.createdAt > latest.at) {
+          latest = { idx: i, at: f.paneItem.notification.createdAt };
+        }
+      }
+    }
+    if (latest) {
+      setSelectedKey(keyFromItem(flatItems[latest.idx]));
+      return;
+    }
+
+    if (!filterNotifiedOnly) {
+      const activeIdx = flatItems.findIndex(
+        (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
+      );
+      if (activeIdx >= 0) {
+        setSelectedKey(keyFromItem(flatItems[activeIdx]));
+        return;
+      }
+    }
+    const idx = flatItems.findIndex((f) => f.type !== "group-header");
+    const fallback = idx >= 0 ? idx : 0;
+    setSelectedKey(keyFromItem(flatItems[fallback]));
   }, [
     flatItems,
     filterNotifiedOnly,
     fetchVersion,
+    selectedKey,
     displayGroups,
     manuallyToggledGroups,
     collapsedGroups,
@@ -380,9 +406,9 @@ export function App() {
 
   // On panel show, auto-expand the active pane's group if it was manually
   // collapsed, so the cursor can reach the active pane. Runs only while the
-  // initial cursor positioning is pending (selectedIndex < 0, no user interaction).
+  // initial cursor positioning is pending (no selection, no user interaction).
   useEffect(() => {
-    if (selectedIndexRef.current >= 0) return;
+    if (selectedKeyRef.current !== null) return;
     if (repositionCancelledRef.current) return;
     if (filterNotifiedOnly) return;
     if (needFetchVersionRef.current >= 0 && fetchVersion <= needFetchVersionRef.current) {
@@ -409,7 +435,7 @@ export function App() {
     if (activeIdx >= 0) {
       pendingJumpToActiveRef.current = false;
       repositionCancelledRef.current = true;
-      setSelectedIndex(activeIdx);
+      setSelectedKey(keyFromItem(flatItems[activeIdx]));
     }
   }, [flatItems]);
 
@@ -493,7 +519,10 @@ export function App() {
         e.preventDefault();
         repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
-          setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1));
+          const cur = indexOfKey(flatItems, selectedKeyRef.current);
+          const base = cur >= 0 ? cur : lastIndexRef.current;
+          const nextIdx = Math.min(base + 1, flatItems.length - 1);
+          setSelectedKey(keyFromItem(flatItems[nextIdx]));
         }
         break;
       case "k":
@@ -501,14 +530,20 @@ export function App() {
         e.preventDefault();
         repositionCancelledRef.current = true;
         if (flatItems.length > 0) {
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          const cur = indexOfKey(flatItems, selectedKeyRef.current);
+          const base = cur >= 0 ? cur : lastIndexRef.current;
+          const nextIdx = Math.max(base - 1, 0);
+          setSelectedKey(keyFromItem(flatItems[nextIdx]));
         }
         break;
       case "Enter": {
         if (showHelp) break;
         e.preventDefault();
         repositionCancelledRef.current = true;
-        const item = flatItems[selectedIndexRef.current];
+        // Resolve by key at keypress time — protects against flatItems having
+        // been re-sorted (e.g. a new notification) between last render and now.
+        const resolvedIdx = indexOfKey(flatItems, selectedKeyRef.current);
+        const item = resolvedIdx >= 0 ? flatItems[resolvedIdx] : undefined;
         if (!item) {
           void invoke("hide_panel");
           break;
@@ -524,7 +559,8 @@ export function App() {
       case "d": {
         if (showHelp || e.shiftKey) break;
         e.preventDefault();
-        const item = flatItems[selectedIndexRef.current];
+        const resolvedIdx = indexOfKey(flatItems, selectedKeyRef.current);
+        const item = resolvedIdx >= 0 ? flatItems[resolvedIdx] : undefined;
         if (!item) break;
         if (item.type === "group-header") {
           const ug = unifiedGroups.find((g) => g.groupKey === item.groupKey);
@@ -558,7 +594,11 @@ export function App() {
           }
           return next;
         });
-        setSelectedIndex(0);
+        if (flatItems.length > 0) {
+          setSelectedKey(keyFromItem(flatItems[0]));
+        } else {
+          setSelectedKey(null);
+        }
         break;
       }
       case "E": {
@@ -587,7 +627,10 @@ export function App() {
           void invoke("save_filter_notified_only", { value: next });
           return next;
         });
-        setSelectedIndex(0);
+        // flatItems will be rebuilt on the next render; clear key so the
+        // reposition effect picks the new cursor the same way it does on open.
+        setSelectedKey(null);
+        repositionCancelledRef.current = false;
         break;
       }
       case "T": {
@@ -606,14 +649,14 @@ export function App() {
         e.preventDefault();
         repositionCancelledRef.current = true;
         const direction = e.shiftKey ? -1 : 1;
-        const curIdx = selectedIndexRef.current;
+        const curIdx = indexOfKey(flatItems, selectedKeyRef.current);
         let nextIndex =
           curIdx < 0 ? (direction === 1 ? 0 : flatItems.length - 1) : curIdx + direction;
         while (nextIndex >= 0 && nextIndex < flatItems.length) {
           const fi = flatItems[nextIndex];
           const hasNotif = fi.type === "pane-item" && fi.paneItem.notification !== null;
           if (hasNotif) {
-            setSelectedIndex(nextIndex);
+            setSelectedKey(keyFromItem(fi));
             break;
           }
           nextIndex += direction;
@@ -629,7 +672,7 @@ export function App() {
   }, []);
 
   // Derive selected IDs for highlighting
-  const currentItem = flatItems[selectedIndexRef.current];
+  const currentItem = selectedIndex >= 0 ? flatItems[selectedIndex] : undefined;
   const selectedNotificationId =
     currentItem?.type === "pane-item" && currentItem.paneItem.notification
       ? currentItem.paneItem.notification.id
@@ -725,6 +768,23 @@ export function App() {
       </div>
     </div>
   );
+}
+
+type SelectedKey = { kind: "pane"; paneId: string } | { kind: "group"; groupKey: string };
+
+function keyFromItem(f: FlatItem): SelectedKey {
+  if (f.type === "group-header") {
+    return { kind: "group", groupKey: f.groupKey };
+  }
+  return { kind: "pane", paneId: f.paneItem.pane.paneId };
+}
+
+function indexOfKey(items: FlatItem[], key: SelectedKey | null): number {
+  if (key === null) return -1;
+  if (key.kind === "pane") {
+    return items.findIndex((f) => f.type === "pane-item" && f.paneItem.pane.paneId === key.paneId);
+  }
+  return items.findIndex((f) => f.type === "group-header" && f.groupKey === key.groupKey);
 }
 
 function groupHasNotifications(ug: UnifiedGroup): boolean {
