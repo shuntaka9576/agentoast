@@ -342,13 +342,13 @@ fn extract_team_agent_name(line: &str) -> Option<String> {
 }
 
 /// Extract background shell task count from a status bar line.
-/// Matches both "shell" (current) and "bash" (legacy) keywords.
+/// Matches both "shell"/"shells" (current) and "bash"/"bashes" (legacy) keywords.
 /// Pattern 1 (mode line suffix): "⏵⏵ bypass permissions on · 1 shell" → Some(1)
-/// Pattern 2 (standalone line):  "1 shell · PR #1381" → Some(1)
+/// Pattern 2 (standalone line):  "2 shells · PR #1381" → Some(2)
 fn extract_shell_count(line: &str) -> Option<u32> {
     let trimmed = line.trim();
 
-    // Pattern 1: "· N shell" or "· N bash" suffix (· = U+00B7 MIDDLE DOT)
+    // Pattern 1: "· N shell(s)" or "· N bash(es)" suffix (· = U+00B7 MIDDLE DOT)
     // The next token after the keyword must be absent or "·" to avoid matching
     // conversation text like "· 7 bash commands".
     let marker = "\u{00B7} ";
@@ -356,8 +356,7 @@ fn extract_shell_count(line: &str) -> Option<u32> {
         let after = trimmed[pos + marker.len()..].trim();
         let mut parts = after.split_whitespace();
         if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-            let keyword = parts.next();
-            if keyword == Some("shell") || keyword == Some("bash") {
+            if is_shell_keyword(parts.next()) {
                 let next = parts.next();
                 if next.is_none() || next == Some("\u{00B7}") {
                     return Some(count);
@@ -366,13 +365,12 @@ fn extract_shell_count(line: &str) -> Option<u32> {
         }
     }
 
-    // Pattern 2: "N shell" or "N bash" at line start (e.g., "1 shell · PR #1381")
+    // Pattern 2: "N shell(s)" or "N bash(es)" at line start (e.g., "2 shells · PR #1381")
     // The next token after the keyword must be absent or "·" (middle dot) to avoid
     // matching conversation text like "7 bash commands".
     let mut parts = trimmed.split_whitespace();
     if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-        let keyword = parts.next();
-        if keyword == Some("shell") || keyword == Some("bash") {
+        if is_shell_keyword(parts.next()) {
             let next = parts.next();
             if next.is_none() || next == Some("\u{00B7}") {
                 return Some(count);
@@ -381,6 +379,10 @@ fn extract_shell_count(line: &str) -> Option<u32> {
     }
 
     None
+}
+
+fn is_shell_keyword(token: Option<&str>) -> bool {
+    matches!(token, Some("shell" | "shells" | "bash" | "bashes"))
 }
 
 /// Extract background local agent count from a status bar line.
