@@ -1,0 +1,6 @@
+# Worktrunk project config (team-shared)
+# See: https://worktrunk.dev/reference/hook
+
+# Install frontend dependencies when creating a worktree.
+# Bun is required (bun.lock is checked in).
+pre-start = "bun install"
