@@ -811,22 +811,25 @@ function getLatestTime(ug: UnifiedGroup): string | null {
   return latest;
 }
 
-// Only `waiting` is surfaced by sort order. `running`/`idle` share a bucket so
-// status flips during polling don't shuffle neighboring rows. `none` sinks to
-// the bottom when shell panes are mixed in via show_non_agent.
+// Sort order: waiting → running → idle → none. `running` is surfaced above
+// `idle` so actively-working groups float up; the tradeoff is that polling-
+// induced running⇔idle flips can reshuffle neighbors. `none` sinks to the
+// bottom when shell panes are mixed in via show_non_agent.
 function getPaneAgentPriority(pi: PaneItem): number {
   const s = pi.pane.agentStatus;
   if (s === "waiting") return 1;
-  if (s === "running" || s === "idle") return 2;
-  return 3;
+  if (s === "running") return 2;
+  if (s === "idle") return 3;
+  return 4;
 }
 
 function getGroupAgentPriority(ug: UnifiedGroup): number {
-  let best = 3;
+  let best = 4;
   for (const pi of ug.paneItems) {
     const s = pi.pane.agentStatus;
     if (s === "waiting") return 1;
-    if ((s === "running" || s === "idle") && best > 2) best = 2;
+    if (s === "running" && best > 2) best = 2;
+    else if (s === "idle" && best > 3) best = 3;
   }
   return best;
 }
