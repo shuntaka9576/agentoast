@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.34.0](https://github.com/shuntaka9576/agentoast/compare/v0.33.0...v0.34.0) - 2026-04-19
+- feat(panel): sort running repo groups above idle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/198
+- fix(sessions): detect plural "shells"/"bashes" in Claude Code status by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/200
+- chore: add bun install pre-start hook by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/201
+
 ## [v0.33.0](https://github.com/shuntaka9576/agentoast/compare/v0.32.3...v0.33.0) - 2026-04-18
 - feat(panel): show fg process name on non-agent panes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/196
 
