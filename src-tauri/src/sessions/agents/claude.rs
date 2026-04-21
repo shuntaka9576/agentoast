@@ -10,6 +10,7 @@ struct ClaudePaneContentInfo {
     has_plan_approval: bool,   // ❯ N. selection cursor + 2+ numbered options (plan approval etc.)
     shell_count: Option<u32>, // Background shell task count from "· N shell" (or "· N bash") in mode line
     local_agent_count: Option<u32>, // Background local agent count from "· N local agent(s)" in mode line
+    monitor_count: Option<u32>,     // Background monitor count from "· N monitor(s)" in mode line
     agent_modes: Vec<String>,
     team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
     team_name: Option<String>, // "@agent-alpha" for teammates
@@ -51,7 +52,9 @@ pub(super) fn detect_claude_status(
         (AgentStatus::Waiting, Some("respond".to_string()))
     } else if info.at_prompt {
         // Background shell tasks mean work is still in progress — treat as Running
-        if info.shell_count.is_some_and(|c| c > 0) || info.local_agent_count.is_some_and(|c| c > 0)
+        if info.shell_count.is_some_and(|c| c > 0)
+            || info.local_agent_count.is_some_and(|c| c > 0)
+            || info.monitor_count.is_some_and(|c| c > 0)
         {
             (AgentStatus::Running, None)
         } else if let Some(conn) = db_conn {
@@ -97,6 +100,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         has_plan_approval: false,
         shell_count: None,
         local_agent_count: None,
+        monitor_count: None,
         agent_modes: Vec::new(),
         team_role: None,
         team_name: None,
@@ -141,6 +145,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
     let mut agent_modes: Vec<String> = Vec::new();
     let mut shell_count: Option<u32> = None; // set in status_area scan below
     let mut local_agent_count: Option<u32> = None; // set in status_area scan below
+    let mut monitor_count: Option<u32> = None; // set in status_area scan below
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -222,6 +227,13 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         // or as a standalone status line ("1 local agent · ...").
         if local_agent_count.is_none() {
             local_agent_count = extract_local_agent_count(trimmed);
+        }
+
+        // Background monitor detection: "· N monitor(s)" pattern.
+        // Can appear on the mode line ("⏵⏵ auto mode on · 1 monitor")
+        // or as a standalone status line ("1 monitor · ...").
+        if monitor_count.is_none() {
+            monitor_count = extract_monitor_count(trimmed);
         }
 
         // Lead: mode line (⏵/⏸) containing "teammate"
@@ -312,6 +324,18 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         }
     }
 
+    // Add monitor count to agent_modes if detected
+    if let Some(count) = monitor_count {
+        if count > 0 {
+            log::debug!(
+                "check_claude_pane_content({}): {} monitor(s) detected",
+                pane_id,
+                count
+            );
+            agent_modes.push(format!("{} monitor", count));
+        }
+    }
+
     ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
@@ -320,6 +344,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         has_plan_approval,
         shell_count,
         local_agent_count,
+        monitor_count,
         agent_modes,
         team_role,
         team_name,
@@ -429,6 +454,48 @@ fn extract_local_agent_count(line: &str) -> Option<u32> {
     }
 
     None
+}
+
+/// Extract background monitor count from a status bar line.
+/// Pattern 1 (mode line suffix): "⏵⏵ auto mode on · 1 monitor" → Some(1)
+/// Pattern 2 (standalone line):  "1 monitor · ..." → Some(1)
+fn extract_monitor_count(line: &str) -> Option<u32> {
+    let trimmed = line.trim();
+
+    // Pattern 1: "· N monitor(s)" suffix (· = U+00B7 MIDDLE DOT)
+    // The next token after the keyword must be absent or "·" to avoid matching
+    // conversation text like "· 1 monitor configuration".
+    let marker = "\u{00B7} ";
+    if let Some(pos) = trimmed.rfind(marker) {
+        let after = trimmed[pos + marker.len()..].trim();
+        let mut parts = after.split_whitespace();
+        if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
+            if is_monitor_keyword(parts.next()) {
+                let next = parts.next();
+                if next.is_none() || next == Some("\u{00B7}") {
+                    return Some(count);
+                }
+            }
+        }
+    }
+
+    // Pattern 2: "N monitor(s)" at line start
+    // The next token after the keyword must be absent or "·" (middle dot).
+    let mut parts = trimmed.split_whitespace();
+    if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
+        if is_monitor_keyword(parts.next()) {
+            let next = parts.next();
+            if next.is_none() || next == Some("\u{00B7}") {
+                return Some(count);
+            }
+        }
+    }
+
+    None
+}
+
+fn is_monitor_keyword(token: Option<&str>) -> bool {
+    matches!(token, Some("monitor" | "monitors"))
 }
 
 /// Check if a line indicates Claude Code is actively running.
