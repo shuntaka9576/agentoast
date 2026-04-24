@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.36.1](https://github.com/shuntaka9576/agentoast/compare/v0.36.0...v0.36.1) - 2026-04-24
+- fix: refresh tray + panel on external DB deletes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/208
+
 ## [v0.36.0](https://github.com/shuntaka9576/agentoast/compare/v0.35.0...v0.36.0) - 2026-04-24
 - fix(deps): update frontend to ^4.2.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/204
 - fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/206
