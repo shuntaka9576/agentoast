@@ -7,6 +7,8 @@ mod panel;
 mod sessions;
 #[cfg(target_os = "macos")]
 mod terminal;
+#[cfg(target_os = "macos")]
+mod tmux_hooks;
 mod tray;
 mod watcher;
 
@@ -86,6 +88,10 @@ fn refresh_and_emit(app_handle: &tauri::AppHandle) {
     let show_non_agent = read_show_non_agent_panes(app_handle);
     match sessions::list_tmux_panes_grouped(show_non_agent) {
         Ok(groups) => {
+            // Reaching here means the tmux server is alive and responsive —
+            // the right moment to attempt one-shot hook registration (retries
+            // on every refresh until success, idempotent thereafter).
+            tmux_hooks::install();
             if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
                 if let Ok(mut guard) = cache.lock() {
                     guard.groups = Some(groups.clone());
