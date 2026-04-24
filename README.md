@@ -72,6 +72,8 @@ agentoast config
 
 Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vim`
 
+For the most common options (toast duration, global shortcut, auto-update, editor), you can also right-click the menu bar icon and choose **Settings…** to open a GUI editor. Changes are written back to `config.toml`; most take effect after a restart, and a banner with a **Quit & Relaunch** button is shown when needed.
+
 ```toml
 # agentoast configuration
 
@@ -94,6 +96,9 @@ Editor resolution priority is `config.toml` `editor` field → `$EDITOR` → `vi
 
 # Show only groups with notifications (default: false)
 # filter_notified_only = false
+
+# Show tmux panes without an AI coding agent (default: false)
+# show_non_agent_panes = false
 
 # Claude Code agent settings
 [notification.agents.claude_code]

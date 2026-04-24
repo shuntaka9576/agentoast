@@ -230,7 +230,6 @@ pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStateP
     state.global_muted = !state.global_muted;
     let payload = state.to_payload();
     let _ = app_handle.emit("mute:changed", &payload);
-    tray::update_mute_menu(app_handle, payload.global_muted);
     if let Err(e) = config::save_notification_muted(payload.global_muted) {
         log::warn!("Failed to save mute state to config.toml: {}", e);
     }
@@ -790,9 +789,6 @@ pub fn run() {
             }));
 
             tray::create(app.handle())?;
-            if initial_muted {
-                tray::update_mute_menu(app.handle(), true);
-            }
 
             // Register the global-shortcut plugin unconditionally so we can
             // register/unregister on the fly when the user edits Settings.
