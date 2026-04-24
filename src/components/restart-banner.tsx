@@ -9,9 +9,7 @@ export function RestartBanner({ onRestart }: RestartBannerProps) {
     <div className="flex items-center justify-between gap-3 border-b border-[var(--border-focus)] bg-[var(--toast-focus-bg)] px-5 py-2.5">
       <div className="flex items-center gap-2 text-xs text-[var(--text-primary)]">
         <RefreshCcw size={14} className="text-[var(--badge-focus-text)]" />
-        <span>
-          Some changes require restarting Agentoast to take effect.
-        </span>
+        <span>Some changes require restarting Agentoast to take effect.</span>
       </div>
       <button
         type="button"

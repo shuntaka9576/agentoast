@@ -209,10 +209,7 @@ export function ShortcutRecorder({
     const onKeyUp = (e: KeyboardEvent) => updateMods(e);
 
     const onClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setRecording(false);
       }
     };
@@ -293,9 +290,7 @@ export function ShortcutRecorder({
           >
             <div className="flex min-h-[28px] items-center gap-2">
               {liveTokens.length === 0 ? (
-                <span className="text-[11px] text-[var(--text-tertiary)]">
-                  Hold modifier keys…
-                </span>
+                <span className="text-[11px] text-[var(--text-tertiary)]">Hold modifier keys…</span>
               ) : (
                 liveTokens.map((t, i) => (
                   <kbd
@@ -307,12 +302,8 @@ export function ShortcutRecorder({
                 ))
               )}
             </div>
-            <div className="text-xs font-medium text-[var(--badge-focus-text)]">
-              Recording…
-            </div>
-            <div className="text-[10px] text-[var(--text-tertiary)]">
-              Esc to cancel
-            </div>
+            <div className="text-xs font-medium text-[var(--badge-focus-text)]">Recording…</div>
+            <div className="text-[10px] text-[var(--text-tertiary)]">Esc to cancel</div>
 
             {examples.length > 0 && (
               <>
@@ -327,11 +318,7 @@ export function ShortcutRecorder({
                   className="flex h-6 items-center gap-1 rounded-full border border-[var(--border-primary)] px-3 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
                 >
                   {showExamples ? "Hide examples" : "Show examples"}
-                  {showExamples ? (
-                    <ChevronUp size={12} />
-                  ) : (
-                    <ChevronDown size={12} />
-                  )}
+                  {showExamples ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
 
                 {showExamples && (

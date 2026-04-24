@@ -6,10 +6,7 @@ import { ShortcutRecorder } from "@/components/shortcut-recorder";
 import type { SaveSettingsResult, SettingsPayload } from "@/lib/settings-types";
 import { RESTART_REQUIRED_FIELDS } from "@/lib/settings-types";
 
-type Status =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "ready" };
+type Status = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready" };
 
 type SaveState =
   | { kind: "idle" }
@@ -59,8 +56,7 @@ export function SettingsApp() {
     return RESTART_REQUIRED_FIELDS.some((key) => draft[key] !== original[key]);
   }, [original, draft]);
 
-  const showRestartBanner =
-    saveState.kind === "saved" && saveState.restartRequired;
+  const showRestartBanner = saveState.kind === "saved" && saveState.restartRequired;
 
   const updateField = useCallback(
     <K extends keyof SettingsPayload>(key: K, value: SettingsPayload[K]) => {
@@ -205,18 +201,17 @@ export function SettingsApp() {
         <div className="text-[11px] text-[var(--text-tertiary)]">
           {saveState.kind === "saving" && "Saving…"}
           {saveState.kind === "saved" &&
-            (saveState.restartRequired
-              ? "Saved. Restart required for some changes."
-              : "Saved.")}
+            (saveState.restartRequired ? "Saved. Restart required for some changes." : "Saved.")}
           {saveState.kind === "error" && (
             <span className="text-[var(--delete-hover-text)]">
               Save failed: {saveState.message}
             </span>
           )}
-          {saveState.kind === "idle" && dirty && restartWillBeRequired &&
+          {saveState.kind === "idle" &&
+            dirty &&
+            restartWillBeRequired &&
             "Unsaved changes will require a restart."}
-          {saveState.kind === "idle" && dirty && !restartWillBeRequired &&
-            "Unsaved changes."}
+          {saveState.kind === "idle" && dirty && !restartWillBeRequired && "Unsaved changes."}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -236,7 +231,9 @@ export function SettingsApp() {
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => {
+              void handleSave();
+            }}
             disabled={!dirty || saveState.kind === "saving"}
             className="rounded-md bg-[var(--badge-focus-text)] px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >

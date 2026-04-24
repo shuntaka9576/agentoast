@@ -19,8 +19,6 @@
 //! runtime so we don't depend on non-public `kHISymbolicHotKey*` externs,
 //! which are not exported from the current `Carbon.framework` .tbd.
 
-#![cfg(target_os = "macos")]
-
 use std::ffi::{c_void, CString};
 use std::sync::OnceLock;
 
@@ -185,7 +183,7 @@ unsafe fn parse_all(
         };
 
         // keycode 65535 (0xFFFF) means "no virtual key" (char-only shortcut).
-        if keycode < 0 || keycode > 0xFF {
+        if !(0..=0xFF).contains(&keycode) {
             continue;
         }
 

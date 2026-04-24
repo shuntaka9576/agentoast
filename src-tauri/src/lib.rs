@@ -161,15 +161,15 @@ pub fn apply_toggle_panel_shortcut(
     // 2. Snapshot the currently-registered shortcut for potential rollback.
     let old_shortcut: Option<tauri_plugin_global_shortcut::Shortcut> = {
         let guard = slot.lock().map_err(|e| e.to_string())?;
-        guard.clone()
+        *guard
     };
 
     // 3. Unregister the old shortcut. On failure, leave everything as-is so the
     // old binding (which presumably still works) continues to function.
-    if let Some(ref prev) = old_shortcut {
+    if let Some(prev) = old_shortcut {
         app_handle
             .global_shortcut()
-            .unregister(prev.clone())
+            .unregister(prev)
             .map_err(|e| format!("Failed to unregister previous shortcut: {}", e))?;
     }
 
@@ -180,15 +180,15 @@ pub fn apply_toggle_panel_shortcut(
     }
 
     // 5. Register the new shortcut (when non-empty).
-    if let Some(ref shortcut) = new_shortcut {
-        if let Err(e) = app_handle.global_shortcut().register(shortcut.clone()) {
+    if let Some(shortcut) = new_shortcut {
+        if let Err(e) = app_handle.global_shortcut().register(shortcut) {
             // 6. Rollback: try to re-register the old one so the user isn't
             // left without a working toggle binding.
-            if let Some(ref prev) = old_shortcut {
-                match app_handle.global_shortcut().register(prev.clone()) {
+            if let Some(prev) = old_shortcut {
+                match app_handle.global_shortcut().register(prev) {
                     Ok(()) => {
                         if let Ok(mut guard) = slot.lock() {
-                            *guard = Some(prev.clone());
+                            *guard = Some(prev);
                         }
                         log::warn!(
                             "Failed to register '{}'; rolled back to previous shortcut: {}",
@@ -214,7 +214,7 @@ pub fn apply_toggle_panel_shortcut(
         }
 
         if let Ok(mut guard) = slot.lock() {
-            *guard = Some(shortcut.clone());
+            *guard = Some(shortcut);
         }
         log::info!("Global shortcut registered: {}", shortcut_str);
     } else {
