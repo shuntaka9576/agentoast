@@ -428,8 +428,8 @@ pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
                 Position::Physical(p) => (p.x, p.y),
                 Position::Logical(p) => (p.x as i32, p.y as i32),
             };
-            let approx_monitor = find_monitor_containing(&monitors, raw_x, raw_y)
-                .or_else(|| monitors.first());
+            let approx_monitor =
+                find_monitor_containing(&monitors, raw_x, raw_y).or_else(|| monitors.first());
             let scale = approx_monitor.map(|m| m.scale_factor()).unwrap_or(1.0);
 
             let (px, py, pw, ph) = rect_to_physical(&rect.position, &rect.size, scale);
@@ -518,14 +518,8 @@ pub fn position_panel_for_shortcut(app_handle: &tauri::AppHandle) {
             } else if let (Some(cursor_monitor), Some(source_monitor)) =
                 (cursor_monitor, source_monitor)
             {
-                let (mx, my, mw, mh) = mirror_tray_rect_to_monitor(
-                    *px,
-                    *py,
-                    *pw,
-                    *ph,
-                    source_monitor,
-                    cursor_monitor,
-                );
+                let (mx, my, mw, mh) =
+                    mirror_tray_rect_to_monitor(*px, *py, *pw, *ph, source_monitor, cursor_monitor);
                 log::info!(
                     "[panel-pos] for_shortcut: branch=mirrored src_mon={:?} dst_mon={:?} mirrored_phys=({},{} {}x{})",
                     source_monitor.position(),
