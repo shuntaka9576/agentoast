@@ -298,6 +298,57 @@ pub fn save_notification_show_non_agent_panes(value: bool) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
+/// Update [toast] duration_ms in config.toml, preserving existing comments and formatting.
+pub fn save_toast_duration_ms(value: u64) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["toast"]["duration_ms"] = toml_edit::value(value as i64);
+    std::fs::write(&path, doc.to_string())
+}
+
+/// Update [toast] persistent in config.toml, preserving existing comments and formatting.
+pub fn save_toast_persistent(value: bool) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["toast"]["persistent"] = toml_edit::value(value);
+    std::fs::write(&path, doc.to_string())
+}
+
+/// Update [keybinding] toggle_panel in config.toml, preserving existing comments and formatting.
+pub fn save_keybinding_toggle_panel(value: &str) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["keybinding"]["toggle_panel"] = toml_edit::value(value);
+    std::fs::write(&path, doc.to_string())
+}
+
+/// Update [update] enabled in config.toml, preserving existing comments and formatting.
+#[allow(dead_code)] // Settings UI hides this toggle; kept for programmatic callers.
+pub fn save_update_enabled(value: bool) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["update"]["enabled"] = toml_edit::value(value);
+    std::fs::write(&path, doc.to_string())
+}
+
+/// Update top-level `editor` in config.toml, preserving existing comments and formatting.
+/// Empty string removes the key so that `$EDITOR` / `vim` fallback applies.
+pub fn save_editor(value: &str) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    if value.is_empty() {
+        doc.remove("editor");
+    } else {
+        doc["editor"] = toml_edit::value(value);
+    }
+    std::fs::write(&path, doc.to_string())
+}
+
 /// Default config.toml template.
 fn default_config_template() -> &'static str {
     r#"# agentoast configuration
@@ -378,11 +429,6 @@ fn default_config_template() -> &'static str {
 # Format: modifier+key (modifiers: ctrl, shift, alt/option, super/cmd)
 # Set to "" to disable
 # toggle_panel = "super+ctrl+n"
-
-# Auto-update settings
-[update]
-# Enable auto-update check (default: true)
-# enabled = true
 
 # System settings
 # Override auto-detected binary paths (useful when auto-detection fails)

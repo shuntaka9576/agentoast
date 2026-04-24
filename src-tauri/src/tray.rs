@@ -43,6 +43,7 @@ fn show_panel(app_handle: &AppHandle) {
 }
 
 pub fn toggle_panel(app_handle: &AppHandle) {
+    log::info!("[panel-pos] entry=shortcut (tray::toggle_panel)");
     let Some(panel) = get_or_init_panel!(app_handle) else {
         return;
     };
@@ -69,10 +70,23 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
     let mute = MenuItem::with_id(app_handle, "mute", "Mute Notifications", true, None::<&str>)?;
     let _ = MUTE_MENU_ITEM.set(mute.clone());
     let clear_all = MenuItem::with_id(app_handle, "clear_all", "Clear All", true, None::<&str>)?;
+    let separator_before_settings = PredefinedMenuItem::separator(app_handle)?;
+    let settings = MenuItem::with_id(app_handle, "settings", "Settings…", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app_handle)?;
     let quit = MenuItem::with_id(app_handle, "quit", "Quit", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app_handle, &[&show, &mute, &clear_all, &separator, &quit])?;
+    let menu = Menu::with_items(
+        app_handle,
+        &[
+            &show,
+            &mute,
+            &clear_all,
+            &separator_before_settings,
+            &settings,
+            &separator,
+            &quit,
+        ],
+    )?;
 
     TrayIconBuilder::with_id("tray")
         .icon(icon)
@@ -87,6 +101,19 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
             "mute" => {
                 if let Err(e) = crate::do_toggle_global_mute(app_handle) {
                     log::error!("Failed to toggle mute: {}", e);
+                }
+            }
+            "settings" => {
+                if let Some(window) = app_handle.get_webview_window("settings") {
+                    let _ = window.unminimize();
+                    if let Err(e) = window.show() {
+                        log::error!("Failed to show settings window: {}", e);
+                    }
+                    if let Err(e) = window.set_focus() {
+                        log::error!("Failed to focus settings window: {}", e);
+                    }
+                } else {
+                    log::error!("Settings window not registered");
                 }
             }
             "clear_all" => {
@@ -111,6 +138,7 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
             } = event
             {
                 if button_state == MouseButtonState::Up {
+                    log::info!("[panel-pos] entry=tray-click rect={:?}", rect);
                     let Some(panel) = get_or_init_panel!(app_handle) else {
                         return;
                     };
