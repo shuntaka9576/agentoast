@@ -85,6 +85,13 @@ enum Commands {
         limit: i64,
     },
 
+    /// Dismiss all notifications for a given tmux pane
+    Dismiss {
+        /// tmux pane ID (e.g. %5)
+        #[arg(short = 't', long)]
+        tmux_pane: String,
+    },
+
     /// Open config file in editor
     Config,
 }
@@ -123,6 +130,7 @@ pub fn try_run_cli() -> bool {
         "send",
         "hook",
         "list",
+        "dismiss",
         "config",
         "--version",
         "-V",
@@ -239,6 +247,24 @@ fn run(cli: Cli) {
             HookAgent::Copilot { event } => hooks::copilot::handle(&event),
             HookAgent::Opencode { json } => hooks::opencode::handle(&json),
         },
+        // Called by tmux hooks (`after-select-pane` et al.) to clear
+        // notifications when the user navigates to a pane directly. tmux can
+        // hand us an empty pane id in edge cases (hook fires before the pane
+        // is fully selected), so treat empty as a no-op rather than erroring.
+        Commands::Dismiss { tmux_pane } => {
+            if tmux_pane.is_empty() {
+                return;
+            }
+            let db_path = config::db_path();
+            let conn = db::open_reader(&db_path).unwrap_or_else(|e| {
+                eprintln!("Failed to open database: {}", e);
+                std::process::exit(1);
+            });
+            if let Err(e) = db::delete_notifications_by_pane(&conn, &tmux_pane) {
+                eprintln!("Failed to delete notifications: {}", e);
+                std::process::exit(1);
+            }
+        }
         Commands::Config => {
             let config_path = config::ensure_config_file().unwrap_or_else(|e| {
                 eprintln!("Failed to create config file: {}", e);

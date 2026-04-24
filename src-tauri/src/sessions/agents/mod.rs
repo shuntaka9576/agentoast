@@ -48,57 +48,6 @@ pub(super) fn is_numbered_option(line: &str) -> bool {
     }
 }
 
-/// Lightweight running check: capture a pane and check for universal running signals.
-/// Does NOT require agent_type or process tree — uses patterns common to all agents.
-pub(crate) fn is_pane_agent_running(pane_id: &str) -> bool {
-    let content = match capture_pane(pane_id) {
-        Some(c) => c,
-        None => return false,
-    };
-
-    content
-        .lines()
-        .rev()
-        .filter(|l| !l.trim().is_empty())
-        .take(30)
-        .any(|line| {
-            let trimmed = line.trim();
-            is_universal_running_line(trimmed)
-        })
-}
-
-/// Running signals common across Claude Code, Codex, OpenCode, and Copilot CLI.
-fn is_universal_running_line(line: &str) -> bool {
-    // Claude Code: spinner chars (✢✽✶✳✻·) + "esc to interrupt" or "…"
-    if let Some(c) = line.chars().next() {
-        if ['✢', '✽', '✶', '✳', '✻', '·'].contains(&c)
-            && (line.contains("esc to interrupt") || line.contains('…'))
-        {
-            return true;
-        }
-    }
-    // Copilot CLI: spinner chars (◎○◉●) + "Esc to cancel"
-    if let Some(c) = line.chars().next() {
-        if ['◎', '○', '◉', '●'].contains(&c) && line.contains("Esc to cancel") {
-            return true;
-        }
-    }
-    // Claude Code: "· esc to interrupt" in status line
-    if line.contains("\u{00B7} esc to interrupt") {
-        return true;
-    }
-    // Claude Code: status bar "(running)" suffix
-    if line.ends_with("(running)") {
-        return true;
-    }
-    // Codex: "esc to interrupt" (covered by spinner check above)
-    // OpenCode: "esc interrupt" (without "to")
-    if line.contains("esc interrupt") {
-        return true;
-    }
-    false
-}
-
 /// Detect agent status using pre-captured pane content.
 /// This avoids redundant capture-pane calls when content is already available
 /// (e.g., captured in parallel by the caller).
