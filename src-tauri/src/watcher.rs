@@ -15,6 +15,13 @@ use crate::native_toast;
 use crate::MuteState;
 
 static LAST_KNOWN_ID: AtomicI64 = AtomicI64::new(0);
+// Snapshot of the last unread count we observed. -1 marks "not yet initialized"
+// so the first tick only seeds the baseline without firing a spurious refresh.
+// Any drop below the stored value means another process (typically
+// `agentoast dismiss` via a tmux hook) deleted rows, and we need to update the
+// tray icon / main panel ourselves because the INSERT-based watcher path
+// below won't notice a DELETE-only change.
+static LAST_UNREAD_COUNT: AtomicI64 = AtomicI64::new(-1);
 
 pub fn start(app_handle: AppHandle, db_path: PathBuf) {
     // Initialize last known ID
@@ -188,17 +195,36 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
 }
 
 fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &str) {
+    // External DELETE detection (e.g. `agentoast dismiss` invoked from a tmux
+    // hook). The INSERT-based code path below exits early on a DELETE-only
+    // change, so rely on a count snapshot and emit here when it shrinks.
+    let mut current_count = db::get_unread_count(conn).unwrap_or(0);
+    let last_count = LAST_UNREAD_COUNT.load(Ordering::SeqCst);
+    if last_count >= 0 && current_count < last_count {
+        log::info!(
+            "check_new: external DELETE detected ({} -> {}) via {}, refreshing tray + panel",
+            last_count,
+            current_count,
+            source
+        );
+        let _ = app_handle.emit("notifications:refresh", ());
+        let _ = app_handle.emit("notifications:unread-count", current_count);
+        update_tray_icon(app_handle, current_count);
+    }
+
     let last_id = LAST_KNOWN_ID.load(Ordering::SeqCst);
 
     let new_notifications = match db::get_notifications_after_id(conn, last_id) {
         Ok(n) => n,
         Err(e) => {
             log::error!("Failed to get new notifications: {}", e);
+            LAST_UNREAD_COUNT.store(current_count, Ordering::SeqCst);
             return;
         }
     };
 
     if new_notifications.is_empty() {
+        LAST_UNREAD_COUNT.store(current_count, Ordering::SeqCst);
         return;
     }
 
@@ -250,7 +276,9 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
         if let Ok(count) = db::get_unread_count(conn) {
             let _ = app_handle.emit("notifications:unread-count", count);
             update_tray_icon(app_handle, count);
+            current_count = count;
         }
+        LAST_UNREAD_COUNT.store(current_count, Ordering::SeqCst);
         return;
     }
 
@@ -350,7 +378,9 @@ fn check_new_notifications(app_handle: &AppHandle, conn: &Connection, source: &s
     if let Ok(count) = db::get_unread_count(conn) {
         let _ = app_handle.emit("notifications:unread-count", count);
         update_tray_icon(app_handle, count);
+        current_count = count;
     }
+    LAST_UNREAD_COUNT.store(current_count, Ordering::SeqCst);
 }
 
 pub fn update_tray_icon(app_handle: &AppHandle, unread_count: i64) {
