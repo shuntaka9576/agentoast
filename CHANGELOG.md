@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.36.0](https://github.com/shuntaka9576/agentoast/compare/v0.35.0...v0.36.0) - 2026-04-24
+- fix(deps): update frontend to ^4.2.3 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/204
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/206
+- feat: dismiss notifications via tmux hooks on pane focus by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/207
+
 ## [v0.35.0](https://github.com/shuntaka9576/agentoast/compare/v0.34.0...v0.35.0) - 2026-04-21
 - feat(sessions): detect "N monitor" counter in Claude Code status by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/202
 
