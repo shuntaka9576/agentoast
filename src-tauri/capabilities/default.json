@@ -15,7 +15,6 @@
     "opener:default",
     "global-shortcut:default",
     "updater:default",
-    "process:allow-restart",
-    "autostart:default"
+    "process:allow-restart"
   ]
 }
