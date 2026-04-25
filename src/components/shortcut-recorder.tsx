@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, X } from "lucide-react";
 
+type ShortcutRecorderVariant = "default" | "large";
+
 interface ShortcutRecorderProps {
   value: string;
   onChange: (value: string) => void;
@@ -8,6 +10,7 @@ interface ShortcutRecorderProps {
   /** System-reserved shortcuts (macOS symbolic hotkeys). Used to dim examples
    * that would conflict and to warn when a captured shortcut matches. */
   reservedShortcuts?: string[];
+  variant?: ShortcutRecorderVariant;
 }
 
 const MODIFIER_SYMBOLS: Record<string, string> = {
@@ -141,7 +144,9 @@ export function ShortcutRecorder({
   onChange,
   id,
   reservedShortcuts,
+  variant = "default",
 }: ShortcutRecorderProps) {
+  const isLarge = variant === "large";
   const [recording, setRecording] = useState(false);
   const [liveMods, setLiveMods] = useState<LiveModifiers>(EMPTY_MODS);
   const [showExamples, setShowExamples] = useState(false);
@@ -239,8 +244,14 @@ export function ShortcutRecorder({
   const tokens = displayTokens(value);
   const liveTokens = liveModifierSymbols(liveMods);
 
+  const sizeClasses = isLarge
+    ? "h-16 min-w-[140px] gap-3 rounded-2xl px-6 shadow-md"
+    : "h-7 min-w-[110px] gap-1.5 rounded-full px-3";
+  const tokenClasses = isLarge ? "font-mono text-2xl" : "font-mono text-[11px]";
+  const placeholderClasses = isLarge ? "text-base" : "text-xs";
+
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={"flex flex-col gap-1 " + (isLarge ? "items-center" : "items-end")}>
       <div
         ref={containerRef}
         className="relative"
@@ -252,22 +263,36 @@ export function ShortcutRecorder({
           type="button"
           onClick={() => setRecording((v) => !v)}
           className={
-            "flex h-7 min-w-[110px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs transition-colors " +
+            "flex items-center justify-center border text-xs transition-colors " +
+            sizeClasses +
+            " " +
             (recording
-              ? "border-[var(--accent)] bg-[var(--panel-bg)] text-[var(--accent)]"
+              ? "border-2 border-[var(--accent)] bg-[var(--panel-bg)] text-[var(--accent)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_22%,transparent)]"
               : value
                 ? "border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
                 : "border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-bg)]")
           }
         >
-          {tokens.length > 0 ? (
+          {recording ? (
+            liveTokens.length > 0 ? (
+              liveTokens.map((t, i) => (
+                <span key={i} className={tokenClasses}>
+                  {t}
+                </span>
+              ))
+            ) : (
+              <span className={isLarge ? "text-base" : "text-[11px]"}>
+                {isLarge ? "Press keys…" : "Press…"}
+              </span>
+            )
+          ) : tokens.length > 0 ? (
             tokens.map((t, i) => (
-              <span key={i} className="font-mono text-[11px]">
+              <span key={i} className={tokenClasses}>
                 {t}
               </span>
             ))
           ) : (
-            <span>Not set</span>
+            <span className={placeholderClasses}>Not set</span>
           )}
         </button>
 
@@ -302,7 +327,13 @@ export function ShortcutRecorder({
                 ))
               )}
             </div>
-            <div className="text-xs font-medium text-[var(--accent)]">Recording…</div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+              </span>
+              Recording…
+            </div>
             <div className="text-[10px] text-[var(--text-tertiary)]">Esc to cancel</div>
 
             {examples.length > 0 && (

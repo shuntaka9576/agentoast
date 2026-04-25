@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "settings"],
+  "windows": ["main", "settings", "onboarding"],
   "permissions": [
     "core:default",
     "core:tray:default",
@@ -11,9 +11,11 @@
     "core:window:allow-outer-size",
     "core:window:allow-inner-size",
     "core:window:allow-scale-factor",
+    "core:window:allow-start-dragging",
     "opener:default",
     "global-shortcut:default",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "autostart:default"
   ]
 }

@@ -32,6 +32,18 @@
         "transparent": false,
         "visible": false,
         "center": true
+      },
+      {
+        "label": "onboarding",
+        "title": "Agentoast",
+        "url": "index.html?window=onboarding",
+        "width": 480,
+        "height": 620,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
