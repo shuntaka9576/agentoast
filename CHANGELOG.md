@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.38.1](https://github.com/shuntaka9576/agentoast/compare/v0.38.0...v0.38.1) - 2026-04-25
+- fix: add Notifications section to Settings by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/216
+
 ## [v0.38.0](https://github.com/shuntaka9576/agentoast/compare/v0.37.0...v0.38.0) - 2026-04-25
 - feat: onboarding flow, CLI installer, and tmux hook hardening by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/213
 - fix(deps): update rust crate tauri-plugin-autostart to 2.5.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/215
