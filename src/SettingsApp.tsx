@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { NotificationSetup } from "@/components/notification-setup";
+import type { CliInstallState } from "@/components/notification-setup";
 import { NumberStepper } from "@/components/number-stepper";
 import { RestartBanner } from "@/components/restart-banner";
 import { SettingsRow, SettingsSection } from "@/components/settings-section";
@@ -19,12 +21,6 @@ type SaveState =
   | { kind: "idle" }
   | { kind: "saving" }
   | { kind: "saved"; restartRequired: boolean }
-  | { kind: "error"; message: string };
-
-type CliInstallState =
-  | { kind: "idle" }
-  | { kind: "installing" }
-  | { kind: "installed"; replaced: boolean }
   | { kind: "error"; message: string };
 
 const MIN_TOAST_DURATION_MS = 500;
@@ -207,56 +203,24 @@ export function SettingsApp() {
           </SettingsRow>
         </SettingsSection>
 
-        <SettingsSection
-          title="CLI"
-          description="Symlink the agentoast CLI into ~/.local/bin so hook scripts can invoke `agentoast`."
-        >
-          <SettingsRow
-            label="Install agentoast CLI"
-            hint={
-              cliStatus
-                ? cliStatus.pointsToCurrentExe
-                  ? `Linked at ${cliStatus.targetPath}`
-                  : cliStatus.installed
-                    ? `${cliStatus.targetPath} exists but points elsewhere — reinstall to update.`
-                    : `Not installed (will create ${cliStatus.targetPath})`
-                : "Checking…"
-            }
-          >
-            <button
-              type="button"
-              onClick={() => {
-                void handleInstallCli();
-              }}
-              disabled={cliInstallState.kind === "installing" || cliStatus === null}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[var(--text-faint)] disabled:text-[var(--text-tertiary)] disabled:shadow-none"
-            >
-              {cliInstallState.kind === "installing"
-                ? "Installing…"
-                : cliStatus?.pointsToCurrentExe
-                  ? "Reinstall"
-                  : "Install"}
-            </button>
-          </SettingsRow>
-          {cliInstallState.kind === "installed" && (
-            <div className="px-3.5 py-2 text-[11px] text-[var(--text-tertiary)]">
-              {cliInstallState.replaced ? "Symlink replaced." : "Symlink created."}
-            </div>
-          )}
-          {cliInstallState.kind === "error" && (
-            <div className="px-3.5 py-2 text-[11px] text-[var(--delete-hover-text)]">
-              Install failed: {cliInstallState.message}
-            </div>
-          )}
-          {cliStatus && !cliStatus.onPath && (
-            <div className="px-3.5 py-2 text-[11px] leading-relaxed text-[var(--text-tertiary)]">
-              ⚠ <code className="font-mono">~/.local/bin</code> is not in your{" "}
-              <code className="font-mono">PATH</code>. Add{" "}
-              <code className="font-mono">{`export PATH="$HOME/.local/bin:$PATH"`}</code> to your
-              shell rc.
-            </div>
-          )}
-        </SettingsSection>
+        <section className="mb-5">
+          <header className="mb-2 px-1">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Notifications
+            </h2>
+            <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+              Connect your AI coding agent so it can send notifications to agentoast.
+            </p>
+          </header>
+          <NotificationSetup
+            variant="settings"
+            cliStatus={cliStatus}
+            cliInstallState={cliInstallState}
+            onInstallCliClick={() => {
+              void handleInstallCli();
+            }}
+          />
+        </section>
 
         <SettingsSection
           title="Editor"
