@@ -70,3 +70,16 @@ export interface UnifiedGroup {
 export type FlatItem =
   | { type: "group-header"; groupKey: string }
   | { type: "pane-item"; groupKey: string; paneItem: PaneItem };
+
+export type PanelView = "main" | "apps";
+
+export interface RunningApp {
+  bundleId: string;
+  name: string;
+  iconDataUrl: string;
+}
+
+export interface AllowedApp {
+  bundleId: string;
+  displayName: string;
+}

@@ -1,6 +1,8 @@
 #[cfg(target_os = "macos")]
 mod app_nap;
 #[cfg(target_os = "macos")]
+mod apps;
+#[cfg(target_os = "macos")]
 mod macos_hotkeys;
 #[cfg(target_os = "macos")]
 mod native_toast;
@@ -19,7 +21,7 @@ use std::sync::{Mutex, OnceLock};
 #[cfg(target_os = "macos")]
 use std::time::Duration;
 
-use agentoast_shared::config::{self, AppConfig};
+use agentoast_shared::config::{self, AllowedApp, AppConfig};
 use agentoast_shared::db;
 use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::{Deserialize, Serialize};
@@ -880,6 +882,71 @@ fn complete_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn list_running_apps() -> Result<Vec<apps::RunningApp>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(apps::list_running_apps())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("list_running_apps is only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
+fn get_apps_allowed_apps(
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<Vec<AllowedApp>, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(state.config.apps.allowed_apps.clone())
+}
+
+#[tauri::command]
+fn save_apps_allowed_apps(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<AppState>>,
+    allowed_apps: Vec<AllowedApp>,
+) -> Result<(), String> {
+    {
+        let mut state = state.lock().map_err(|e| e.to_string())?;
+        state.config.apps.allowed_apps = allowed_apps.clone();
+    }
+    if let Err(e) = config::save_apps_allowed_apps(&allowed_apps) {
+        log::warn!("Failed to save apps.allowed_apps to config.toml: {}", e);
+    }
+    let _ = app_handle.emit("apps:allowed_apps_changed", &allowed_apps);
+    Ok(())
+}
+
+#[tauri::command]
+fn activate_app(bundle_id: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        apps::activate_app(&bundle_id)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = bundle_id;
+        Err("activate_app is only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
+fn resolve_app_icons(
+    bundle_ids: Vec<String>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(apps::resolve_app_icons(&bundle_ids))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = bundle_ids;
+        Err("resolve_app_icons is only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
 fn delete_all_notifications(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
@@ -968,6 +1035,11 @@ pub fn run() {
             open_hook_readme,
             get_cli_install_status,
             install_cli_symlink,
+            list_running_apps,
+            get_apps_allowed_apps,
+            save_apps_allowed_apps,
+            activate_app,
+            resolve_app_icons,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]

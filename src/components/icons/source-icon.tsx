@@ -59,6 +59,17 @@ export function TmuxIcon({ size = 16, className }: { size?: number; className?: 
   );
 }
 
+export function AppsTabIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" className={className}>
+      <rect x="1" y="1" width="6" height="6" rx="1.4" />
+      <rect x="9" y="1" width="6" height="6" rx="1.4" />
+      <rect x="1" y="9" width="6" height="6" rx="1.4" />
+      <rect x="9" y="9" width="6" height="6" rx="1.4" />
+    </svg>
+  );
+}
+
 export function IconPreset({ icon, size = 16, className }: IconPresetProps) {
   switch (icon) {
     case "claude-code":

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Bell, BellOff, Filter, Trash2, Loader2, RefreshCw } from "lucide-react";
-import { TmuxIcon } from "@/components/icons/source-icon";
+import { AppsTabIcon, TmuxIcon } from "@/components/icons/source-icon";
 import type { UpdateStatus } from "@/lib/types";
 
 interface PanelHeaderProps {
@@ -15,6 +15,7 @@ interface PanelHeaderProps {
   updateStatus: UpdateStatus;
   onUpdateInstall: () => void;
   onUpdateCheck: () => void;
+  onOpenAppsView: () => void;
 }
 
 function getUpdateTitle(status: UpdateStatus, version: string): string {
@@ -49,6 +50,7 @@ export function PanelHeader({
   updateStatus,
   onUpdateInstall,
   onUpdateCheck,
+  onOpenAppsView,
 }: PanelHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,14 @@ export function PanelHeader({
           title={showNonAgentPanes ? "Hide non-agent panes" : "Show non-agent panes"}
         >
           <TmuxIcon size={14} />
+        </button>
+        <button
+          tabIndex={-1}
+          onClick={onOpenAppsView}
+          className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
+          title="Open apps (a)"
+        >
+          <AppsTabIcon size={14} />
         </button>
       </div>
       <div className="flex items-center gap-1">
