@@ -254,10 +254,10 @@ export function ShortcutRecorder({
           className={
             "flex h-7 min-w-[110px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs transition-colors " +
             (recording
-              ? "border-[var(--badge-focus-text)] bg-[var(--panel-bg)] text-[var(--badge-focus-text)]"
+              ? "border-[var(--accent)] bg-[var(--panel-bg)] text-[var(--accent)]"
               : value
-                ? "border-[var(--border-primary)] bg-[var(--panel-bg)] text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
-                : "border-[var(--border-primary)] bg-[var(--panel-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-bg)]")
+                ? "border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                : "border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-bg)]")
           }
         >
           {tokens.length > 0 ? (
@@ -284,7 +284,7 @@ export function ShortcutRecorder({
 
         {recording && (
           <div
-            className="absolute right-0 top-full z-50 mt-2 flex min-w-[240px] flex-col items-center gap-2 rounded-xl border border-[var(--border-primary)] bg-[var(--panel-bg)] px-4 py-3 shadow-lg"
+            className="absolute right-0 top-full z-50 mt-2 flex min-w-[240px] flex-col items-center gap-2 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-elevated)] px-4 py-3 shadow-lg"
             role="dialog"
             aria-label="Shortcut recorder"
           >
@@ -302,7 +302,7 @@ export function ShortcutRecorder({
                 ))
               )}
             </div>
-            <div className="text-xs font-medium text-[var(--badge-focus-text)]">Recording…</div>
+            <div className="text-xs font-medium text-[var(--accent)]">Recording…</div>
             <div className="text-[10px] text-[var(--text-tertiary)]">Esc to cancel</div>
 
             {examples.length > 0 && (
@@ -335,7 +335,7 @@ export function ShortcutRecorder({
                             e.stopPropagation();
                             applyExample(combo);
                           }}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-[var(--border-primary)] hover:bg-[var(--hover-bg)]"
+                          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-[var(--border-subtle)] hover:bg-[var(--row-hover)]"
                         >
                           {parts.map((p, i) => (
                             <ExampleToken key={i} token={p} />

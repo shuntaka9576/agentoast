@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { NumberStepper } from "@/components/number-stepper";
 import { RestartBanner } from "@/components/restart-banner";
 import { SettingsRow, SettingsSection } from "@/components/settings-section";
 import { ShortcutRecorder } from "@/components/shortcut-recorder";
+import { Toggle } from "@/components/toggle";
 import type { SaveSettingsResult, SettingsPayload } from "@/lib/settings-types";
 import { RESTART_REQUIRED_FIELDS } from "@/lib/settings-types";
 
@@ -13,9 +15,6 @@ type SaveState =
   | { kind: "saving" }
   | { kind: "saved"; restartRequired: boolean }
   | { kind: "error"; message: string };
-
-const inputBase =
-  "h-7 rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--badge-focus-text)]";
 
 const MIN_TOAST_DURATION_MS = 500;
 
@@ -61,7 +60,6 @@ export function SettingsApp() {
   const updateField = useCallback(
     <K extends keyof SettingsPayload>(key: K, value: SettingsPayload[K]) => {
       setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
-      // Clear saved state when user edits again so the banner stays authoritative.
       setSaveState((prev) => (prev.kind === "saved" ? { kind: "idle" } : prev));
     },
     [],
@@ -85,18 +83,14 @@ export function SettingsApp() {
     void invoke("restart_app");
   };
 
-  const handleCancel = () => {
+  const handleRevert = () => {
     if (original) setDraft(original);
     setSaveState({ kind: "idle" });
   };
 
-  const handleClose = () => {
-    void invoke("hide_settings");
-  };
-
   if (status.kind === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center text-xs text-[var(--text-tertiary)]">
+      <div className="flex h-screen items-center justify-center bg-[var(--panel-bg)] text-xs text-[var(--text-tertiary)]">
         Loading settings…
       </div>
     );
@@ -104,7 +98,7 @@ export function SettingsApp() {
 
   if (status.kind === "error" || !draft) {
     return (
-      <div className="flex h-screen items-center justify-center px-6 text-center text-xs text-[var(--delete-hover-text)]">
+      <div className="flex h-screen items-center justify-center bg-[var(--panel-bg)] px-6 text-center text-xs text-[var(--delete-hover-text)]">
         Failed to load settings: {status.kind === "error" ? status.message : "unknown error"}
       </div>
     );
@@ -114,60 +108,14 @@ export function SettingsApp() {
     <div className="flex h-screen flex-col bg-[var(--panel-bg)] text-[var(--text-primary)]">
       {showRestartBanner && <RestartBanner onRestart={handleRestart} />}
 
-      <div className="flex-1 overflow-y-auto">
-        <SettingsSection
-          title="Toast"
-          description="Transient popup shown at the top-right when a new notification arrives."
-        >
-          <SettingsRow
-            label="Display duration (ms)"
-            hint="How long a toast stays visible. Ignored when 'Keep until clicked' is on."
-            htmlFor="toast-duration"
-          >
-            <input
-              id="toast-duration"
-              type="number"
-              min={MIN_TOAST_DURATION_MS}
-              step={500}
-              className={`${inputBase} w-24 text-right`}
-              value={draft.toastDurationMs}
-              onChange={(e) => {
-                const next = Number(e.target.value);
-                if (!Number.isNaN(next)) updateField("toastDurationMs", next);
-              }}
-              onBlur={(e) => {
-                // A non-persistent toast with `duration_ms < 500` would be
-                // dismissed before the user could see it. Snap back to the
-                // floor on blur so the field never stays in an unusable state.
-                const v = Number(e.target.value);
-                if (Number.isNaN(v) || v < MIN_TOAST_DURATION_MS) {
-                  updateField("toastDurationMs", MIN_TOAST_DURATION_MS);
-                }
-              }}
-            />
-          </SettingsRow>
-          <SettingsRow
-            label="Keep until clicked"
-            hint="When enabled, toasts do not auto-dismiss."
-            htmlFor="toast-persistent"
-          >
-            <input
-              id="toast-persistent"
-              type="checkbox"
-              className="h-4 w-4 accent-[var(--badge-focus-text)]"
-              checked={draft.toastPersistent}
-              onChange={(e) => updateField("toastPersistent", e.target.checked)}
-            />
-          </SettingsRow>
-        </SettingsSection>
-
+      <div className="flex-1 overflow-y-auto px-5 py-5">
         <SettingsSection
           title="Keyboard shortcut"
           description="Global shortcut that toggles the main panel."
         >
           <SettingsRow
             label="Toggle panel"
-            hint="Click, then press the shortcut. Use Clear to disable."
+            hint="Click, then press the shortcut. Use ✕ to clear."
             htmlFor="toggle-panel"
           >
             <ShortcutRecorder
@@ -175,6 +123,37 @@ export function SettingsApp() {
               value={draft.togglePanelShortcut}
               onChange={(v) => updateField("togglePanelShortcut", v)}
               reservedShortcuts={reservedShortcuts}
+            />
+          </SettingsRow>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Toast"
+          description="Transient popup at the top-right when a new notification arrives."
+        >
+          <SettingsRow
+            label="Display duration"
+            hint="How long a toast stays visible (ms). Ignored when 'Keep until clicked' is on."
+            htmlFor="toast-duration"
+          >
+            <NumberStepper
+              id="toast-duration"
+              value={draft.toastDurationMs}
+              min={MIN_TOAST_DURATION_MS}
+              step={500}
+              onChange={(v) => updateField("toastDurationMs", v)}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Keep until clicked"
+            hint="Toasts do not auto-dismiss when enabled."
+            htmlFor="toast-persistent"
+          >
+            <Toggle
+              id="toast-persistent"
+              checked={draft.toastPersistent}
+              onChange={(v) => updateField("toastPersistent", v)}
+              ariaLabel="Keep toast until clicked"
             />
           </SettingsRow>
         </SettingsSection>
@@ -189,7 +168,7 @@ export function SettingsApp() {
               type="text"
               spellCheck={false}
               placeholder="(auto-detect)"
-              className={`${inputBase} w-52`}
+              className="h-7 w-52 rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
               value={draft.editor}
               onChange={(e) => updateField("editor", e.target.value)}
             />
@@ -197,7 +176,7 @@ export function SettingsApp() {
         </SettingsSection>
       </div>
 
-      <footer className="flex items-center justify-between gap-3 border-t border-[var(--border-primary)] px-5 py-3">
+      <footer className="flex h-[48px] shrink-0 items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-5">
         <div className="text-[11px] text-[var(--text-tertiary)]">
           {saveState.kind === "saving" && "Saving…"}
           {saveState.kind === "saved" &&
@@ -216,16 +195,9 @@ export function SettingsApp() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleClose}
-            className="rounded-md px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)]"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
+            onClick={handleRevert}
             disabled={!dirty || saveState.kind === "saving"}
-            className="rounded-md px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--hover-bg)] disabled:cursor-not-allowed disabled:opacity-30"
           >
             Revert
           </button>
@@ -235,7 +207,7 @@ export function SettingsApp() {
               void handleSave();
             }}
             disabled={!dirty || saveState.kind === "saving"}
-            className="rounded-md bg-[var(--badge-focus-text)] px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[var(--text-faint)] disabled:text-[var(--text-tertiary)] disabled:shadow-none"
           >
             Save
           </button>
