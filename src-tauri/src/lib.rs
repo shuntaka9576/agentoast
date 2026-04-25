@@ -24,7 +24,11 @@ use agentoast_shared::db;
 use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
+use tauri_plugin_autostart::ManagerExt as AutostartManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_opener::OpenerExt;
+
+const README_BASE: &str = "https://github.com/shuntaka9576/agentoast";
 
 #[cfg(target_os = "macos")]
 const FALLBACK_POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -224,6 +228,21 @@ pub fn apply_toggle_panel_shortcut(
     Ok(())
 }
 
+/// Switch the macOS Dock presence on the fly. Used to bring agentoast forward
+/// during onboarding (so the user can find it via Dock / Cmd+Tab) and then
+/// hide it again once onboarding is complete to keep the menu-bar-only feel.
+#[cfg(target_os = "macos")]
+fn set_dock_visible(app_handle: &tauri::AppHandle, visible: bool) {
+    let policy = if visible {
+        tauri::ActivationPolicy::Regular
+    } else {
+        tauri::ActivationPolicy::Accessory
+    };
+    if let Err(e) = app_handle.set_activation_policy(policy) {
+        log::warn!("Failed to set activation policy: {}", e);
+    }
+}
+
 pub fn do_toggle_global_mute(app_handle: &tauri::AppHandle) -> Result<MuteStatePayload, String> {
     let mute_state = app_handle.state::<Mutex<MuteState>>();
     let mut state = mute_state.lock().map_err(|e| e.to_string())?;
@@ -263,7 +282,12 @@ fn show_panel(app_handle: tauri::AppHandle) {
         let _ = app_handle.emit("panel:shown", ());
         emit_cached_sessions(&app_handle);
         let _ = app_handle.emit("notifications:refresh", ());
-        panel.show();
+        // Re-anchor at the tray icon every show so the panel never opens at
+        // its last position (e.g. screen center on a fresh launch).
+        panel.set_alpha_value(0.0);
+        panel.show_and_make_key();
+        panel::position_panel_for_shortcut(&app_handle);
+        panel.set_alpha_value(1.0);
     }
 }
 
@@ -489,6 +513,7 @@ pub struct SettingsPayload {
     pub toast_persistent: bool,
     pub toggle_panel_shortcut: String,
     pub editor: String,
+    pub autostart_enabled: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -498,13 +523,18 @@ pub struct SaveSettingsResult {
 }
 
 #[tauri::command]
-fn get_settings(state: tauri::State<'_, Mutex<AppState>>) -> Result<SettingsPayload, String> {
+fn get_settings(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<SettingsPayload, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
+    let autostart_enabled = app_handle.autolaunch().is_enabled().unwrap_or(false);
     Ok(SettingsPayload {
         toast_duration_ms: state.config.toast.duration_ms,
         toast_persistent: state.config.toast.persistent,
         toggle_panel_shortcut: state.config.keybinding.toggle_panel.clone(),
         editor: state.config.editor.clone().unwrap_or_default(),
+        autostart_enabled,
     })
 }
 
@@ -633,6 +663,21 @@ fn save_settings(
     #[cfg(target_os = "macos")]
     native_toast::update_settings(payload.toast_duration_ms, payload.toast_persistent);
 
+    // --- Phase 5: autostart (LaunchAgent). Not mirrored in config.toml, so a
+    // failure here is surfaced but does not need a toml rollback. ---
+    let old_autostart = app_handle.autolaunch().is_enabled().unwrap_or(false);
+    if old_autostart != payload.autostart_enabled {
+        let manager = app_handle.autolaunch();
+        let result = if payload.autostart_enabled {
+            manager.enable()
+        } else {
+            manager.disable()
+        };
+        if let Err(e) = result {
+            return Err(format!("Failed to update autostart: {}", e));
+        }
+    }
+
     Ok(SaveSettingsResult {
         restart_required: false,
     })
@@ -672,6 +717,166 @@ fn get_reserved_shortcuts() -> Vec<String> {
     {
         Vec::new()
     }
+}
+
+#[tauri::command]
+fn open_hook_readme(app_handle: tauri::AppHandle, agent: String) -> Result<(), String> {
+    let anchor = match agent.as_str() {
+        "claude-code" => "#claude-code",
+        "codex" => "#codex",
+        "copilot-cli" => "#copilot-cli",
+        "opencode" => "#opencode",
+        other => return Err(format!("unknown agent: {}", other)),
+    };
+    app_handle
+        .opener()
+        .open_url(format!("{}{}", README_BASE, anchor), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CliInstallStatus {
+    installed: bool,
+    points_to_current_exe: bool,
+    on_path: bool,
+    target_path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CliInstallResult {
+    target_path: String,
+    on_path: bool,
+    replaced_existing: bool,
+}
+
+fn cli_symlink_target() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    Ok(std::path::PathBuf::from(home).join(".local/bin/agentoast"))
+}
+
+fn local_bin_on_path() -> bool {
+    let Ok(home) = std::env::var("HOME") else {
+        return false;
+    };
+    let local_bin = std::path::PathBuf::from(&home).join(".local/bin");
+    let canonical_local_bin = std::fs::canonicalize(&local_bin).ok();
+    let path = std::env::var("PATH").unwrap_or_default();
+    path.split(':').filter(|s| !s.is_empty()).any(|entry| {
+        let expanded = if let Some(stripped) = entry.strip_prefix("~/") {
+            std::path::PathBuf::from(&home).join(stripped)
+        } else if entry == "~" {
+            std::path::PathBuf::from(&home)
+        } else {
+            std::path::PathBuf::from(entry)
+        };
+        if expanded == local_bin {
+            return true;
+        }
+        match (
+            std::fs::canonicalize(&expanded).ok(),
+            canonical_local_bin.as_ref(),
+        ) {
+            (Some(a), Some(b)) => &a == b,
+            _ => false,
+        }
+    })
+}
+
+fn read_symlink_target(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let target = std::fs::read_link(path).ok()?;
+    if target.is_absolute() {
+        Some(target)
+    } else {
+        path.parent().map(|p| p.join(&target))
+    }
+}
+
+#[tauri::command]
+fn get_cli_install_status() -> Result<CliInstallStatus, String> {
+    let target = cli_symlink_target()?;
+    let target_str = target.to_string_lossy().to_string();
+    let symlink_meta = target.symlink_metadata();
+    let installed = symlink_meta.is_ok();
+
+    let points_to_current_exe = match (
+        symlink_meta
+            .as_ref()
+            .ok()
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false),
+        std::env::current_exe().ok(),
+    ) {
+        (true, Some(current_exe)) => match (
+            read_symlink_target(&target).and_then(|p| std::fs::canonicalize(p).ok()),
+            std::fs::canonicalize(&current_exe).ok(),
+        ) {
+            (Some(a), Some(b)) => a == b,
+            _ => false,
+        },
+        _ => false,
+    };
+
+    Ok(CliInstallStatus {
+        installed,
+        points_to_current_exe,
+        on_path: local_bin_on_path(),
+        target_path: target_str,
+    })
+}
+
+#[tauri::command]
+fn install_cli_symlink() -> Result<CliInstallResult, String> {
+    #[cfg(not(unix))]
+    {
+        return Err("CLI symlink installation is only supported on Unix platforms".to_string());
+    }
+    #[cfg(unix)]
+    {
+        let current_exe = std::env::current_exe().map_err(|e| format!("current_exe: {}", e))?;
+        let target = cli_symlink_target()?;
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create_dir_all {}: {}", parent.display(), e))?;
+        }
+
+        let mut replaced_existing = false;
+        if let Ok(meta) = target.symlink_metadata() {
+            if meta.file_type().is_symlink() {
+                std::fs::remove_file(&target)
+                    .map_err(|e| format!("remove existing symlink: {}", e))?;
+                replaced_existing = true;
+            } else {
+                return Err(format!(
+                    "{} already exists and is not a symlink. Remove it manually before retrying.",
+                    target.display()
+                ));
+            }
+        }
+
+        std::os::unix::fs::symlink(&current_exe, &target)
+            .map_err(|e| format!("create symlink: {}", e))?;
+
+        Ok(CliInstallResult {
+            target_path: target.to_string_lossy().to_string(),
+            on_path: local_bin_on_path(),
+            replaced_existing,
+        })
+    }
+}
+
+#[tauri::command]
+fn complete_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Err(e) = config::mark_onboarded() {
+        log::warn!("Failed to write onboarded marker: {}", e);
+    }
+    if let Some(window) = app_handle.get_webview_window("onboarding") {
+        let _ = window.hide();
+    }
+    #[cfg(target_os = "macos")]
+    set_dock_visible(&app_handle, false);
+    Ok(())
 }
 
 #[tauri::command]
@@ -728,6 +933,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .invoke_handler(tauri::generate_handler![
             init_panel,
             hide_panel,
@@ -755,10 +964,24 @@ pub fn run() {
             hide_settings,
             restart_app,
             get_reserved_shortcuts,
+            complete_onboarding,
+            open_hook_readme,
+            get_cli_install_status,
+            install_cli_symlink,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            {
+                // Default to menu-bar-only (Accessory). If onboarding is still
+                // pending we promote to Regular so the Welcome window shows up
+                // in the Dock / Cmd+Tab; complete_onboarding flips it back.
+                let policy = if config::is_onboarded() {
+                    tauri::ActivationPolicy::Accessory
+                } else {
+                    tauri::ActivationPolicy::Regular
+                };
+                app.set_activation_policy(policy);
+            }
 
             #[cfg(target_os = "macos")]
             {
@@ -823,6 +1046,29 @@ pub fn run() {
                         let _ = window_clone.hide();
                     }
                 });
+            }
+
+            // Show the onboarding window on first launch. Treat the close button
+            // as a "complete onboarding" gesture so users aren't shown the flow
+            // again next launch.
+            if let Some(onboarding_window) = app.handle().get_webview_window("onboarding") {
+                let window_clone = onboarding_window.clone();
+                onboarding_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Err(e) = config::mark_onboarded() {
+                            log::warn!("Failed to write onboarded marker on close: {}", e);
+                        }
+                        let _ = window_clone.hide();
+                        #[cfg(target_os = "macos")]
+                        set_dock_visible(window_clone.app_handle(), false);
+                    }
+                });
+
+                if !config::is_onboarded() {
+                    let _ = onboarding_window.show();
+                    let _ = onboarding_window.set_focus();
+                }
             }
 
             // Initialize native toast panel

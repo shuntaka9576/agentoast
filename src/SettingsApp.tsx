@@ -5,7 +5,12 @@ import { RestartBanner } from "@/components/restart-banner";
 import { SettingsRow, SettingsSection } from "@/components/settings-section";
 import { ShortcutRecorder } from "@/components/shortcut-recorder";
 import { Toggle } from "@/components/toggle";
-import type { SaveSettingsResult, SettingsPayload } from "@/lib/settings-types";
+import type {
+  CliInstallResult,
+  CliInstallStatus,
+  SaveSettingsResult,
+  SettingsPayload,
+} from "@/lib/settings-types";
 import { RESTART_REQUIRED_FIELDS } from "@/lib/settings-types";
 
 type Status = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready" };
@@ -16,6 +21,12 @@ type SaveState =
   | { kind: "saved"; restartRequired: boolean }
   | { kind: "error"; message: string };
 
+type CliInstallState =
+  | { kind: "idle" }
+  | { kind: "installing" }
+  | { kind: "installed"; replaced: boolean }
+  | { kind: "error"; message: string };
+
 const MIN_TOAST_DURATION_MS = 500;
 
 export function SettingsApp() {
@@ -24,6 +35,16 @@ export function SettingsApp() {
   const [draft, setDraft] = useState<SettingsPayload | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [reservedShortcuts, setReservedShortcuts] = useState<string[]>([]);
+  const [cliStatus, setCliStatus] = useState<CliInstallStatus | null>(null);
+  const [cliInstallState, setCliInstallState] = useState<CliInstallState>({ kind: "idle" });
+
+  const refreshCliStatus = useCallback(() => {
+    invoke<CliInstallStatus>("get_cli_install_status")
+      .then(setCliStatus)
+      .catch((err) => {
+        console.warn("get_cli_install_status failed:", err);
+      });
+  }, []);
 
   useEffect(() => {
     invoke<SettingsPayload>("get_settings")
@@ -41,7 +62,20 @@ export function SettingsApp() {
       .catch((err) => {
         console.warn("get_reserved_shortcuts failed:", err);
       });
-  }, []);
+
+    refreshCliStatus();
+  }, [refreshCliStatus]);
+
+  const handleInstallCli = async () => {
+    setCliInstallState({ kind: "installing" });
+    try {
+      const result = await invoke<CliInstallResult>("install_cli_symlink");
+      setCliInstallState({ kind: "installed", replaced: result.replacedExisting });
+      refreshCliStatus();
+    } catch (err) {
+      setCliInstallState({ kind: "error", message: String(err) });
+    }
+  };
 
   const dirty = useMemo(() => {
     if (!original || !draft) return false;
@@ -156,6 +190,72 @@ export function SettingsApp() {
               ariaLabel="Keep toast until clicked"
             />
           </SettingsRow>
+        </SettingsSection>
+
+        <SettingsSection title="Startup" description="Control how agentoast launches on this Mac.">
+          <SettingsRow
+            label="Launch at login"
+            hint="Start agentoast automatically when you log in to macOS."
+            htmlFor="autostart-enabled"
+          >
+            <Toggle
+              id="autostart-enabled"
+              checked={draft.autostartEnabled}
+              onChange={(v) => updateField("autostartEnabled", v)}
+              ariaLabel="Launch at login"
+            />
+          </SettingsRow>
+        </SettingsSection>
+
+        <SettingsSection
+          title="CLI"
+          description="Symlink the agentoast CLI into ~/.local/bin so hook scripts can invoke `agentoast`."
+        >
+          <SettingsRow
+            label="Install agentoast CLI"
+            hint={
+              cliStatus
+                ? cliStatus.pointsToCurrentExe
+                  ? `Linked at ${cliStatus.targetPath}`
+                  : cliStatus.installed
+                    ? `${cliStatus.targetPath} exists but points elsewhere — reinstall to update.`
+                    : `Not installed (will create ${cliStatus.targetPath})`
+                : "Checking…"
+            }
+          >
+            <button
+              type="button"
+              onClick={() => {
+                void handleInstallCli();
+              }}
+              disabled={cliInstallState.kind === "installing" || cliStatus === null}
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[var(--text-faint)] disabled:text-[var(--text-tertiary)] disabled:shadow-none"
+            >
+              {cliInstallState.kind === "installing"
+                ? "Installing…"
+                : cliStatus?.pointsToCurrentExe
+                  ? "Reinstall"
+                  : "Install"}
+            </button>
+          </SettingsRow>
+          {cliInstallState.kind === "installed" && (
+            <div className="px-3.5 py-2 text-[11px] text-[var(--text-tertiary)]">
+              {cliInstallState.replaced ? "Symlink replaced." : "Symlink created."}
+            </div>
+          )}
+          {cliInstallState.kind === "error" && (
+            <div className="px-3.5 py-2 text-[11px] text-[var(--delete-hover-text)]">
+              Install failed: {cliInstallState.message}
+            </div>
+          )}
+          {cliStatus && !cliStatus.onPath && (
+            <div className="px-3.5 py-2 text-[11px] leading-relaxed text-[var(--text-tertiary)]">
+              ⚠ <code className="font-mono">~/.local/bin</code> is not in your{" "}
+              <code className="font-mono">PATH</code>. Add{" "}
+              <code className="font-mono">{`export PATH="$HOME/.local/bin:$PATH"`}</code> to your
+              shell rc.
+            </div>
+          )}
         </SettingsSection>
 
         <SettingsSection

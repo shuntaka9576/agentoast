@@ -23,6 +23,25 @@ pub fn db_path() -> PathBuf {
     data_dir().join("notifications.db")
 }
 
+/// Marker file written when onboarding has been completed.
+pub fn onboarded_marker_path() -> PathBuf {
+    data_dir().join(".onboarded")
+}
+
+/// Whether the user has completed the onboarding flow.
+pub fn is_onboarded() -> bool {
+    onboarded_marker_path().exists()
+}
+
+/// Persist the "onboarding complete" flag by creating the marker file.
+pub fn mark_onboarded() -> io::Result<()> {
+    let path = onboarded_marker_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&path, b"")
+}
+
 /// Return XDG_CONFIG_HOME/agentoast.
 pub fn config_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
