@@ -301,6 +301,19 @@ pub fn show_notifications(notifications: Vec<Notification>) {
     }
 }
 
+/// Push runtime settings updates into the live toast state so new settings
+/// take effect on the next displayed toast without requiring an app restart.
+pub fn update_settings(duration_ms: u64, persistent: bool) {
+    let Some(state) = TOAST_STATE.get() else {
+        return;
+    };
+    let Ok(mut guard) = state.lock() else {
+        return;
+    };
+    guard.duration_ms = duration_ms;
+    guard.persistent = persistent;
+}
+
 pub fn hide() {
     let Some(wrapper) = TOAST_PANEL.get() else {
         return;

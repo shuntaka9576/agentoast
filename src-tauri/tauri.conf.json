@@ -20,6 +20,18 @@
         "decorations": false,
         "transparent": true,
         "visible": false
+      },
+      {
+        "label": "settings",
+        "title": "Agentoast Settings",
+        "url": "index.html?window=settings",
+        "width": 520,
+        "height": 560,
+        "resizable": false,
+        "decorations": true,
+        "transparent": false,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {

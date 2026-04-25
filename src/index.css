@@ -36,6 +36,17 @@
 
   --new-highlight-bg: rgba(59, 130, 246, 0.08);
   --selection-ring: inset 0 0 0 1.5px rgba(0, 0, 0, 0.15);
+
+  /* Settings UI tokens */
+  --surface-card: rgba(255, 255, 255, 0.6);
+  --surface-elevated: rgba(255, 255, 255, 0.95);
+  --accent: #5c3a1e;
+  --accent-hover: #4a2e18;
+  --accent-bg: rgba(92, 58, 30, 0.1);
+  --switch-track: rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border-subtle);
+  --row-hover: rgba(0, 0, 0, 0.025);
+  --banner-warn-bg: rgba(92, 58, 30, 0.08);
 }
 
 /* Dark mode */
@@ -75,6 +86,16 @@
 
     --new-highlight-bg: rgba(59, 130, 246, 0.12);
     --selection-ring: inset 0 0 0 1.5px rgba(255, 255, 255, 0.2);
+
+    --surface-card: rgba(255, 255, 255, 0.04);
+    --surface-elevated: rgba(60, 60, 62, 0.95);
+    --accent: #c9956e;
+    --accent-hover: #d4a586;
+    --accent-bg: rgba(201, 149, 110, 0.18);
+    --switch-track: rgba(255, 255, 255, 0.2);
+    --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-subtle);
+    --row-hover: rgba(255, 255, 255, 0.025);
+    --banner-warn-bg: rgba(201, 149, 110, 0.1);
   }
 }
 
@@ -157,4 +178,14 @@ body,
 }
 .pane-separator:last-child::after {
   display: none;
+}
+
+/* Hide native number input spinners (used by NumberStepper) */
+input[type="number"].no-spinner::-webkit-outer-spin-button,
+input[type="number"].no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].no-spinner {
+  -moz-appearance: textfield;
 }
