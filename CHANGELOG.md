@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.38.0](https://github.com/shuntaka9576/agentoast/compare/v0.37.0...v0.38.0) - 2026-04-25
+- feat: onboarding flow, CLI installer, and tmux hook hardening by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/213
+- fix(deps): update rust crate tauri-plugin-autostart to 2.5.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/215
+
 ## [v0.37.0](https://github.com/shuntaka9576/agentoast/compare/v0.36.1...v0.37.0) - 2026-04-25
 - feat: add Settings window with global shortcut customization by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/211
 - fix(deps): update dependency lucide-react to ^1.9.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/210
