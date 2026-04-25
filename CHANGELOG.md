@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.39.0](https://github.com/shuntaka9576/agentoast/compare/v0.38.1...v0.39.0) - 2026-04-25
+- feat: add Apps view launcher to main panel by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/218
+- fix: register Login Item via SMAppService instead of LaunchAgent by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/220
+
 ## [v0.38.1](https://github.com/shuntaka9576/agentoast/compare/v0.38.0...v0.38.1) - 2026-04-25
 - fix: add Notifications section to Settings by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/216
 
