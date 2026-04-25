@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use toml_edit::DocumentMut;
@@ -65,6 +65,22 @@ pub struct AppConfig {
     pub update: UpdateConfig,
     #[serde(default)]
     pub system: SystemConfig,
+    #[serde(default)]
+    pub apps: AppsConfig,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct AppsConfig {
+    #[serde(default)]
+    pub allowed_apps: Vec<AllowedApp>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct AllowedApp {
+    #[serde(rename = "bundleId", alias = "bundle_id")]
+    pub bundle_id: String,
+    #[serde(rename = "displayName", alias = "display_name")]
+    pub display_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -354,6 +370,30 @@ pub fn save_update_enabled(value: bool) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
+/// Update [apps] allowed_apps in config.toml, preserving existing comments and formatting.
+pub fn save_apps_allowed_apps(apps: &[AllowedApp]) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+
+    let mut array = toml_edit::Array::new();
+    for app in apps {
+        let mut entry = toml_edit::InlineTable::new();
+        entry.insert("bundle_id", toml_edit::Value::from(app.bundle_id.clone()));
+        entry.insert(
+            "display_name",
+            toml_edit::Value::from(app.display_name.clone()),
+        );
+        array.push(toml_edit::Value::from(entry));
+    }
+
+    if !doc.contains_table("apps") {
+        doc["apps"] = toml_edit::table();
+    }
+    doc["apps"]["allowed_apps"] = toml_edit::value(array);
+    std::fs::write(&path, doc.to_string())
+}
+
 /// Update top-level `editor` in config.toml, preserving existing comments and formatting.
 /// Empty string removes the key so that `$EDITOR` / `vim` fallback applies.
 pub fn save_editor(value: &str) -> io::Result<()> {
@@ -454,6 +494,15 @@ fn default_config_template() -> &'static str {
 # [system]
 # tmux = "/custom/path/to/tmux"
 # git = "/custom/path/to/git"
+
+# Apps tab — surface frequently-used applications inside the main panel
+# Add apps from Settings → Apps. Each entry pins the app to the Apps tab so a
+# single click brings it to the front. Defaults to empty (Apps tab is empty).
+# [apps]
+# allowed_apps = [
+#   { bundle_id = "com.google.Chrome",          display_name = "Google Chrome" },
+#   { bundle_id = "com.tinyspeck.slackmacgap",  display_name = "Slack" },
+# ]
 
 "#
 }
@@ -597,6 +646,31 @@ focus_events = ["permission.asked"]
             vec!["permission.asked"]
         );
         assert_eq!(config.notification.agents.opencode.events.len(), 3);
+    }
+
+    #[test]
+    fn default_apps_config_is_empty() {
+        let config = AppsConfig::default();
+        assert!(config.allowed_apps.is_empty());
+    }
+
+    #[test]
+    fn parse_apps_allowed_apps() {
+        let toml_str = r#"
+[apps]
+allowed_apps = [
+  { bundle_id = "com.google.Chrome", display_name = "Google Chrome" },
+  { bundle_id = "com.tinyspeck.slackmacgap", display_name = "Slack" },
+]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.apps.allowed_apps.len(), 2);
+        assert_eq!(config.apps.allowed_apps[0].bundle_id, "com.google.Chrome");
+        assert_eq!(config.apps.allowed_apps[0].display_name, "Google Chrome");
+        assert_eq!(
+            config.apps.allowed_apps[1].bundle_id,
+            "com.tinyspeck.slackmacgap"
+        );
     }
 
     #[test]

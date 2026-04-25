@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { AppsSetup } from "@/components/apps-setup";
 import { NotificationSetup } from "@/components/notification-setup";
 import type { CliInstallState } from "@/components/notification-setup";
 import { NumberStepper } from "@/components/number-stepper";
@@ -7,6 +8,7 @@ import { RestartBanner } from "@/components/restart-banner";
 import { SettingsRow, SettingsSection } from "@/components/settings-section";
 import { ShortcutRecorder } from "@/components/shortcut-recorder";
 import { Toggle } from "@/components/toggle";
+import type { AllowedApp } from "@/lib/types";
 import type {
   CliInstallResult,
   CliInstallStatus,
@@ -33,6 +35,7 @@ export function SettingsApp() {
   const [reservedShortcuts, setReservedShortcuts] = useState<string[]>([]);
   const [cliStatus, setCliStatus] = useState<CliInstallStatus | null>(null);
   const [cliInstallState, setCliInstallState] = useState<CliInstallState>({ kind: "idle" });
+  const [allowedApps, setAllowedApps] = useState<AllowedApp[]>([]);
 
   const refreshCliStatus = useCallback(() => {
     invoke<CliInstallStatus>("get_cli_install_status")
@@ -59,8 +62,21 @@ export function SettingsApp() {
         console.warn("get_reserved_shortcuts failed:", err);
       });
 
+    invoke<AllowedApp[]>("get_apps_allowed_apps")
+      .then(setAllowedApps)
+      .catch((err) => {
+        console.warn("get_apps_allowed_apps failed:", err);
+      });
+
     refreshCliStatus();
   }, [refreshCliStatus]);
+
+  const handleAllowedAppsChange = useCallback((next: AllowedApp[]) => {
+    setAllowedApps(next);
+    void invoke("save_apps_allowed_apps", { allowedApps: next }).catch((err) => {
+      console.warn("save_apps_allowed_apps failed:", err);
+    });
+  }, []);
 
   const handleInstallCli = async () => {
     setCliInstallState({ kind: "installing" });
@@ -220,6 +236,18 @@ export function SettingsApp() {
               void handleInstallCli();
             }}
           />
+        </section>
+
+        <section className="mb-5">
+          <header className="mb-2 px-1">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Apps
+            </h2>
+            <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+              Pin frequently-used apps so you can switch to them from the panel’s Apps tab.
+            </p>
+          </header>
+          <AppsSetup allowedApps={allowedApps} onChange={handleAllowedAppsChange} />
         </section>
 
         <SettingsSection

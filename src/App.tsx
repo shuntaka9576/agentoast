@@ -6,11 +6,13 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { useMute } from "@/hooks/use-mute";
 import { useSessions } from "@/hooks/use-sessions";
 import { useAppUpdate } from "@/hooks/use-app-update";
+import { useAppsAllowedApps } from "@/hooks/use-apps-allowed-apps";
 import { PanelHeader } from "@/components/panel-header";
+import { AppsView } from "@/components/apps-view";
 import { RepoGroup } from "@/components/repo-group";
 import { KeybindHelp } from "@/components/keybind-help";
 import { Bell } from "lucide-react";
-import type { Notification, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
+import type { Notification, PanelView, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
 
 export function App() {
   const { notifications, loading, deleteNotification, deleteByPanes, deleteAll, newIds } =
@@ -22,6 +24,9 @@ export function App() {
 
   const [appVersion, setAppVersion] = useState("");
   const { updateStatus, triggerInstall, checkForUpdates } = useAppUpdate();
+  const { allowedApps, iconMap: appIconMap } = useAppsAllowedApps();
+  const [activeView, setActiveView] = useState<PanelView>("main");
+  const [appsSelectedIndex, setAppsSelectedIndex] = useState(0);
 
   useEffect(() => {
     getVersion()
@@ -339,6 +344,9 @@ export function App() {
       lastIndexRef.current = -1;
       repositionCancelledRef.current = false;
       needFetchVersionRef.current = fetchVersionRef.current;
+      // Always start on the main view — the apps view is a one-shot launcher.
+      setActiveView("main");
+      setAppsSelectedIndex(0);
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -508,9 +516,61 @@ export function App() {
     });
   }, []);
 
+  const activateAppByBundleId = useCallback((bundleId: string) => {
+    void invoke("activate_app", { bundleId }).catch((err) => {
+      // Activation can fail when the app is no longer running — keep the
+      // panel responsive and log instead of throwing in the UI.
+      console.warn("activate_app failed:", err);
+    });
+    void invoke("hide_panel");
+  }, []);
+
   // Keyboard navigation — ref callback pattern for stable listener
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keyHandlerRef.current = (e: KeyboardEvent) => {
+    // Apps view has its own (much smaller) navigation surface. Handle it
+    // inline so the main-view branch below stays focused on the unified
+    // group/pane list.
+    if (activeView === "apps") {
+      switch (e.key) {
+        case "?":
+          e.preventDefault();
+          setShowHelp((prev) => !prev);
+          return;
+        case "Escape":
+          e.preventDefault();
+          if (showHelp) {
+            setShowHelp(false);
+          } else {
+            void invoke("hide_panel");
+          }
+          return;
+        case "j":
+          if (showHelp) return;
+          e.preventDefault();
+          if (allowedApps.length > 0) {
+            setAppsSelectedIndex((prev) => Math.min(prev + 1, allowedApps.length - 1));
+          }
+          return;
+        case "k":
+          if (showHelp) return;
+          e.preventDefault();
+          setAppsSelectedIndex((prev) => Math.max(prev - 1, 0));
+          return;
+        case "Enter":
+          if (showHelp) return;
+          e.preventDefault();
+          if (allowedApps.length > 0) {
+            const target = allowedApps[Math.min(appsSelectedIndex, allowedApps.length - 1)];
+            if (target) activateAppByBundleId(target.bundleId);
+          }
+          return;
+        default:
+          // Apps view swallows other keys so main-view shortcuts (d/D/C/E/F/T/Tab)
+          // don't fire while the user is browsing pinned apps.
+          return;
+      }
+    }
     switch (e.key) {
       case "?":
         e.preventDefault();
@@ -523,6 +583,12 @@ export function App() {
         } else {
           void invoke("hide_panel");
         }
+        break;
+      case "a":
+        if (showHelp) break;
+        e.preventDefault();
+        setAppsSelectedIndex(0);
+        setActiveView("apps");
         break;
       case "j":
         if (showHelp) break;
@@ -697,71 +763,89 @@ export function App() {
     <div className="h-screen flex flex-col items-center px-4 pb-4 pt-0.5 bg-transparent">
       <div className="tray-arrow" />
       <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
-        <PanelHeader
-          globalMuted={globalMuted}
-          filterNotifiedOnly={filterNotifiedOnly}
-          showNonAgentPanes={showNonAgentPanes}
-          onToggleFilter={() => {
-            setFilterNotifiedOnly((prev) => {
-              const next = !prev;
-              void invoke("save_filter_notified_only", { value: next });
-              return next;
-            });
-          }}
-          onToggleShowNonAgentPanes={() => {
-            setShowNonAgentPanes((prev) => {
-              const next = !prev;
-              void invoke("save_show_non_agent_panes", { value: next });
-              return next;
-            });
-          }}
-          onDeleteAll={() => void deleteAll()}
-          onToggleGlobalMute={() => void toggleGlobalMute()}
-          appVersion={appVersion}
-          updateStatus={updateStatus}
-          onUpdateInstall={triggerInstall}
-          onUpdateCheck={checkForUpdates}
-        />
+        {activeView === "main" && (
+          <PanelHeader
+            globalMuted={globalMuted}
+            filterNotifiedOnly={filterNotifiedOnly}
+            showNonAgentPanes={showNonAgentPanes}
+            onToggleFilter={() => {
+              setFilterNotifiedOnly((prev) => {
+                const next = !prev;
+                void invoke("save_filter_notified_only", { value: next });
+                return next;
+              });
+            }}
+            onToggleShowNonAgentPanes={() => {
+              setShowNonAgentPanes((prev) => {
+                const next = !prev;
+                void invoke("save_show_non_agent_panes", { value: next });
+                return next;
+              });
+            }}
+            onDeleteAll={() => void deleteAll()}
+            onToggleGlobalMute={() => void toggleGlobalMute()}
+            appVersion={appVersion}
+            updateStatus={updateStatus}
+            onUpdateInstall={triggerInstall}
+            onUpdateCheck={checkForUpdates}
+            onOpenAppsView={() => {
+              setAppsSelectedIndex(0);
+              setActiveView("apps");
+            }}
+          />
+        )}
 
         <div className="relative flex-1 min-h-0">
-          <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-xs text-[var(--text-muted)]">Loading...</div>
-              </div>
-            ) : isEmpty ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3">
-                <Bell size={32} className="text-[var(--text-faint)]" />
-                <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
-              </div>
-            ) : (
-              displayGroups.map((ug) => (
-                <RepoGroup
-                  key={ug.groupKey}
-                  groupKey={ug.groupKey}
-                  repoName={ug.repoName}
-                  gitBranch={ug.gitBranch}
-                  paneItems={ug.paneItems}
-                  expanded={!collapsedGroups.has(ug.groupKey)}
-                  isMuted={isRepoMuted(ug.groupKey)}
-                  isHeaderSelected={selectedGroupHeaderKey === ug.groupKey}
-                  headerNavIndex={flatItems.findIndex(
-                    (f) => f.type === "group-header" && f.groupKey === ug.groupKey,
-                  )}
-                  newIds={newIds}
-                  selectedId={selectedNotificationId}
-                  selectedPaneId={selectedPaneId}
-                  flatItems={flatItems}
-                  autoExpandedPaneId={autoExpandedPaneId}
-                  statusReady={statusReady}
-                  onDeleteNotification={(id) => void deleteNotification(id)}
-                  onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
-                  onToggleRepoMute={(path) => void toggleRepoMute(path)}
-                  onToggleExpand={() => toggleGroupExpanded(ug.groupKey)}
-                />
-              ))
-            )}
-          </div>
+          {activeView === "apps" ? (
+            <div className="h-full overflow-y-auto">
+              <AppsView
+                allowedApps={allowedApps}
+                iconMap={appIconMap}
+                selectedIndex={appsSelectedIndex}
+                onSelectIndex={setAppsSelectedIndex}
+                onActivate={activateAppByBundleId}
+              />
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-xs text-[var(--text-muted)]">Loading...</div>
+                </div>
+              ) : isEmpty ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3">
+                  <Bell size={32} className="text-[var(--text-faint)]" />
+                  <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
+                </div>
+              ) : (
+                displayGroups.map((ug) => (
+                  <RepoGroup
+                    key={ug.groupKey}
+                    groupKey={ug.groupKey}
+                    repoName={ug.repoName}
+                    gitBranch={ug.gitBranch}
+                    paneItems={ug.paneItems}
+                    expanded={!collapsedGroups.has(ug.groupKey)}
+                    isMuted={isRepoMuted(ug.groupKey)}
+                    isHeaderSelected={selectedGroupHeaderKey === ug.groupKey}
+                    headerNavIndex={flatItems.findIndex(
+                      (f) => f.type === "group-header" && f.groupKey === ug.groupKey,
+                    )}
+                    newIds={newIds}
+                    selectedId={selectedNotificationId}
+                    selectedPaneId={selectedPaneId}
+                    flatItems={flatItems}
+                    autoExpandedPaneId={autoExpandedPaneId}
+                    statusReady={statusReady}
+                    onDeleteNotification={(id) => void deleteNotification(id)}
+                    onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
+                    onToggleRepoMute={(path) => void toggleRepoMute(path)}
+                    onToggleExpand={() => toggleGroupExpanded(ug.groupKey)}
+                  />
+                ))
+              )}
+            </div>
+          )}
           {showHelp && <KeybindHelp onClose={() => setShowHelp(false)} />}
           {!showHelp && (
             <button

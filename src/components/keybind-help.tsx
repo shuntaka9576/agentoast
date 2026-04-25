@@ -6,6 +6,7 @@ const KEYBINDS = [
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
   { key: "Enter", action: "Open / Fold" },
+  { key: "a", action: "Apps view" },
   { key: "d", action: "Delete notif" },
   { key: "D", action: "Delete all notifs" },
   { key: "C", action: "Collapse all" },
