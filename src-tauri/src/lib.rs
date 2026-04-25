@@ -26,7 +26,6 @@ use agentoast_shared::db;
 use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
-use tauri_plugin_autostart::ManagerExt as AutostartManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
 
@@ -124,6 +123,98 @@ fn start_sessions_safety_poller(app_handle: tauri::AppHandle, interval: Duration
         std::thread::sleep(interval);
         refresh_and_emit(&app_handle);
     });
+}
+
+/// Register / unregister the running app as a macOS Login Item via the
+/// `SMAppService.mainApp` API (macOS 13+). Unlike the older
+/// `osascript`-based approaches, this does NOT trigger the Automation /
+/// Apple Events TCC consent prompt because the app is registering itself,
+/// not controlling another process.
+#[cfg(target_os = "macos")]
+fn autostart_main_service() -> objc2::rc::Retained<objc2_service_management::SMAppService> {
+    unsafe { objc2_service_management::SMAppService::mainAppService() }
+}
+
+#[cfg(target_os = "macos")]
+fn autostart_is_enabled() -> bool {
+    use objc2_service_management::SMAppServiceStatus;
+    let service = autostart_main_service();
+    let status = unsafe { service.status() };
+    status == SMAppServiceStatus::Enabled
+}
+
+#[cfg(target_os = "macos")]
+fn autostart_enable() -> Result<(), String> {
+    let service = autostart_main_service();
+    unsafe { service.registerAndReturnError() }
+        .map_err(|e| format!("SMAppService.register failed: {}", e.localizedDescription()))
+}
+
+#[cfg(target_os = "macos")]
+fn autostart_disable() -> Result<(), String> {
+    let service = autostart_main_service();
+    unsafe { service.unregisterAndReturnError() }.map_err(|e| {
+        format!(
+            "SMAppService.unregister failed: {}",
+            e.localizedDescription()
+        )
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn autostart_is_enabled() -> bool {
+    false
+}
+
+#[cfg(not(target_os = "macos"))]
+fn autostart_enable() -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn autostart_disable() -> Result<(), String> {
+    Ok(())
+}
+
+/// Clean up the legacy `~/Library/LaunchAgents/Agentoast.plist` left by the
+/// old `tauri-plugin-autostart` LaunchAgent mode and, if it existed, re-arm
+/// autostart through SMAppService so the user's preference survives.
+///
+/// We deliberately do NOT auto-clean the buggy "agentoast" login item left
+/// by the intermediate AppleScript-mode build: removing it would require
+/// `osascript`, which would re-trigger the very TCC prompt this migration
+/// is trying to avoid. Affected testers (handful of internal users) are
+/// asked to remove that orphan entry manually from System Settings.
+#[cfg(target_os = "macos")]
+fn migrate_legacy_autostart() {
+    let Ok(home) = std::env::var("HOME") else {
+        return;
+    };
+    let plist_path = std::path::PathBuf::from(home).join("Library/LaunchAgents/Agentoast.plist");
+    if !plist_path.exists() {
+        return;
+    }
+
+    log::info!(
+        "Removing legacy LaunchAgent plist: {}",
+        plist_path.display()
+    );
+    if let Err(e) = std::process::Command::new("launchctl")
+        .arg("unload")
+        .arg(&plist_path)
+        .output()
+    {
+        log::warn!("launchctl unload failed (continuing): {}", e);
+    }
+    if let Err(e) = std::fs::remove_file(&plist_path) {
+        log::warn!("Failed to remove {}: {}", plist_path.display(), e);
+        return;
+    }
+
+    match autostart_enable() {
+        Ok(_) => log::info!("Re-registered autostart via SMAppService"),
+        Err(e) => log::warn!("Failed to re-enable autostart after migration: {}", e),
+    }
 }
 
 /// Currently-registered global shortcut for toggling the main panel. Kept
@@ -525,12 +616,9 @@ pub struct SaveSettingsResult {
 }
 
 #[tauri::command]
-fn get_settings(
-    app_handle: tauri::AppHandle,
-    state: tauri::State<'_, Mutex<AppState>>,
-) -> Result<SettingsPayload, String> {
+fn get_settings(state: tauri::State<'_, Mutex<AppState>>) -> Result<SettingsPayload, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let autostart_enabled = app_handle.autolaunch().is_enabled().unwrap_or(false);
+    let autostart_enabled = autostart_is_enabled();
     Ok(SettingsPayload {
         toast_duration_ms: state.config.toast.duration_ms,
         toast_persistent: state.config.toast.persistent,
@@ -665,15 +753,15 @@ fn save_settings(
     #[cfg(target_os = "macos")]
     native_toast::update_settings(payload.toast_duration_ms, payload.toast_persistent);
 
-    // --- Phase 5: autostart (LaunchAgent). Not mirrored in config.toml, so a
-    // failure here is surfaced but does not need a toml rollback. ---
-    let old_autostart = app_handle.autolaunch().is_enabled().unwrap_or(false);
+    // --- Phase 5: autostart (System Events login item). Not mirrored in
+    // config.toml, so a failure here is surfaced but does not need a toml
+    // rollback. ---
+    let old_autostart = autostart_is_enabled();
     if old_autostart != payload.autostart_enabled {
-        let manager = app_handle.autolaunch();
         let result = if payload.autostart_enabled {
-            manager.enable()
+            autostart_enable()
         } else {
-            manager.disable()
+            autostart_disable()
         };
         if let Err(e) = result {
             return Err(format!("Failed to update autostart: {}", e));
@@ -1000,10 +1088,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
-        ))
         .invoke_handler(tauri::generate_handler![
             init_panel,
             hide_panel,
@@ -1059,6 +1143,9 @@ pub fn run() {
             {
                 app_nap::disable_app_nap();
             }
+
+            #[cfg(target_os = "macos")]
+            migrate_legacy_autostart();
 
             let db_path = config::db_path();
             let app_config = config::load_config();

@@ -47,6 +47,7 @@
     "NSURL",
     "objc",
     "opencode",
+    "osascript",
     "pids",
     "pkill",
     "prefs",
