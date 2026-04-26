@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.39.2](https://github.com/shuntaka9576/agentoast/compare/v0.39.1...v0.39.2) - 2026-04-26
+- fix: add link to open System Settings Login Items by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/224
+- perf(settings): defer list_running_apps until search input is used by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/226
+
 ## [v0.39.1](https://github.com/shuntaka9576/agentoast/compare/v0.39.0...v0.39.1) - 2026-04-26
 - fix(deps): update dependency lucide-react to ^1.11.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/221
 - fix: relabel CLI Install as Link and add Saved badge by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/223
