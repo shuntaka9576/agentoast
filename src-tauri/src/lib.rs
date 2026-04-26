@@ -824,6 +824,24 @@ fn open_hook_readme(app_handle: tauri::AppHandle, agent: String) -> Result<(), S
         .map_err(|e| e.to_string())
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn open_login_items_settings(app_handle: tauri::AppHandle) -> Result<(), String> {
+    app_handle
+        .opener()
+        .open_url(
+            "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
+            None::<&str>,
+        )
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn open_login_items_settings(_app_handle: tauri::AppHandle) -> Result<(), String> {
+    Err("Opening Login Items settings is only supported on macOS".to_string())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CliInstallStatus {
@@ -1117,6 +1135,7 @@ pub fn run() {
             get_reserved_shortcuts,
             complete_onboarding,
             open_hook_readme,
+            open_login_items_settings,
             get_cli_install_status,
             install_cli_symlink,
             list_running_apps,
