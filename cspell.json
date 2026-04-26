@@ -64,6 +64,7 @@
     "subviews",
     "staticlib",
     "symbolichotkeys",
+    "systempreferences",
     "tauri",
     "tinyspeck",
     "topo",

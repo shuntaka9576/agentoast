@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Check } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { AppsSetup } from "@/components/apps-setup";
 import { NotificationSetup } from "@/components/notification-setup";
 import type { CliInstallState } from "@/components/notification-setup";
@@ -242,6 +242,18 @@ export function SettingsApp() {
               ariaLabel="Launch at login"
             />
           </SettingsRow>
+          <button
+            type="button"
+            onClick={() => {
+              void invoke("open_login_items_settings").catch((err) => {
+                console.error("Failed to open Login Items settings:", err);
+              });
+            }}
+            className="flex w-full items-center gap-1.5 px-3.5 py-2 text-left text-[11px] text-[var(--accent)] transition-colors hover:bg-[var(--row-hover)]"
+          >
+            <ExternalLink size={12} />
+            <span className="hover:underline">Open Login Items in System Settings</span>
+          </button>
         </SettingsSection>
 
         <section className="mb-5">
