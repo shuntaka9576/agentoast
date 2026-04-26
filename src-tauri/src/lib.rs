@@ -988,10 +988,15 @@ fn complete_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn list_running_apps() -> Result<Vec<apps::RunningApp>, String> {
+async fn list_running_apps() -> Result<Vec<apps::RunningApp>, String> {
+    // Runs on a background blocking thread so the ~2s of NSWorkspace
+    // enumeration + per-app TIFF→PNG icon encoding never freezes the UI
+    // thread (no macOS beach-ball cursor while the dropdown is loading).
     #[cfg(target_os = "macos")]
     {
-        Ok(apps::list_running_apps())
+        tauri::async_runtime::spawn_blocking(apps::list_running_apps)
+            .await
+            .map_err(|e| e.to_string())
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -1038,12 +1043,17 @@ fn activate_app(bundle_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn resolve_app_icons(
+async fn resolve_app_icons(
     bundle_ids: Vec<String>,
 ) -> Result<std::collections::HashMap<String, String>, String> {
+    // Same reasoning as `list_running_apps`: keep AppKit calls off the UI
+    // thread. Even with a small allowlist, encoding icons to PNG can take
+    // tens of milliseconds and we don't want that on the main thread.
     #[cfg(target_os = "macos")]
     {
-        Ok(apps::resolve_app_icons(&bundle_ids))
+        tauri::async_runtime::spawn_blocking(move || apps::resolve_app_icons(&bundle_ids))
+            .await
+            .map_err(|e| e.to_string())
     }
     #[cfg(not(target_os = "macos"))]
     {

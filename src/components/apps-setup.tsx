@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Pencil, Search, Trash2, X } from "lucide-react";
 import type { AllowedApp, RunningApp } from "@/lib/types";
@@ -43,29 +43,31 @@ function fuzzyScore(query: string, text: string): number | null {
 
 export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {
   const [running, setRunning] = useState<RunningApp[]>([]);
-  const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [query, setQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [editingBundleId, setEditingBundleId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const editInputRef = useRef<HTMLInputElement | null>(null);
+  // `list_running_apps` enumerates every running macOS app and base64-encodes
+  // each icon — ~2s on a busy desktop. Defer it until the user actually
+  // interacts with the search input so cold start (where the settings webview
+  // is pre-loaded but invisible) doesn't pay this cost.
+  const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const ensureRunningLoaded = useCallback(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     setStatus({ kind: "loading" });
     invoke<RunningApp[]>("list_running_apps")
       .then((apps) => {
-        if (cancelled) return;
         setRunning(apps);
         setStatus({ kind: "idle" });
       })
       .catch((err) => {
-        if (cancelled) return;
+        fetchedRef.current = false;
         setStatus({ kind: "error", message: String(err) });
       });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const allowedSet = useMemo(() => new Set(allowedApps.map((a) => a.bundleId)), [allowedApps]);
@@ -182,15 +184,21 @@ export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {
           spellCheck={false}
           placeholder="Search apps or paste a bundle ID…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setDropdownOpen(true)}
+          onChange={(e) => {
+            ensureRunningLoaded();
+            setQuery(e.target.value);
+          }}
+          onFocus={() => {
+            ensureRunningLoaded();
+            setDropdownOpen(true);
+          }}
           onBlur={() => {
             // Delay so a mousedown on a dropdown item still registers.
             window.setTimeout(() => setDropdownOpen(false), 120);
           }}
           className="h-7 w-full rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] pl-7 pr-7 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
         />
-        {query && (
+        {query ? (
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -200,11 +208,24 @@ export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {
           >
             <X size={11} />
           </button>
+        ) : (
+          status.kind === "loading" && (
+            <span
+              aria-label="Loading running apps"
+              className="pointer-events-none absolute right-2 top-1/2 inline-block h-3 w-3 -translate-y-1/2 animate-spin rounded-full border border-[var(--border-primary)] border-t-[var(--accent)]"
+            />
+          )
         )}
 
         {dropdownOpen && trimmedQuery && (
           <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] shadow-lg">
-            {results.length === 0 && !showRawFallback && (
+            {status.kind === "loading" && results.length === 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-[var(--text-tertiary)]">
+                <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-[var(--border-primary)] border-t-[var(--accent)]" />
+                Loading running apps…
+              </div>
+            )}
+            {status.kind !== "loading" && results.length === 0 && !showRawFallback && (
               <div className="px-3 py-2 text-[11px] text-[var(--text-tertiary)]">
                 No matching apps.
               </div>
