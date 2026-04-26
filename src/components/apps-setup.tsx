@@ -198,7 +198,7 @@ export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {
           }}
           className="h-7 w-full rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] pl-7 pr-7 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
         />
-        {query && (
+        {query ? (
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -208,11 +208,24 @@ export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {
           >
             <X size={11} />
           </button>
+        ) : (
+          status.kind === "loading" && (
+            <span
+              aria-label="Loading running apps"
+              className="pointer-events-none absolute right-2 top-1/2 inline-block h-3 w-3 -translate-y-1/2 animate-spin rounded-full border border-[var(--border-primary)] border-t-[var(--accent)]"
+            />
+          )
         )}
 
         {dropdownOpen && trimmedQuery && (
           <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-md border border-[var(--border-primary)] bg-[var(--panel-bg)] shadow-lg">
-            {results.length === 0 && !showRawFallback && (
+            {status.kind === "loading" && results.length === 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-[var(--text-tertiary)]">
+                <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-[var(--border-primary)] border-t-[var(--accent)]" />
+                Loading running apps…
+              </div>
+            )}
+            {status.kind !== "loading" && results.length === 0 && !showRawFallback && (
               <div className="px-3 py-2 text-[11px] text-[var(--text-tertiary)]">
                 No matching apps.
               </div>
