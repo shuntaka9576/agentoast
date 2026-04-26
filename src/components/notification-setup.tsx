@@ -65,11 +65,11 @@ function CliBlock(props: NotificationSetupProps) {
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[var(--text-primary)]">
-            Install <code className="font-mono text-xs">agentoast</code> CLI
+            Link <code className="font-mono text-xs">agentoast</code> CLI
           </span>
           {installed ? (
             <span className="rounded-full bg-[rgba(34,197,94,0.15)] px-2 py-0.5 text-[10px] font-medium text-[#22c55e]">
-              Already installed
+              Already linked
             </span>
           ) : (
             <span className="rounded-full bg-[rgba(239,68,68,0.15)] px-2 py-0.5 text-[10px] font-medium text-[var(--delete-hover-text)]">
@@ -78,8 +78,10 @@ function CliBlock(props: NotificationSetupProps) {
           )}
         </div>
         <span className="text-[11px] text-[var(--text-tertiary)]">
-          Hook scripts call <code className="font-mono">agentoast hook</code>, so the CLI must be on
-          your <code className="font-mono">PATH</code>.
+          Creates a symlink at <code className="font-mono">~/.local/bin/agentoast</code> pointing to
+          the bundled binary, so hook scripts can find{" "}
+          <code className="font-mono">agentoast hook</code> on your{" "}
+          <code className="font-mono">PATH</code>.
         </span>
       </div>
 
@@ -88,7 +90,7 @@ function CliBlock(props: NotificationSetupProps) {
           <Toggle
             checked={props.installCli}
             onChange={props.onInstallCliChange}
-            ariaLabel="Install CLI symlink"
+            ariaLabel="Link CLI symlink"
           />
           <span className="text-[12px] text-[var(--text-secondary)]">
             Symlink to <code className="font-mono text-[11px]">~/.local/bin/agentoast</code>
@@ -136,8 +138,8 @@ function SettingsCliControls({
     ? installed
       ? `Linked at ${cliStatus.targetPath}`
       : cliStatus.installed
-        ? `${cliStatus.targetPath} exists but points elsewhere — reinstall to update.`
-        : `Not installed (will create ${cliStatus.targetPath})`
+        ? `${cliStatus.targetPath} exists but points elsewhere — relink to update.`
+        : `Not linked (will create ${cliStatus.targetPath})`
     : "Checking…";
 
   return (
@@ -149,7 +151,7 @@ function SettingsCliControls({
           disabled={installing || cliStatus === null}
           className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[var(--text-faint)] disabled:text-[var(--text-tertiary)] disabled:shadow-none"
         >
-          {installing ? "Installing…" : installed ? "Reinstall" : "Install"}
+          {installing ? "Linking…" : installed ? "Relink" : "Link"}
         </button>
         <span className="text-[11px] text-[var(--text-tertiary)]">{statusHint}</span>
       </div>
@@ -160,7 +162,7 @@ function SettingsCliControls({
       )}
       {cliInstallState.kind === "error" && (
         <span className="text-[11px] text-[var(--delete-hover-text)]">
-          Install failed: {cliInstallState.message}
+          Link failed: {cliInstallState.message}
         </span>
       )}
     </div>

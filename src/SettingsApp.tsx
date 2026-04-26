@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Check } from "lucide-react";
 import { AppsSetup } from "@/components/apps-setup";
 import { NotificationSetup } from "@/components/notification-setup";
 import type { CliInstallState } from "@/components/notification-setup";
@@ -9,6 +10,7 @@ import { SettingsRow, SettingsSection } from "@/components/settings-section";
 import { ShortcutRecorder } from "@/components/shortcut-recorder";
 import { Toggle } from "@/components/toggle";
 import type { AllowedApp } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import type {
   CliInstallResult,
   CliInstallStatus,
@@ -36,6 +38,7 @@ export function SettingsApp() {
   const [cliStatus, setCliStatus] = useState<CliInstallStatus | null>(null);
   const [cliInstallState, setCliInstallState] = useState<CliInstallState>({ kind: "idle" });
   const [allowedApps, setAllowedApps] = useState<AllowedApp[]>([]);
+  const [appsSavedAt, setAppsSavedAt] = useState<number | null>(null);
 
   const refreshCliStatus = useCallback(() => {
     invoke<CliInstallStatus>("get_cli_install_status")
@@ -73,10 +76,21 @@ export function SettingsApp() {
 
   const handleAllowedAppsChange = useCallback((next: AllowedApp[]) => {
     setAllowedApps(next);
-    void invoke("save_apps_allowed_apps", { allowedApps: next }).catch((err) => {
-      console.warn("save_apps_allowed_apps failed:", err);
-    });
+    invoke("save_apps_allowed_apps", { allowedApps: next })
+      .then(() => setAppsSavedAt(Date.now()))
+      .catch((err) => {
+        console.warn("save_apps_allowed_apps failed:", err);
+      });
   }, []);
+
+  // Hide the "Saved" badge 1.5s after the most recent successful save. Each
+  // new save resets the timer (the previous effect's cleanup clears its old
+  // timeout), so rapid edits keep the badge visible until activity stops.
+  useEffect(() => {
+    if (appsSavedAt === null) return;
+    const t = window.setTimeout(() => setAppsSavedAt(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [appsSavedAt]);
 
   const handleInstallCli = async () => {
     setCliInstallState({ kind: "installing" });
@@ -151,8 +165,19 @@ export function SettingsApp() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[var(--panel-bg)] text-[var(--text-primary)]">
+    <div className="relative flex h-screen flex-col bg-[var(--panel-bg)] text-[var(--text-primary)]">
       {showRestartBanner && <RestartBanner onRestart={handleRestart} />}
+
+      <div
+        aria-live="polite"
+        className={cn(
+          "pointer-events-none absolute bottom-14 right-4 z-50 flex items-center gap-1.5 rounded-md border border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.15)] px-2.5 py-1 text-[11px] font-medium text-[#22c55e] shadow-md backdrop-blur-sm transition-opacity duration-300",
+          appsSavedAt !== null ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <Check size={12} strokeWidth={2.5} />
+        Saved
+      </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
         <SettingsSection
@@ -244,7 +269,7 @@ export function SettingsApp() {
               Apps
             </h2>
             <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
-              Pin frequently-used apps so you can switch to them from the panel’s Apps tab.
+              Pin frequently-used apps so you can switch to them from the panel’s Apps view.
             </p>
           </header>
           <AppsSetup allowedApps={allowedApps} onChange={handleAllowedAppsChange} />
