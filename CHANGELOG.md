@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.39.1](https://github.com/shuntaka9576/agentoast/compare/v0.39.0...v0.39.1) - 2026-04-26
+- fix(deps): update dependency lucide-react to ^1.11.0 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/221
+- fix: relabel CLI Install as Link and add Saved badge by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/223
+
 ## [v0.39.0](https://github.com/shuntaka9576/agentoast/compare/v0.38.1...v0.39.0) - 2026-04-25
 - feat: add Apps view launcher to main panel by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/218
 - fix: register Login Item via SMAppService instead of LaunchAgent by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/220
