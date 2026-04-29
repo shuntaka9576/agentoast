@@ -7,6 +7,9 @@ node_modules/
 # Vite
 dist/
 
+# Storybook
+storybook-static/
+
 # Tauri
 src-tauri/target/
 src-tauri/gen/schemas/

@@ -11,11 +11,14 @@
     "src-tauri/gen",
     "src-tauri/icons",
     "CHANGELOG.md",
-    "captures"
+    "captures",
+    "storybook-static"
   ],
   "dictionaries": ["npm", "node", "typescript", "html", "css", "bash", "rust"],
   "words": [
     "agentoast",
+    "addon",
+    "addons",
     "appdir",
     "autolaunch",
     "Backquote",
@@ -25,6 +28,7 @@
     "cfnumber",
     "cfstring",
     "codegen",
+    "docgen",
     "ghostty",
     "googlecode",
     "humantime",
@@ -59,6 +63,7 @@
     "shuntaka",
     "slackmacgap",
     "splitn",
+    "storybook",
     "subcmd",
     "subview",
     "subviews",
