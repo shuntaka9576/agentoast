@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.40.0](https://github.com/shuntaka9576/agentoast/compare/v0.39.2...v0.40.0) - 2026-04-29
+- feat: detect Codex Plan mode from status bar by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/227
+- feat: highlight active repo group with cyan ring by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/230
+- feat: add y shortcut to copy tmux pane prompt to clipboard by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/231
+- fix(deps): update rust crate tauri-plugin-clipboard-manager to 2.3.2 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/232
+
 ## [v0.39.2](https://github.com/shuntaka9576/agentoast/compare/v0.39.1...v0.39.2) - 2026-04-26
 - fix: add link to open System Settings Login Items by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/224
 - perf(settings): defer list_running_apps until search input is used by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/226
