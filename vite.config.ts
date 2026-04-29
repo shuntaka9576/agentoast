@@ -24,7 +24,15 @@ export default defineConfig({
   },
   lint: {
     plugins: ["typescript"],
-    ignorePatterns: ["dist", "target", "node_modules", "src-tauri/gen", "examples"],
+    ignorePatterns: [
+      "dist",
+      "target",
+      "node_modules",
+      "src-tauri/gen",
+      "examples",
+      "storybook-static",
+      ".storybook",
+    ],
     options: {
       typeAware: true,
     },

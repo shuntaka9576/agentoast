@@ -8,7 +8,9 @@
     "build": "tsc && vp build",
     "preview": "vp preview",
     "tauri": "tauri",
-    "postinstall": "lefthook install"
+    "postinstall": "lefthook install",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build -o storybook-static"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
@@ -24,6 +26,9 @@
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^10",
+    "@storybook/addon-docs": "^10",
+    "@storybook/react-vite": "^10",
     "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
@@ -31,6 +36,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "cspell": "^10.0.0",
     "lefthook": "^2.1.6",
+    "storybook": "^10",
     "typescript": "~6.0.3",
     "vite-plus": "^0.1.19"
   }
