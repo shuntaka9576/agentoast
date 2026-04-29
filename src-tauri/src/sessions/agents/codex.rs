@@ -2,11 +2,18 @@ use agentoast_shared::{db, models::AgentStatus};
 
 use super::{is_numbered_option, AgentDetectionResult};
 
+/// Codex mode detection patterns: (substring to match in status bar, label for frontend)
+/// Status bar example (Codex v0.125.0+):
+///   "gpt-5.5 medium · ~/path  Plan mode (shift+tab to cycle)"
+/// Default mode is intentionally not labeled (matches other agents' convention).
+const CODEX_MODE_PATTERNS: &[(&str, &str)] = &[("Plan mode (", "plan")];
+
 struct CodexPaneContentInfo {
     is_running: bool,          // "(XXs • esc to interrupt)" pattern
     has_question_dialog: bool, // "enter to submit answer" in question dialog footer
     has_plan_approval: bool,   // "enter to confirm" in plan approval footer
     at_prompt: bool,           // › (U+203A) prompt character
+    agent_modes: Vec<String>,  // "plan" when Plan mode indicator is present
 }
 
 pub(super) fn detect_codex_status(
@@ -47,11 +54,11 @@ pub(super) fn detect_codex_status(
         (AgentStatus::Running, None)
     };
 
-    // Codex has no mode indicators (plan/bypass/accept) or Agent Teams support
+    // Codex supports Plan mode; Agent Teams not supported.
     AgentDetectionResult {
         status,
         waiting_reason,
-        agent_modes: Vec::new(),
+        agent_modes: info.agent_modes,
         team_role: None,
         team_name: None,
     }
@@ -63,6 +70,7 @@ fn check_codex_pane_content(pane_id: &str, content: Option<&str>) -> CodexPaneCo
         has_question_dialog: false,
         has_plan_approval: false,
         at_prompt: false,
+        agent_modes: Vec::new(),
     };
 
     let content = match content {
@@ -133,11 +141,31 @@ fn check_codex_pane_content(pane_id: &str, content: Option<&str>) -> CodexPaneCo
         );
     }
 
+    // Mode detection: scan only the bottom ~7 lines (status bar area) to avoid
+    // matching "Plan mode (" in conversation text or user input.
+    let mut agent_modes: Vec<String> = Vec::new();
+    let status_area = &last_lines[..last_lines.len().min(7)];
+    for line in status_area {
+        let trimmed = line.trim();
+        for &(pattern, label) in CODEX_MODE_PATTERNS {
+            if !agent_modes.iter().any(|m| m == label) && trimmed.contains(pattern) {
+                log::debug!(
+                    "check_codex_pane_content({}): mode '{}' detected: {:?}",
+                    pane_id,
+                    label,
+                    trimmed
+                );
+                agent_modes.push(label.to_string());
+            }
+        }
+    }
+
     CodexPaneContentInfo {
         is_running,
         has_question_dialog,
         has_plan_approval,
         at_prompt,
+        agent_modes,
     }
 }
 
