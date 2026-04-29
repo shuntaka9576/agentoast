@@ -61,8 +61,15 @@ export function RepoGroup({
   const idleCount = paneItems.filter((pi) => pi.pane.agentStatus === "idle").length;
   const waitingCount = paneItems.filter((pi) => pi.pane.agentStatus === "waiting").length;
 
+  const isGroupActive =
+    isHeaderSelected ||
+    (selectedPaneId !== null && paneItems.some((pi) => pi.pane.paneId === selectedPaneId));
+
   return (
-    <div className="border-b border-[var(--border-subtle)] last:border-b-0">
+    <div
+      className="border-b border-[var(--border-subtle)] last:border-b-0"
+      style={isGroupActive ? { boxShadow: "var(--group-selection-ring)" } : undefined}
+    >
       <button
         tabIndex={-1}
         data-nav-index={headerNavIndex}
@@ -85,7 +92,14 @@ export function RepoGroup({
           ) : (
             <Folder size={13} className="text-[var(--text-tertiary)]" />
           )}
-          <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
+          <span
+            className={cn(
+              "text-xs truncate flex-1",
+              isGroupActive
+                ? "font-semibold text-[var(--text-primary)]"
+                : "font-medium text-[var(--text-secondary)]",
+            )}
+          >
             {repoName}
           </span>
           <button
@@ -116,7 +130,14 @@ export function RepoGroup({
         {/* Line 2: branch */}
         {gitBranch && (
           <div className="flex items-center pl-[33px] mt-0.5">
-            <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] truncate">
+            <span
+              className={cn(
+                "flex items-center gap-0.5 text-[10px] truncate",
+                isGroupActive
+                  ? "font-medium text-[var(--text-secondary)]"
+                  : "text-[var(--text-muted)]",
+              )}
+            >
               <GitBranch size={10} className="flex-shrink-0" />
               {gitBranch}
             </span>
