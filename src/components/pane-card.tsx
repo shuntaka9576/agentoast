@@ -9,6 +9,7 @@ interface PaneCardProps {
   isNew?: boolean;
   isSelected?: boolean;
   isAutoExpanded?: boolean;
+  copied?: boolean;
   navIndex?: number;
   statusReady?: boolean;
   onDeleteNotification: (id: number) => void;
@@ -69,6 +70,7 @@ export function PaneCard({
   isNew,
   isSelected,
   isAutoExpanded,
+  copied,
   navIndex,
   statusReady = true,
   onDeleteNotification,
@@ -107,6 +109,11 @@ export function PaneCard({
       style={isSelected ? { boxShadow: "var(--selection-ring)" } : undefined}
       onClick={handleClick}
     >
+      {copied && (
+        <span className="absolute top-1 right-2 text-[10px] text-green-500 font-medium pointer-events-none">
+          ✓ Copied
+        </span>
+      )}
       <div className="flex items-start gap-2.5">
         <div className="flex-shrink-0 mt-0.5">
           {pane.agentType || notification ? (

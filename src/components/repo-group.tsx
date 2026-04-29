@@ -28,6 +28,7 @@ interface RepoGroupProps {
   selectedPaneId: string | null;
   flatItems: FlatItem[];
   autoExpandedPaneId: string | null;
+  recentlyCopiedPaneId: string | null;
   statusReady: boolean;
   onDeleteNotification: (id: number) => void;
   onDeleteByPanes: (paneIds: string[]) => void;
@@ -49,6 +50,7 @@ export function RepoGroup({
   selectedPaneId,
   flatItems,
   autoExpandedPaneId,
+  recentlyCopiedPaneId,
   statusReady,
   onDeleteNotification,
   onDeleteByPanes,
@@ -176,6 +178,7 @@ export function RepoGroup({
           selectedId={selectedId}
           selectedPaneId={selectedPaneId}
           autoExpandedPaneId={autoExpandedPaneId}
+          recentlyCopiedPaneId={recentlyCopiedPaneId}
           statusReady={statusReady}
           onDeleteNotification={onDeleteNotification}
         />
@@ -191,6 +194,7 @@ interface ExpandedPanesProps {
   selectedId: number | null;
   selectedPaneId: string | null;
   autoExpandedPaneId: string | null;
+  recentlyCopiedPaneId: string | null;
   statusReady: boolean;
   onDeleteNotification: (id: number) => void;
 }
@@ -202,6 +206,7 @@ function ExpandedPanes({
   selectedId,
   selectedPaneId,
   autoExpandedPaneId,
+  recentlyCopiedPaneId,
   statusReady,
   onDeleteNotification,
 }: ExpandedPanesProps) {
@@ -230,6 +235,7 @@ function ExpandedPanes({
       pi.pane.paneId === selectedPaneId ||
       (pi.notification !== null && pi.notification.id === selectedId);
     const isAutoExpanded = pi.pane.paneId === autoExpandedPaneId;
+    const isCopied = pi.pane.paneId === recentlyCopiedPaneId;
     return (
       <PaneCard
         key={`pane-${pi.pane.paneId}`}
@@ -237,6 +243,7 @@ function ExpandedPanes({
         isNew={pi.notification !== null && newIds.has(pi.notification.id)}
         isSelected={isSelected}
         isAutoExpanded={isAutoExpanded}
+        copied={isCopied}
         navIndex={navIndex}
         statusReady={statusReady}
         onDeleteNotification={onDeleteNotification}

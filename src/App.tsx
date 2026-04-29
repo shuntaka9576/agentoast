@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useMute } from "@/hooks/use-mute";
 import { useSessions } from "@/hooks/use-sessions";
@@ -41,6 +42,8 @@ export function App() {
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const [autoExpandedPaneId, setAutoExpandedPaneId] = useState<string | null>(null);
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [recentlyCopiedPaneId, setRecentlyCopiedPaneId] = useState<string | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needFetchVersionRef = useRef(-1);
   const repositionCancelledRef = useRef(false);
@@ -720,6 +723,23 @@ export function App() {
         });
         break;
       }
+      case "y": {
+        if (showHelp || e.shiftKey) break;
+        e.preventDefault();
+        const resolvedIdx = indexOfKey(flatItems, selectedKeyRef.current);
+        const item = resolvedIdx >= 0 ? flatItems[resolvedIdx] : undefined;
+        if (!item || item.type !== "pane-item") break;
+        const paneId = item.paneItem.pane.paneId;
+        void writeText(`Please take a look at tmux pane ${paneId}.`).then(() => {
+          setRecentlyCopiedPaneId(paneId);
+          if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+          copiedTimerRef.current = setTimeout(() => {
+            setRecentlyCopiedPaneId(null);
+            copiedTimerRef.current = null;
+          }, 1000);
+        });
+        break;
+      }
       case "Tab": {
         if (showHelp) break;
         e.preventDefault();
@@ -836,6 +856,7 @@ export function App() {
                     selectedPaneId={selectedPaneId}
                     flatItems={flatItems}
                     autoExpandedPaneId={autoExpandedPaneId}
+                    recentlyCopiedPaneId={recentlyCopiedPaneId}
                     statusReady={statusReady}
                     onDeleteNotification={(id) => void deleteNotification(id)}
                     onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
