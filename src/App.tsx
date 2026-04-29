@@ -11,8 +11,10 @@ import { PanelHeader } from "@/components/panel-header";
 import { AppsView } from "@/components/apps-view";
 import { RepoGroup } from "@/components/repo-group";
 import { KeybindHelp } from "@/components/keybind-help";
+import { EasyMotionGrid } from "@/components/easy-motion-grid";
 import { Bell } from "lucide-react";
 import type { Notification, PanelView, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
+import { assignLabels } from "@/lib/easy-motion-labels";
 
 export function App() {
   const { notifications, loading, deleteNotification, deleteByPanes, deleteAll, newIds } =
@@ -38,6 +40,9 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [filterNotifiedOnly, setFilterNotifiedOnly] = useState(false);
   const [showNonAgentPanes, setShowNonAgentPanes] = useState(false);
+  const [easyMotion, setEasyMotion] = useState<EasyMotionState>({ active: false });
+  // Labels are assigned only to panes fully inside the viewport. null = unmeasured.
+  const [easyMotionVisibleIds, setEasyMotionVisibleIds] = useState<Set<string> | null>(null);
   const [manuallyToggledGroups, setManuallyToggledGroups] = useState<Set<string>>(new Set());
   const [autoExpandedPaneId, setAutoExpandedPaneId] = useState<string | null>(null);
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -347,6 +352,8 @@ export function App() {
       // Always start on the main view — the apps view is a one-shot launcher.
       setActiveView("main");
       setAppsSelectedIndex(0);
+      setEasyMotion({ active: false });
+      setEasyMotionVisibleIds(null);
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -516,6 +523,56 @@ export function App() {
     });
   }, []);
 
+  // Easy-motion: only running / waiting / notified panes are jump targets.
+  // Idle-without-notification panes are hidden from the grid so the screen
+  // stays compact and labels never run out within the panel viewport.
+  const easyMotionGroups = useMemo(() => {
+    const result: UnifiedGroup[] = [];
+    for (const ug of displayGroups) {
+      const filtered = ug.paneItems.filter(isEasyMotionTarget);
+      if (filtered.length === 0) continue;
+      result.push({ ...ug, paneItems: filtered });
+    }
+    return result;
+  }, [displayGroups]);
+
+  const easyMotionTargets = useMemo(() => {
+    const targets: PaneItem[] = [];
+    for (const ug of easyMotionGroups) {
+      for (const pi of ug.paneItems) {
+        targets.push(pi);
+      }
+    }
+    return targets;
+  }, [easyMotionGroups]);
+
+  // Only panes inside the viewport receive a label. While visibleIds is
+  // still null (unmeasured), tiles render without labels; once
+  // useLayoutEffect finishes measuring, a re-render fills them in.
+  // Pre-labeling all tiles before measurement would briefly flash labels
+  // onto off-screen tiles, so we deliberately keep the map empty until then.
+  const easyMotionLabels = useMemo(() => {
+    if (easyMotionVisibleIds === null) {
+      return new Map<string, string>();
+    }
+    const visibleTargets = easyMotionTargets.filter((pi) =>
+      easyMotionVisibleIds.has(pi.pane.paneId),
+    );
+    const labels = assignLabels(visibleTargets.length);
+    const map = new Map<string, string>();
+    visibleTargets.forEach((pi, i) => {
+      map.set(pi.pane.paneId, labels[i] ?? "");
+    });
+    return map;
+  }, [easyMotionTargets, easyMotionVisibleIds]);
+
+  const easyMotionRef = useRef(easyMotion);
+  easyMotionRef.current = easyMotion;
+  const easyMotionTargetsRef = useRef(easyMotionTargets);
+  easyMotionTargetsRef.current = easyMotionTargets;
+  const easyMotionLabelsRef = useRef(easyMotionLabels);
+  easyMotionLabelsRef.current = easyMotionLabels;
+
   const activateAppByBundleId = useCallback((bundleId: string) => {
     void invoke("activate_app", { bundleId }).catch((err) => {
       // Activation can fail when the app is no longer running — keep the
@@ -528,6 +585,50 @@ export function App() {
   // Keyboard navigation — ref callback pattern for stable listener
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keyHandlerRef.current = (e: KeyboardEvent) => {
+    // Easy-motion mode swallows everything: Esc cancels, label match jumps,
+    // single-char keys advance/match labels. Other keys are ignored so the
+    // user can recover by pressing Esc.
+    const em = easyMotionRef.current;
+    if (em.active) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEasyMotion({ active: false });
+        setEasyMotionVisibleIds(null);
+        return;
+      }
+      if (e.key.length !== 1) return;
+      e.preventDefault();
+      const next = em.prefix + e.key;
+      const labels = easyMotionLabelsRef.current;
+      const targets = easyMotionTargetsRef.current;
+
+      // Exact match → jump.
+      for (const [paneId, label] of labels) {
+        if (label === next) {
+          const target = targets.find((pi) => pi.pane.paneId === paneId);
+          if (target) {
+            setEasyMotion({ active: false });
+            setEasyMotionVisibleIds(null);
+            void invoke("hide_panel");
+            activatePaneItem(target);
+          }
+          return;
+        }
+      }
+      // Prefix match for two-char labels → advance prefix.
+      let hasPrefix = false;
+      for (const label of labels.values()) {
+        if (label.length === 2 && label.startsWith(next)) {
+          hasPrefix = true;
+          break;
+        }
+      }
+      if (hasPrefix) {
+        setEasyMotion({ active: true, prefix: next });
+      }
+      return;
+    }
+
     // Apps view has its own (much smaller) navigation surface. Handle it
     // inline so the main-view branch below stays focused on the unified
     // group/pane list.
@@ -590,6 +691,15 @@ export function App() {
         setAppsSelectedIndex(0);
         setActiveView("apps");
         break;
+      case "e": {
+        if (showHelp) break;
+        e.preventDefault();
+        if (easyMotionTargetsRef.current.length > 0) {
+          setEasyMotionVisibleIds(null);
+          setEasyMotion({ active: true, prefix: "" });
+        }
+        break;
+      }
       case "j":
         if (showHelp) break;
         e.preventDefault();
@@ -806,6 +916,13 @@ export function App() {
                 onActivate={activateAppByBundleId}
               />
             </div>
+          ) : easyMotion.active ? (
+            <EasyMotionGrid
+              groups={easyMotionGroups}
+              labels={easyMotionLabels}
+              prefix={easyMotion.prefix}
+              onVisibilityComputed={setEasyMotionVisibleIds}
+            />
           ) : (
             <div className="h-full overflow-y-auto" ref={scrollContainerRef}>
               {loading ? (
@@ -865,6 +982,19 @@ export function App() {
 }
 
 type SelectedKey = { kind: "pane"; paneId: string } | { kind: "group"; groupKey: string };
+
+// easy-motion only targets running / waiting / notified panes. Fully idle
+// panes are excluded and not rendered at all in mode so the screen stays
+// compact.
+function isEasyMotionTarget(pi: PaneItem): boolean {
+  return (
+    pi.pane.agentStatus === "running" ||
+    pi.pane.agentStatus === "waiting" ||
+    pi.notification !== null
+  );
+}
+
+type EasyMotionState = { active: false } | { active: true; prefix: string };
 
 function keyFromItem(f: FlatItem): SelectedKey {
   if (f.type === "group-header") {
