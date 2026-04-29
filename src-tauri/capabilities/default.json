@@ -15,6 +15,7 @@
     "opener:default",
     "global-shortcut:default",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "clipboard-manager:allow-write-text"
   ]
 }
