@@ -5,6 +5,7 @@
   "dependencyDashboard": false,
   "ignoreTests": true,
   "automerge": false,
+  "labels": ["dependencies"],
   "major": {
     "enabled": true
   },
