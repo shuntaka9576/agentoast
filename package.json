@@ -14,30 +14,30 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
-    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.12.0",
+    "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
-    "@storybook/addon-a11y": "^10.3.5",
-    "@storybook/addon-docs": "^10.3.5",
-    "@storybook/react-vite": "^10.3.5",
-    "@tauri-apps/cli": "^2.10.1",
+    "@storybook/addon-a11y": "^10.3.6",
+    "@storybook/addon-docs": "^10.3.6",
+    "@storybook/react-vite": "^10.3.6",
+    "@tauri-apps/cli": "^2.11.0",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "cspell": "^10.0.0",
     "lefthook": "^2.1.6",
-    "storybook": "^10.3.5",
+    "storybook": "^10.3.6",
     "typescript": "~6.0.3",
-    "vite-plus": "^0.1.19"
+    "vite-plus": "^0.1.20"
   }
 }
