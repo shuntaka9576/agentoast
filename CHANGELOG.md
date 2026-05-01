@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.41.0](https://github.com/shuntaka9576/agentoast/compare/v0.40.0...v0.41.0) - 2026-05-01
+- feat: add gg/G keyboard shortcuts for top/bottom jump by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/238
+
 ## [v0.40.0](https://github.com/shuntaka9576/agentoast/compare/v0.39.2...v0.40.0) - 2026-04-29
 - feat: detect Codex Plan mode from status bar by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/227
 - feat: highlight active repo group with cyan ring by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/230
