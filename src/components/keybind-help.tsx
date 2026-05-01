@@ -5,6 +5,8 @@ interface KeybindHelpProps {
 const KEYBINDS = [
   { key: "j", action: "Next" },
   { key: "k", action: "Previous" },
+  { key: "gg", action: "Jump to top" },
+  { key: "G", action: "Jump to bottom" },
   { key: "Enter", action: "Open / Fold" },
   { key: "a", action: "Apps view" },
   { key: "d", action: "Delete notif" },

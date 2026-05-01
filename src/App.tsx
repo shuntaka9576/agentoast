@@ -48,6 +48,7 @@ export function App() {
   const needFetchVersionRef = useRef(-1);
   const repositionCancelledRef = useRef(false);
   const pendingJumpToActiveRef = useRef(false);
+  const gPressedAtRef = useRef(0);
   const fetchVersionRef = useRef(fetchVersion);
   fetchVersionRef.current = fetchVersion;
 
@@ -568,6 +569,27 @@ export function App() {
             if (target) activateAppByBundleId(target.bundleId);
           }
           return;
+        case "g":
+          if (showHelp || e.shiftKey) return;
+          e.preventDefault();
+          {
+            const now = Date.now();
+            if (now - gPressedAtRef.current < 500) {
+              gPressedAtRef.current = 0;
+              if (allowedApps.length > 0) setAppsSelectedIndex(0);
+            } else {
+              gPressedAtRef.current = now;
+            }
+          }
+          return;
+        case "G":
+          if (showHelp) return;
+          e.preventDefault();
+          gPressedAtRef.current = 0;
+          if (allowedApps.length > 0) {
+            setAppsSelectedIndex(allowedApps.length - 1);
+          }
+          return;
         default:
           // Apps view swallows other keys so main-view shortcuts (d/D/C/E/F/T/Tab)
           // don't fire while the user is browsing pinned apps.
@@ -738,6 +760,31 @@ export function App() {
             copiedTimerRef.current = null;
           }, 1000);
         });
+        break;
+      }
+      case "g": {
+        if (showHelp || e.shiftKey) break;
+        e.preventDefault();
+        const now = Date.now();
+        if (now - gPressedAtRef.current < 500) {
+          gPressedAtRef.current = 0;
+          repositionCancelledRef.current = true;
+          if (flatItems.length > 0) {
+            setSelectedKey(keyFromItem(flatItems[0]));
+          }
+        } else {
+          gPressedAtRef.current = now;
+        }
+        break;
+      }
+      case "G": {
+        if (showHelp) break;
+        e.preventDefault();
+        gPressedAtRef.current = 0;
+        repositionCancelledRef.current = true;
+        if (flatItems.length > 0) {
+          setSelectedKey(keyFromItem(flatItems[flatItems.length - 1]));
+        }
         break;
       }
       case "Tab": {
