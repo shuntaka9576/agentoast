@@ -3,3 +3,4 @@ changelog:
     labels:
       - tagpr
       - dependencies
+      - skip-changelog

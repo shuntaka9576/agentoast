@@ -3,6 +3,8 @@ kind: Repository
 metadata:
   name: agentoast
   owner: shuntaka9576
+reconcile:
+  labels: authoritative
 spec:
   description: 🍞 Toast notifications from AI coding agents on your macOS menu bar, with tmux pane switching
   visibility: public
@@ -16,6 +18,16 @@ spec:
     - opencode
     - tmux
     - claude-ai
+  labels:
+    - name: dependencies
+      color: ededed
+    - name: skip-changelog
+      description: Exclude this PR from release notes
+      color: ededed
+    - name: tagpr
+      color: ededed
+    - name: tagpr:minor
+      color: E5B39C
   features:
     issues: true
     projects: true
