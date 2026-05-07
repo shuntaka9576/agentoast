@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Pencil, Search, Trash2, X } from "lucide-react";
+import { fuzzyScore } from "@/lib/fuzzy";
 import type { AllowedApp, RunningApp } from "@/lib/types";
 
 interface AppsSetupProps {
@@ -15,30 +16,6 @@ interface Candidate {
   name: string;
   iconDataUrl?: string;
   running: boolean;
-}
-
-/**
- * Subsequence-based fuzzy match: every character of `query` must appear in
- * `text` in order (case-insensitive). Returns a score (lower = better) when
- * matched, or `null` when not. Score combines the match-window length and
- * the index of the first hit so that earlier / tighter matches rank higher.
- */
-function fuzzyScore(query: string, text: string): number | null {
-  if (!query) return 0;
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  let qi = 0;
-  let firstHit = -1;
-  let lastHit = -1;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      if (firstHit < 0) firstHit = ti;
-      lastHit = ti;
-      qi++;
-    }
-  }
-  if (qi !== q.length) return null;
-  return (lastHit - firstHit) * 100 + firstHit;
 }
 
 export function AppsSetup({ allowedApps, onChange }: AppsSetupProps) {

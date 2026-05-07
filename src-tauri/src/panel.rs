@@ -13,7 +13,8 @@ tauri_panel! {
     })
 
     panel_event!(AgentNotifyPanelEventHandler {
-        window_did_resign_key(notification: &NSNotification) -> ()
+        window_did_resign_key(notification: &NSNotification) -> (),
+        window_should_close(window: &NSWindow) -> Bool
     })
 }
 
@@ -46,6 +47,11 @@ pub fn init(app_handle: &tauri::AppHandle) -> tauri::Result<()> {
             panel.hide();
         }
     });
+    // Block NSPanel's default Esc → cancelOperation: → performClose: → close
+    // path. Hiding always goes through `panel.hide()` (orderOut:), so blocking
+    // close has no functional cost — but stops the panel from disappearing when
+    // the user presses Esc inside the SearchBar input.
+    event_handler.window_should_close(|_window| Bool::new(false));
 
     panel.set_event_handler(Some(event_handler.as_ref()));
 

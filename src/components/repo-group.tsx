@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { PaneItem, FlatItem } from "@/lib/types";
 import { PaneCard } from "./pane-card";
+import { HighlightText } from "./highlight-text";
 
 interface RepoGroupProps {
   groupKey: string;
@@ -30,6 +31,7 @@ interface RepoGroupProps {
   autoExpandedPaneId: string | null;
   recentlyCopiedPaneId: string | null;
   statusReady: boolean;
+  highlightQuery: string;
   onDeleteNotification: (id: number) => void;
   onDeleteByPanes: (paneIds: string[]) => void;
   onToggleRepoMute: (repoPath: string) => void;
@@ -52,6 +54,7 @@ export function RepoGroup({
   autoExpandedPaneId,
   recentlyCopiedPaneId,
   statusReady,
+  highlightQuery,
   onDeleteNotification,
   onDeleteByPanes,
   onToggleRepoMute,
@@ -102,7 +105,7 @@ export function RepoGroup({
                 : "font-medium text-[var(--text-secondary)]",
             )}
           >
-            {repoName}
+            <HighlightText text={repoName} query={highlightQuery} />
           </span>
           <button
             tabIndex={-1}
@@ -141,7 +144,7 @@ export function RepoGroup({
               )}
             >
               <GitBranch size={10} className="flex-shrink-0" />
-              {gitBranch}
+              <HighlightText text={gitBranch} query={highlightQuery} />
             </span>
           </div>
         )}

@@ -16,6 +16,9 @@ const KEYBINDS = [
   { key: "F", action: "Filter action needed" },
   { key: "T", action: "Toggle non-agent panes" },
   { key: "y", action: "Copy pane prompt" },
+  { key: "/", action: "Search repos" },
+  { key: "n", action: "Next match" },
+  { key: "N", action: "Prev match" },
   { key: "Esc", action: "Close" },
   { key: "?", action: "Help" },
 ] as const;
