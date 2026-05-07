@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.42.0](https://github.com/shuntaka9576/agentoast/compare/v0.41.0...v0.42.0) - 2026-05-07
+- feat: add vim-style fuzzy search to main panel by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/243
+
 ## [v0.41.0](https://github.com/shuntaka9576/agentoast/compare/v0.40.0...v0.41.0) - 2026-05-01
 - feat: add gg/G keyboard shortcuts for top/bottom jump by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/238
 
