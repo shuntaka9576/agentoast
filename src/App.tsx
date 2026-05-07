@@ -12,7 +12,9 @@ import { PanelHeader } from "@/components/panel-header";
 import { AppsView } from "@/components/apps-view";
 import { RepoGroup } from "@/components/repo-group";
 import { KeybindHelp } from "@/components/keybind-help";
+import { SearchBar } from "@/components/search-bar";
 import { Bell } from "lucide-react";
+import { fuzzyScore } from "@/lib/fuzzy";
 import type { Notification, PanelView, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
 
 export function App() {
@@ -44,6 +46,11 @@ export function App() {
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentlyCopiedPaneId, setRecentlyCopiedPaneId] = useState<string | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCursor, setSearchCursor] = useState(0);
+  const savedKeyBeforeSearchRef = useRef<SelectedKey | null>(null);
 
   const needFetchVersionRef = useRef(-1);
   const repositionCancelledRef = useRef(false);
@@ -321,6 +328,61 @@ export function App() {
     return result;
   }, [displayGroups, collapsedGroups]);
 
+  // Group-header indices in document order so n/N traverse linearly, vim style.
+  const searchMatches = useMemo(() => {
+    const q = searchQuery.trim();
+    if (q === "") return [] as number[];
+    const out: number[] = [];
+    const groupByKey = new Map<string, UnifiedGroup>();
+    for (const ug of displayGroups) groupByKey.set(ug.groupKey, ug);
+    for (let i = 0; i < flatItems.length; i++) {
+      const item = flatItems[i];
+      if (item.type !== "group-header") continue;
+      const ug = groupByKey.get(item.groupKey);
+      if (!ug) continue;
+      const target = `${ug.repoName} ${ug.gitBranch ?? ""}`.trim();
+      if (fuzzyScore(q, target) !== null) out.push(i);
+    }
+    return out;
+  }, [searchQuery, flatItems, displayGroups]);
+
+  useEffect(() => {
+    if (searchMatches.length === 0) {
+      if (searchCursor !== 0) setSearchCursor(0);
+      return;
+    }
+    if (searchCursor >= searchMatches.length) setSearchCursor(0);
+  }, [searchMatches, searchCursor]);
+
+  // Group keys whose header matched the query — scopes HighlightText so
+  // non-matching groups don't show stray amber spans.
+  const matchedGroupKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const idx of searchMatches) {
+      const item = flatItems[idx];
+      if (item?.type === "group-header") set.add(item.groupKey);
+    }
+    return set;
+  }, [searchMatches, flatItems]);
+
+  // Read latest matches/items via refs so this effect only fires on query
+  // change — subscribing to flatItems would reset the cursor on every poll.
+  const searchMatchesRef = useRef(searchMatches);
+  searchMatchesRef.current = searchMatches;
+  const flatItemsRef = useRef(flatItems);
+  flatItemsRef.current = flatItems;
+  useEffect(() => {
+    if (!searchActive) return;
+    const matches = searchMatchesRef.current;
+    if (matches.length === 0) return;
+    setSearchCursor(0);
+    const target = flatItemsRef.current[matches[0]];
+    if (target) {
+      repositionCancelledRef.current = true;
+      setSelectedKey(keyFromItem(target));
+    }
+  }, [searchQuery, searchActive]);
+
   // Resolve the numeric index of the currently-selected key. Falls back to the
   // last known index (clamped) when the key disappears so the cursor stays near
   // its old position instead of snapping to the top or activating a random item.
@@ -341,6 +403,32 @@ export function App() {
     return clamped;
   }, [flatItems, selectedKey]);
 
+  // Esc routing — the Rust side intercepts Esc at the AppKit local-monitor
+  // layer and re-delivers it as `panel:esc`. The native event never reaches
+  // WebKit, so all Esc semantics inside the panel funnel through here.
+  const handleEscRef = useRef<() => void>(() => {});
+  handleEscRef.current = () => {
+    if (showHelp) {
+      setShowHelp(false);
+      return;
+    }
+    if (searchActive) {
+      cancelSearch();
+      return;
+    }
+    if (activeView === "apps") {
+      setActiveView("main");
+      return;
+    }
+    void invoke("hide_panel");
+  };
+  useEffect(() => {
+    const unlisten = listen("panel:esc", () => handleEscRef.current());
+    return () => {
+      unlisten.then((f) => f()).catch(() => {});
+    };
+  }, []);
+
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("panel:shown", () => {
@@ -351,6 +439,11 @@ export function App() {
       // Always start on the main view — the apps view is a one-shot launcher.
       setActiveView("main");
       setAppsSelectedIndex(0);
+      // Search state is per-session — clear it on every panel show.
+      setSearchActive(false);
+      setSearchQuery("");
+      setSearchCursor(0);
+      savedKeyBeforeSearchRef.current = null;
     });
     return () => {
       unlisten.then((f) => f()).catch(() => {});
@@ -508,6 +601,31 @@ export function App() {
     }
   }, [autoExpandedPaneId, selectedIndex]);
 
+  const cancelSearch = useCallback(() => {
+    setSearchActive(false);
+    setSearchQuery("");
+    setSearchCursor(0);
+    if (savedKeyBeforeSearchRef.current) {
+      repositionCancelledRef.current = true;
+      setSelectedKey(savedKeyBeforeSearchRef.current);
+      savedKeyBeforeSearchRef.current = null;
+    }
+  }, []);
+
+  const jumpToMatch = useCallback(
+    (direction: 1 | -1) => {
+      const matches = searchMatches;
+      if (matches.length === 0) return;
+      const next = (searchCursor + direction + matches.length) % matches.length;
+      const target = flatItems[matches[next]];
+      if (!target) return;
+      repositionCancelledRef.current = true;
+      setSearchCursor(next);
+      setSelectedKey(keyFromItem(target));
+    },
+    [searchMatches, searchCursor, flatItems],
+  );
+
   const activatePaneItem = useCallback((paneItem: PaneItem) => {
     if (paneItem.notification) {
       void invoke("delete_notifications_by_pane", {
@@ -529,9 +647,14 @@ export function App() {
     void invoke("hide_panel");
   }, []);
 
-  // Keyboard navigation — ref callback pattern for stable listener
+  // Keyboard navigation — ref callback pattern for stable listener.
+  // Esc is intercepted at the AppKit level and re-delivered via `panel:esc`
+  // (handled by handleEscRef above), so this handler never sees it.
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keyHandlerRef.current = (e: KeyboardEvent) => {
+    // While the search input is mounted, swallow keystrokes so j/k/d don't
+    // fire underneath the typing cursor.
+    if (searchActive) return;
     // Apps view has its own (much smaller) navigation surface. Handle it
     // inline so the main-view branch below stays focused on the unified
     // group/pane list.
@@ -540,14 +663,6 @@ export function App() {
         case "?":
           e.preventDefault();
           setShowHelp((prev) => !prev);
-          return;
-        case "Escape":
-          e.preventDefault();
-          if (showHelp) {
-            setShowHelp(false);
-          } else {
-            void invoke("hide_panel");
-          }
           return;
         case "j":
           if (showHelp) return;
@@ -600,14 +715,6 @@ export function App() {
       case "?":
         e.preventDefault();
         setShowHelp((prev) => !prev);
-        break;
-      case "Escape":
-        e.preventDefault();
-        if (showHelp) {
-          setShowHelp(false);
-        } else {
-          void invoke("hide_panel");
-        }
         break;
       case "a":
         if (showHelp) break;
@@ -806,6 +913,29 @@ export function App() {
         }
         break;
       }
+      case "/": {
+        if (showHelp) break;
+        e.preventDefault();
+        savedKeyBeforeSearchRef.current = selectedKeyRef.current;
+        setSearchQuery("");
+        setSearchCursor(0);
+        setSearchActive(true);
+        break;
+      }
+      case "n": {
+        if (showHelp || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) break;
+        if (searchMatches.length === 0) break;
+        e.preventDefault();
+        jumpToMatch(1);
+        break;
+      }
+      case "N": {
+        if (showHelp || e.metaKey || e.ctrlKey || e.altKey) break;
+        if (searchMatches.length === 0) break;
+        e.preventDefault();
+        jumpToMatch(-1);
+        break;
+      }
     }
   };
   useEffect(() => {
@@ -905,6 +1035,7 @@ export function App() {
                     autoExpandedPaneId={autoExpandedPaneId}
                     recentlyCopiedPaneId={recentlyCopiedPaneId}
                     statusReady={statusReady}
+                    highlightQuery={matchedGroupKeys.has(ug.groupKey) ? searchQuery : ""}
                     onDeleteNotification={(id) => void deleteNotification(id)}
                     onDeleteByPanes={(paneIds) => void deleteByPanes(paneIds)}
                     onToggleRepoMute={(path) => void toggleRepoMute(path)}
@@ -915,7 +1046,7 @@ export function App() {
             </div>
           )}
           {showHelp && <KeybindHelp onClose={() => setShowHelp(false)} />}
-          {!showHelp && (
+          {!showHelp && !searchActive && (
             <button
               type="button"
               tabIndex={-1}
@@ -927,6 +1058,15 @@ export function App() {
             </button>
           )}
         </div>
+        {searchActive && activeView === "main" && (
+          <SearchBar
+            query={searchQuery}
+            matchCount={searchMatches.length}
+            matchPosition={searchMatches.length > 0 ? searchCursor + 1 : 0}
+            onChange={setSearchQuery}
+            onConfirm={() => setSearchActive(false)}
+          />
+        )}
       </div>
     </div>
   );

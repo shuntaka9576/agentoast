@@ -1,8 +1,63 @@
+#![allow(deprecated)] // msg_send_id! is deprecated in objc2 0.6, but still works
+
+use std::sync::OnceLock;
+
+use block2::RcBlock;
+use objc2::msg_send_id;
+use objc2_app_kit::NSEventMask;
 use tauri::tray::TrayIconId;
+use tauri::Emitter;
 use tauri::{Manager, PhysicalPosition, PhysicalSize, Position, Size};
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
 };
+
+static ESC_MONITOR_INSTALLED: OnceLock<()> = OnceLock::new();
+
+// Intercept Esc at the AppKit local-event-monitor layer, before NSWindow's
+// `cancelOperation:` (which on NSPanel calls into the close path even when
+// `windowShouldClose:` returns false in some configurations) and before the
+// keystroke reaches WebKit. We swallow it and re-deliver as a Tauri event so
+// the JS side stays the single source of truth for Esc semantics inside the
+// panel (close help / cancel search / leave apps view / hide panel).
+fn install_esc_monitor(app_handle: &tauri::AppHandle) {
+    let handle = app_handle.clone();
+    ESC_MONITOR_INSTALLED.get_or_init(|| {
+        unsafe {
+            let block = RcBlock::new(
+                move |event: std::ptr::NonNull<objc2_app_kit::NSEvent>| -> *mut objc2_app_kit::NSEvent {
+                    let event_ref = event.as_ref();
+                    let key_code: u16 = objc2::msg_send![event_ref, keyCode];
+                    if key_code != 0x35 {
+                        return event.as_ptr();
+                    }
+
+                    // Only intercept when the event targets our main panel.
+                    let panel_window_num: i64 = match handle.get_webview_panel("main") {
+                        Ok(p) => objc2::msg_send![p.as_panel(), windowNumber],
+                        Err(_) => return event.as_ptr(),
+                    };
+                    let event_window_num: i64 = objc2::msg_send![event_ref, windowNumber];
+                    if event_window_num != panel_window_num {
+                        return event.as_ptr();
+                    }
+
+                    let _ = handle.emit("panel:esc", ());
+                    std::ptr::null_mut()
+                },
+            );
+
+            let mask = NSEventMask::KeyDown;
+            let _monitor: Option<objc2::rc::Retained<objc2_foundation::NSObject>> = msg_send_id![
+                objc2_app_kit::NSEvent::class(),
+                addLocalMonitorForEventsMatchingMask: mask.0,
+                handler: &*block
+            ];
+            std::mem::forget(_monitor);
+            std::mem::forget(block);
+        }
+    });
+}
 
 tauri_panel! {
     panel!(AgentNotifyPanel {
@@ -13,7 +68,8 @@ tauri_panel! {
     })
 
     panel_event!(AgentNotifyPanelEventHandler {
-        window_did_resign_key(notification: &NSNotification) -> ()
+        window_did_resign_key(notification: &NSNotification) -> (),
+        window_should_close(window: &NSWindow) -> Bool
     })
 }
 
@@ -46,8 +102,14 @@ pub fn init(app_handle: &tauri::AppHandle) -> tauri::Result<()> {
             panel.hide();
         }
     });
+    // Defensive: any future programmatic close request goes through this
+    // delegate, which always returns false. Hiding always goes through
+    // `panel.hide()` (orderOut:), so blocking close has no functional cost.
+    event_handler.window_should_close(|_window| Bool::new(false));
 
     panel.set_event_handler(Some(event_handler.as_ref()));
+
+    install_esc_monitor(app_handle);
 
     Ok(())
 }
