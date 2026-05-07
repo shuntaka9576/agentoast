@@ -6,7 +6,6 @@ interface SearchBarProps {
   matchPosition: number; // 1-indexed; 0 when matchCount === 0
   onChange: (q: string) => void;
   onConfirm: () => void;
-  onCancel: () => void;
 }
 
 export function SearchBar({
@@ -15,7 +14,6 @@ export function SearchBar({
   matchPosition,
   onChange,
   onConfirm,
-  onCancel,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -38,9 +36,6 @@ export function SearchBar({
           if (e.key === "Enter") {
             e.preventDefault();
             onConfirm();
-          } else if (e.key === "Escape") {
-            e.preventDefault();
-            onCancel();
           }
         }}
         className="flex-1 bg-transparent outline-none border-none p-0 text-[var(--text-primary)]"

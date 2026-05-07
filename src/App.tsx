@@ -403,6 +403,32 @@ export function App() {
     return clamped;
   }, [flatItems, selectedKey]);
 
+  // Esc routing — the Rust side intercepts Esc at the AppKit local-monitor
+  // layer and re-delivers it as `panel:esc`. The native event never reaches
+  // WebKit, so all Esc semantics inside the panel funnel through here.
+  const handleEscRef = useRef<() => void>(() => {});
+  handleEscRef.current = () => {
+    if (showHelp) {
+      setShowHelp(false);
+      return;
+    }
+    if (searchActive) {
+      cancelSearch();
+      return;
+    }
+    if (activeView === "apps") {
+      setActiveView("main");
+      return;
+    }
+    void invoke("hide_panel");
+  };
+  useEffect(() => {
+    const unlisten = listen("panel:esc", () => handleEscRef.current());
+    return () => {
+      unlisten.then((f) => f()).catch(() => {});
+    };
+  }, []);
+
   // Reset selection when panel is shown
   useEffect(() => {
     const unlisten = listen("panel:shown", () => {
@@ -621,20 +647,14 @@ export function App() {
     void invoke("hide_panel");
   }, []);
 
-  // Keyboard navigation — ref callback pattern for stable listener
+  // Keyboard navigation — ref callback pattern for stable listener.
+  // Esc is intercepted at the AppKit level and re-delivered via `panel:esc`
+  // (handled by handleEscRef above), so this handler never sees it.
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keyHandlerRef.current = (e: KeyboardEvent) => {
-    // SearchBar's own input owns the keystrokes (Enter/Esc/typing). Skip
-    // the global handler so j/k/d don't fire while the user types a query.
-    // Esc is a fallback escape hatch — works even when the input lost focus
-    // (e.g. user clicked elsewhere in the panel).
-    if (searchActive) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        cancelSearch();
-      }
-      return;
-    }
+    // While the search input is mounted, swallow keystrokes so j/k/d don't
+    // fire underneath the typing cursor.
+    if (searchActive) return;
     // Apps view has its own (much smaller) navigation surface. Handle it
     // inline so the main-view branch below stays focused on the unified
     // group/pane list.
@@ -643,14 +663,6 @@ export function App() {
         case "?":
           e.preventDefault();
           setShowHelp((prev) => !prev);
-          return;
-        case "Escape":
-          e.preventDefault();
-          if (showHelp) {
-            setShowHelp(false);
-          } else {
-            setActiveView("main");
-          }
           return;
         case "j":
           if (showHelp) return;
@@ -703,14 +715,6 @@ export function App() {
       case "?":
         e.preventDefault();
         setShowHelp((prev) => !prev);
-        break;
-      case "Escape":
-        e.preventDefault();
-        if (showHelp) {
-          setShowHelp(false);
-        } else {
-          void invoke("hide_panel");
-        }
         break;
       case "a":
         if (showHelp) break;
@@ -1061,7 +1065,6 @@ export function App() {
             matchPosition={searchMatches.length > 0 ? searchCursor + 1 : 0}
             onChange={setSearchQuery}
             onConfirm={() => setSearchActive(false)}
-            onCancel={cancelSearch}
           />
         )}
       </div>
