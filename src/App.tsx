@@ -649,7 +649,7 @@ export function App() {
           if (showHelp) {
             setShowHelp(false);
           } else {
-            void invoke("hide_panel");
+            setActiveView("main");
           }
           return;
         case "j":
