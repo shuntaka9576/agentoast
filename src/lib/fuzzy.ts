@@ -5,11 +5,58 @@ export interface FuzzyMatch {
 
 // Fuzzy match. Lower score is better. Returns null when query is not a
 // subsequence of target. Empty/whitespace-only queries match with score 0.
+//
+// Whitespace in the query splits it into independent tokens, fzf-style:
+// every token must match somewhere in the target. Tokens may overlap and
+// appear in any order; positions are merged for highlighting.
 export function fuzzyMatch(query: string, target: string): FuzzyMatch | null {
-  const q = query.trim().toLowerCase();
-  if (q === "") return { score: 0, positions: [] };
+  const tokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t !== "");
+  if (tokens.length === 0) return { score: 0, positions: [] };
   const t = target.toLowerCase();
 
+  if (tokens.length === 1) return matchToken(tokens[0], t);
+
+  const positions = new Set<number>();
+  let total = 0;
+  for (const token of tokens) {
+    const m = matchToken(token, t);
+    if (!m) return null;
+    total += m.score;
+    for (const p of m.positions) positions.add(p);
+  }
+  return { score: total, positions: [...positions].sort((a, b) => a - b) };
+}
+
+export function fuzzyScore(query: string, target: string): number | null {
+  return fuzzyMatch(query, target)?.score ?? null;
+}
+
+// Per-field highlight helper: returns positions of any tokens that hit
+// `target`. Unlike `fuzzyMatch`, tokens that don't match are silently
+// skipped instead of failing the whole match — needed when the AND-style
+// combined-target match passes but a single field doesn't see every token
+// (e.g. query "agent main" against just `repoName = "agentoast"`).
+export function findMatchPositions(query: string, target: string): number[] {
+  const tokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t !== "");
+  if (tokens.length === 0) return [];
+  const t = target.toLowerCase();
+  const positions = new Set<number>();
+  for (const token of tokens) {
+    const m = matchToken(token, t);
+    if (!m) continue;
+    for (const p of m.positions) positions.add(p);
+  }
+  return [...positions].sort((a, b) => a - b);
+}
+
+// `q` and `t` must already be lower-cased.
+function matchToken(q: string, t: string): FuzzyMatch | null {
   const subIdx = t.indexOf(q);
   if (subIdx >= 0) {
     const positions: number[] = [];
@@ -42,10 +89,6 @@ export function fuzzyMatch(query: string, target: string): FuzzyMatch | null {
   }
   // keep subsequence matches strictly worse than substring
   return { score: score + 100, positions };
-}
-
-export function fuzzyScore(query: string, target: string): number | null {
-  return fuzzyMatch(query, target)?.score ?? null;
 }
 
 function isWordBoundary(ch: string): boolean {

@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { fuzzyMatch } from "@/lib/fuzzy";
+import { findMatchPositions } from "@/lib/fuzzy";
 
 interface Props {
   text: string;
@@ -8,12 +8,12 @@ interface Props {
 
 export function HighlightText({ text, query }: Props) {
   if (query.trim() === "") return <>{text}</>;
-  const match = fuzzyMatch(query, text);
-  if (!match || match.positions.length === 0) return <>{text}</>;
+  const positions = findMatchPositions(query, text);
+  if (positions.length === 0) return <>{text}</>;
 
   // Coalesce contiguous positions into single highlighted segments to avoid
   // one <span> per char, which would also defeat any letter-spacing / kerning.
-  const hits = new Set(match.positions);
+  const hits = new Set(positions);
   const segments: Array<{ text: string; matched: boolean }> = [];
   let buf = "";
   let bufMatched = false;
