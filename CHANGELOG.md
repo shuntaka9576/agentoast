@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.43.0](https://github.com/shuntaka9576/agentoast/compare/v0.42.0...v0.43.0) - 2026-05-11
+- feat: keep panel header fixed and add hjkl/arrow nav in apps view by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/247
+- feat: add lowercase t shortcut to jump to current tmux pane by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/248
+
 ## [v0.42.0](https://github.com/shuntaka9576/agentoast/compare/v0.41.0...v0.42.0) - 2026-05-07
 - feat: add vim-style fuzzy search to main panel by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/243
 
