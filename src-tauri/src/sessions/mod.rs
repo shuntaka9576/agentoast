@@ -422,6 +422,94 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     Ok(groups)
 }
 
+/// Return the tmux pane that is actually focused right now, without the
+/// agent-promotion logic that `list_tmux_panes_grouped` applies when
+/// `show_non_agent=false`. Returns `Ok(None)` when no pane is attached.
+pub fn find_focused_pane() -> Result<Option<TmuxPane>, String> {
+    const DELIM: &str = "|||";
+    let format_str = format!(
+        "#{{pane_id}}{d}#{{pane_pid}}{d}#{{session_name}}{d}#{{window_name}}{d}#{{pane_current_path}}{d}#{{pane_active}}{d}#{{window_active}}{d}#{{session_attached}}{d}#{{pane_current_command}}",
+        d = DELIM
+    );
+
+    let stdout_lines: Vec<String> = {
+        let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
+        let output = Command::new(&tmux_path)
+            .env_remove("TMPDIR")
+            .args(["list-panes", "-a", "-F", &format_str])
+            .output()
+            .map_err(|e| format!("tmux list-panes failed: {}", e))?;
+        if !output.status.success() {
+            return Err(format!(
+                "tmux list-panes failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .collect()
+    };
+
+    let mut focused: Option<(String, u32, String, String, String, Option<String>)> = None;
+    for line in &stdout_lines {
+        let parts: Vec<&str> = line.splitn(9, DELIM).collect();
+        if parts.len() < 9 {
+            continue;
+        }
+        let raw_attached: u32 = parts[7].parse().unwrap_or(0);
+        let is_active = parts[5] == "1" && parts[6] == "1" && raw_attached >= 1;
+        if !is_active {
+            continue;
+        }
+        let pane_pid: u32 = parts[1].parse().unwrap_or(0);
+        let current_command = if parts[8].is_empty() {
+            None
+        } else {
+            Some(parts[8].to_string())
+        };
+        focused = Some((
+            parts[0].to_string(),
+            pane_pid,
+            parts[2].to_string(),
+            parts[3].to_string(),
+            parts[4].to_string(),
+            current_command,
+        ));
+        break;
+    }
+
+    let Some((pane_id, pane_pid, session_name, window_name, current_path, current_command)) =
+        focused
+    else {
+        return Ok(None);
+    };
+
+    let process_tree = build_process_tree();
+    let agent_type = detect_agent(&process_tree, pane_pid);
+
+    let git_info =
+        find_git().and_then(|git_path| resolve_single_git_info(&git_path, &current_path));
+
+    Ok(Some(TmuxPane {
+        pane_id,
+        pane_pid,
+        session_name,
+        window_name,
+        current_path,
+        is_active: true,
+        agent_type,
+        agent_status: None,
+        waiting_reason: None,
+        agent_modes: Vec::new(),
+        team_role: None,
+        team_name: None,
+        git_repo_root: git_info.as_ref().map(|g| g.repo_root.clone()),
+        git_branch: git_info.as_ref().and_then(|g| g.branch.clone()),
+        current_command,
+    }))
+}
+
 /// Process tree: maps parent PID to (child PID, command name) pairs.
 struct ProcessTree {
     children: HashMap<u32, Vec<u32>>,
