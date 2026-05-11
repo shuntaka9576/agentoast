@@ -11,6 +11,7 @@ struct ClaudePaneContentInfo {
     shell_count: Option<u32>, // Background shell task count from "· N shell" (or "· N bash") in mode line
     local_agent_count: Option<u32>, // Background local agent count from "· N local agent(s)" in mode line
     monitor_count: Option<u32>,     // Background monitor count from "· N monitor(s)" in mode line
+    fork_count: Option<u32>, // Background fork count from "◯ <name>  <desc>  <duration>" picker rows
     agent_modes: Vec<String>,
     team_role: Option<String>, // "lead" or "teammate" (Agent Teams feature)
     team_name: Option<String>, // "@agent-alpha" for teammates
@@ -33,6 +34,15 @@ pub(super) fn detect_claude_status(
         info.at_prompt
     );
 
+    // Background work indicators that should override at_prompt Idle.
+    // The fork picker rows ("◯ <name>") in particular prevent is_prompt_line
+    // from finding the prompt, so this signal must also override the
+    // "no prompt detected" fallback below.
+    let has_background_work = info.shell_count.is_some_and(|c| c > 0)
+        || info.local_agent_count.is_some_and(|c| c > 0)
+        || info.monitor_count.is_some_and(|c| c > 0)
+        || info.fork_count.is_some_and(|c| c > 0);
+
     // Spinners are real-time signals and take highest priority.
     // Status bar "(running)" may be stale (e.g., plan mode waiting with old
     // status bar text), so it does NOT override at_prompt.
@@ -50,14 +60,11 @@ pub(super) fn detect_claude_status(
         // has already completed the selection and the dialog text is just stale
         // content still visible on screen.
         (AgentStatus::Waiting, Some("respond".to_string()))
+    } else if has_background_work {
+        // Background work in progress — Running regardless of prompt state.
+        (AgentStatus::Running, None)
     } else if info.at_prompt {
-        // Background shell tasks mean work is still in progress — treat as Running
-        if info.shell_count.is_some_and(|c| c > 0)
-            || info.local_agent_count.is_some_and(|c| c > 0)
-            || info.monitor_count.is_some_and(|c| c > 0)
-        {
-            (AgentStatus::Running, None)
-        } else if let Some(conn) = db_conn {
+        if let Some(conn) = db_conn {
             if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
                 (AgentStatus::Waiting, None)
             } else {
@@ -66,9 +73,15 @@ pub(super) fn detect_claude_status(
         } else {
             (AgentStatus::Idle, None)
         }
-    } else {
-        // has_status_running or no signal — default to Running
+    } else if info.has_status_running {
+        // Status bar shows "(running)" — agent reports active work even
+        // though no prompt / spinner is visible (e.g. tool execution).
         (AgentStatus::Running, None)
+    } else {
+        // No signal at all — TUI not drawn yet (startup splash banner,
+        // post-`/clear` redraw, hang). Default to Idle to avoid false
+        // Running indications for transient states.
+        (AgentStatus::Idle, None)
     };
 
     AgentDetectionResult {
@@ -101,6 +114,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         shell_count: None,
         local_agent_count: None,
         monitor_count: None,
+        fork_count: None,
         agent_modes: Vec::new(),
         team_role: None,
         team_name: None,
@@ -146,6 +160,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
     let mut shell_count: Option<u32> = None; // set in status_area scan below
     let mut local_agent_count: Option<u32> = None; // set in status_area scan below
     let mut monitor_count: Option<u32> = None; // set in status_area scan below
+    let mut fork_count: Option<u32> = None; // set in status_area scan below
 
     for line in &last_lines {
         let trimmed = line.trim();
@@ -234,6 +249,16 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         // or as a standalone status line ("1 monitor · ...").
         if monitor_count.is_none() {
             monitor_count = extract_monitor_count(trimmed);
+        }
+
+        // Background fork detection: subagent picker rows that look like
+        //   "◯ Explore  <description>  <duration>"
+        // Newer Claude Code surfaces dispatched subagents via this picker
+        // beneath the status bar instead of (or alongside) the
+        // "· N local agent" mode-line suffix; without this signal a parent
+        // that is just waiting for a fork would be classified as Idle.
+        if is_fork_picker_row(trimmed) {
+            fork_count = Some(fork_count.unwrap_or(0) + 1);
         }
 
         // Lead: mode line (⏵/⏸) containing "teammate"
@@ -336,6 +361,18 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         }
     }
 
+    // Add fork count to agent_modes if detected
+    if let Some(count) = fork_count {
+        if count > 0 {
+            log::debug!(
+                "check_claude_pane_content({}): {} fork(s) detected",
+                pane_id,
+                count
+            );
+            agent_modes.push(format!("{} fork", count));
+        }
+    }
+
     ClaudePaneContentInfo {
         has_spinner,
         has_status_running,
@@ -345,10 +382,26 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         shell_count,
         local_agent_count,
         monitor_count,
+        fork_count,
         agent_modes,
         team_role,
         team_name,
     }
+}
+
+/// Check if a line is a row in the subagent fork picker.
+/// Rows look like "◯ Explore  <description>  <duration>" and appear in the
+/// status-bar area when forks are dispatched. The leading "◯" (U+25EF LARGE
+/// CIRCLE) is the discriminator — it marks an actively running fork (vs "⏺"
+/// which marks the parent / completed entries).
+fn is_fork_picker_row(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    let mut chars = trimmed.chars();
+    if chars.next() != Some('\u{25EF}') {
+        return false;
+    }
+    // Require a space + at least one more char so a bare "◯" doesn't count.
+    matches!(chars.next(), Some(' ')) && chars.next().is_some()
 }
 
 /// Extract agent name from an Agent Teams teammate separator line.
@@ -634,4 +687,51 @@ fn is_file_changes_line(line: &str) -> bool {
     trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
         && trimmed.contains("file")
         && (trimmed.contains('+') || trimmed.contains('-'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Parent is at the prompt with no spinner, while the subagent picker
+    // ("⏺ main" + "◯ <name>  <desc>  <duration>" rows) shows a fork still
+    // running. Without fork-row detection this falls through to Idle.
+    const FORK_RUNNING_NO_PARENT_SPINNER: &str = "\
+❯ /clear
+  ⎿  (no content)
+
+❯ Dispatch a task to Explore
+
+⏺ Sure, delegating the claude.rs review to Explore.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  opus4.7[1m] ◕ │ ctx ○ 4% │ 5h ○ 6%·2h │ 7d ◔ 25%·2d17h
+  ⏸ plan mode on (shift+tab to cycle)
+
+  ⏺ main                                                                               ↑/↓ to select · Enter to view
+  ◯ Explore  inspect claude.rs                                                                                     9s
+";
+
+    #[test]
+    fn detects_running_when_fork_is_active_without_parent_spinner() {
+        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER));
+        assert_eq!(
+            result.status,
+            AgentStatus::Running,
+            "fork running should be Running, got modes={:?}",
+            result.agent_modes
+        );
+    }
+
+    #[test]
+    fn fork_count_added_to_agent_modes() {
+        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER));
+        assert!(
+            result.agent_modes.iter().any(|m| m.ends_with("fork")),
+            "expected fork count badge in agent_modes, got: {:?}",
+            result.agent_modes
+        );
+    }
 }

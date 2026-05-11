@@ -155,7 +155,8 @@ export function PaneCard({
                     mode.endsWith("shell") ||
                       mode.endsWith("bash") ||
                       mode.endsWith("local agent") ||
-                      mode.endsWith("monitor")
+                      mode.endsWith("monitor") ||
+                      mode.endsWith("fork")
                       ? "text-green-500"
                       : "text-[var(--text-muted)]",
                   )}
