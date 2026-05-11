@@ -15,7 +15,15 @@ import { KeybindHelp } from "@/components/keybind-help";
 import { SearchBar } from "@/components/search-bar";
 import { Bell } from "lucide-react";
 import { fuzzyScore } from "@/lib/fuzzy";
-import type { Notification, PanelView, UnifiedGroup, FlatItem, PaneItem } from "@/lib/types";
+import type {
+  Notification,
+  PanelView,
+  UnifiedGroup,
+  FlatItem,
+  PaneItem,
+  TmuxPane,
+  TmuxPaneGroup,
+} from "@/lib/types";
 
 export function App() {
   const { notifications, loading, deleteNotification, deleteByPanes, deleteAll, newIds } =
@@ -46,6 +54,11 @@ export function App() {
   const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentlyCopiedPaneId, setRecentlyCopiedPaneId] = useState<string | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ephemeral pane injected by the lowercase `t` shortcut when the real
+  // focused tmux pane is hidden (non-agent + showNonAgentPanes=false).
+  // Cleared the moment the cursor moves to a different row.
+  const [ephemeralPane, setEphemeralPane] = useState<TmuxPane | null>(null);
 
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,6 +98,37 @@ export function App() {
     });
   }, []);
 
+  // Inject the ephemeral pane (set by lowercase `t`) into the session groups
+  // so the rest of the pipeline (unifiedGroups → flatItems) treats it like a
+  // normal pane for one render. Skips injection when the pane already exists
+  // in the live data so duplicates can't appear if showNonAgentPanes flips on.
+  const effectiveSessionGroups = useMemo<TmuxPaneGroup[]>(() => {
+    if (!ephemeralPane) return sessionGroups;
+    const alreadyPresent = sessionGroups.some((g) =>
+      g.panes.some((p) => p.paneId === ephemeralPane.paneId),
+    );
+    if (alreadyPresent) return sessionGroups;
+    const groupKey = ephemeralPane.gitRepoRoot ?? ephemeralPane.currentPath;
+    const matchedIdx = sessionGroups.findIndex((g) => g.currentPath === groupKey);
+    if (matchedIdx >= 0) {
+      const next = sessionGroups.slice();
+      const target = next[matchedIdx];
+      next[matchedIdx] = { ...target, panes: [...target.panes, ephemeralPane] };
+      return next;
+    }
+    const repoName =
+      groupKey.split("/").filter(Boolean).pop() ?? ephemeralPane.sessionName ?? groupKey;
+    return [
+      ...sessionGroups,
+      {
+        repoName,
+        currentPath: groupKey,
+        gitBranch: ephemeralPane.gitBranch,
+        panes: [ephemeralPane],
+      },
+    ];
+  }, [sessionGroups, ephemeralPane]);
+
   // Merge notifications and session groups into unified groups
   const unifiedGroups = useMemo(() => {
     // Build tmuxPane -> Notification map (latest notification per pane)
@@ -102,7 +146,7 @@ export function App() {
     const map = new Map<string, UnifiedGroup>();
 
     // Process session groups: create pane items with matched notifications
-    for (const sg of sessionGroups) {
+    for (const sg of effectiveSessionGroups) {
       const groupKey = sg.currentPath;
       const repoName = sg.repoName;
       const gitBranch = sg.gitBranch;
@@ -260,7 +304,7 @@ export function App() {
     });
 
     return result;
-  }, [notifications, sessionGroups]);
+  }, [notifications, effectiveSessionGroups]);
 
   // Filter groups based on notification filter toggle
   const displayGroups = useMemo(() => {
@@ -553,6 +597,20 @@ export function App() {
       setSelectedKey(keyFromItem(flatItems[activeIdx]));
     }
   }, [flatItems]);
+
+  // Drop the ephemeral pane (set by lowercase `t`) the moment the cursor moves
+  // to a different row, or whenever showNonAgentPanes flips on (since all
+  // non-agent panes become visible naturally).
+  useEffect(() => {
+    if (!ephemeralPane) return;
+    if (showNonAgentPanes) {
+      setEphemeralPane(null);
+      return;
+    }
+    if (selectedKey?.kind !== "pane" || selectedKey.paneId !== ephemeralPane.paneId) {
+      setEphemeralPane(null);
+    }
+  }, [selectedKey, ephemeralPane, showNonAgentPanes]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -850,6 +908,28 @@ export function App() {
           void invoke("save_show_non_agent_panes", { value: next });
           return next;
         });
+        break;
+      }
+      case "t": {
+        if (showHelp || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) break;
+        e.preventDefault();
+        void (async () => {
+          const real = await invoke<TmuxPane | null>("get_focused_pane").catch(() => null);
+          if (!real) return;
+          const items = flatItemsRef.current;
+          const existing = items.findIndex(
+            (f) => f.type === "pane-item" && f.paneItem.pane.paneId === real.paneId,
+          );
+          if (existing >= 0) {
+            repositionCancelledRef.current = true;
+            setSelectedKey(keyFromItem(items[existing]));
+            return;
+          }
+          // Hidden non-agent pane → inject as ephemeral and select it.
+          repositionCancelledRef.current = true;
+          setEphemeralPane(real);
+          setSelectedKey({ kind: "pane", paneId: real.paneId });
+        })();
         break;
       }
       case "y": {

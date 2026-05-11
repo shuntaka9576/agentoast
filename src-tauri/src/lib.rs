@@ -453,6 +453,20 @@ async fn get_sessions(app_handle: tauri::AppHandle) -> Result<Vec<TmuxPaneGroup>
 }
 
 #[tauri::command]
+async fn get_focused_pane() -> Result<Option<agentoast_shared::models::TmuxPane>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        tauri::async_runtime::spawn_blocking(sessions::find_focused_pane)
+            .await
+            .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("get_focused_pane is only supported on macOS".to_string())
+    }
+}
+
+#[tauri::command]
 fn get_notifications(
     state: tauri::State<'_, Mutex<AppState>>,
     limit: Option<i64>,
@@ -1124,6 +1138,7 @@ pub fn run() {
             show_panel,
             focus_terminal,
             get_sessions,
+            get_focused_pane,
             get_notifications,
             get_unread_count,
             delete_notification,
