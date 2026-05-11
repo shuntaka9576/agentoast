@@ -665,16 +665,36 @@ export function App() {
           setShowHelp((prev) => !prev);
           return;
         case "j":
+        case "ArrowDown":
+          if (showHelp) return;
+          e.preventDefault();
+          if (allowedApps.length > 0) {
+            setAppsSelectedIndex((prev) => Math.min(prev + 3, allowedApps.length - 1));
+          }
+          return;
+        case "k":
+        case "ArrowUp":
+          if (showHelp) return;
+          e.preventDefault();
+          if (allowedApps.length > 0) {
+            setAppsSelectedIndex((prev) => Math.max(prev - 3, 0));
+          }
+          return;
+        case "h":
+        case "ArrowLeft":
+          if (showHelp) return;
+          e.preventDefault();
+          if (allowedApps.length > 0) {
+            setAppsSelectedIndex((prev) => Math.max(prev - 1, 0));
+          }
+          return;
+        case "l":
+        case "ArrowRight":
           if (showHelp) return;
           e.preventDefault();
           if (allowedApps.length > 0) {
             setAppsSelectedIndex((prev) => Math.min(prev + 1, allowedApps.length - 1));
           }
-          return;
-        case "k":
-          if (showHelp) return;
-          e.preventDefault();
-          setAppsSelectedIndex((prev) => Math.max(prev - 1, 0));
           return;
         case "Enter":
           if (showHelp) return;
@@ -960,37 +980,36 @@ export function App() {
     <div className="h-screen flex flex-col items-center px-4 pb-4 pt-0.5 bg-transparent">
       <div className="tray-arrow" />
       <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
-        {activeView === "main" && (
-          <PanelHeader
-            globalMuted={globalMuted}
-            filterNotifiedOnly={filterNotifiedOnly}
-            showNonAgentPanes={showNonAgentPanes}
-            onToggleFilter={() => {
-              setFilterNotifiedOnly((prev) => {
-                const next = !prev;
-                void invoke("save_filter_notified_only", { value: next });
-                return next;
-              });
-            }}
-            onToggleShowNonAgentPanes={() => {
-              setShowNonAgentPanes((prev) => {
-                const next = !prev;
-                void invoke("save_show_non_agent_panes", { value: next });
-                return next;
-              });
-            }}
-            onDeleteAll={() => void deleteAll()}
-            onToggleGlobalMute={() => void toggleGlobalMute()}
-            appVersion={appVersion}
-            updateStatus={updateStatus}
-            onUpdateInstall={triggerInstall}
-            onUpdateCheck={checkForUpdates}
-            onOpenAppsView={() => {
-              setAppsSelectedIndex(0);
-              setActiveView("apps");
-            }}
-          />
-        )}
+        <PanelHeader
+          globalMuted={globalMuted}
+          filterNotifiedOnly={filterNotifiedOnly}
+          showNonAgentPanes={showNonAgentPanes}
+          appsViewActive={activeView === "apps"}
+          onToggleFilter={() => {
+            setFilterNotifiedOnly((prev) => {
+              const next = !prev;
+              void invoke("save_filter_notified_only", { value: next });
+              return next;
+            });
+          }}
+          onToggleShowNonAgentPanes={() => {
+            setShowNonAgentPanes((prev) => {
+              const next = !prev;
+              void invoke("save_show_non_agent_panes", { value: next });
+              return next;
+            });
+          }}
+          onDeleteAll={() => void deleteAll()}
+          onToggleGlobalMute={() => void toggleGlobalMute()}
+          appVersion={appVersion}
+          updateStatus={updateStatus}
+          onUpdateInstall={triggerInstall}
+          onUpdateCheck={checkForUpdates}
+          onToggleAppsView={() => {
+            setAppsSelectedIndex(0);
+            setActiveView((v) => (v === "apps" ? "main" : "apps"));
+          }}
+        />
 
         <div className="relative flex-1 min-h-0">
           {activeView === "apps" ? (

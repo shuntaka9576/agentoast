@@ -43,7 +43,7 @@ const SECTIONS: Section[] = [
       { key: "F", action: "Filter notified" },
       { key: "T", action: "Non-agent panes" },
       { key: "y", action: "Copy $TMUX_PANE" },
-      { key: "a", action: "Apps view" },
+      { key: "a", action: "Toggle apps" },
     ],
   },
   {
