@@ -8,6 +8,7 @@ const meta: Meta<typeof PanelHeader> = {
     globalMuted: false,
     filterNotifiedOnly: false,
     showNonAgentPanes: false,
+    appsViewActive: false,
     onToggleFilter: () => {},
     onToggleShowNonAgentPanes: () => {},
     onDeleteAll: () => {},
@@ -16,7 +17,7 @@ const meta: Meta<typeof PanelHeader> = {
     updateStatus: { status: "idle" },
     onUpdateInstall: () => {},
     onUpdateCheck: () => {},
-    onOpenAppsView: () => {},
+    onToggleAppsView: () => {},
   },
 };
 

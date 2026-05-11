@@ -7,6 +7,7 @@ interface PanelHeaderProps {
   globalMuted: boolean;
   filterNotifiedOnly: boolean;
   showNonAgentPanes: boolean;
+  appsViewActive: boolean;
   onToggleFilter: () => void;
   onToggleShowNonAgentPanes: () => void;
   onDeleteAll: () => void;
@@ -15,7 +16,7 @@ interface PanelHeaderProps {
   updateStatus: UpdateStatus;
   onUpdateInstall: () => void;
   onUpdateCheck: () => void;
-  onOpenAppsView: () => void;
+  onToggleAppsView: () => void;
 }
 
 function getUpdateTitle(status: UpdateStatus, version: string): string {
@@ -42,6 +43,7 @@ export function PanelHeader({
   globalMuted,
   filterNotifiedOnly,
   showNonAgentPanes,
+  appsViewActive,
   onToggleFilter,
   onToggleShowNonAgentPanes,
   onDeleteAll,
@@ -50,7 +52,7 @@ export function PanelHeader({
   updateStatus,
   onUpdateInstall,
   onUpdateCheck,
-  onOpenAppsView,
+  onToggleAppsView,
 }: PanelHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -114,9 +116,13 @@ export function PanelHeader({
         </button>
         <button
           tabIndex={-1}
-          onClick={onOpenAppsView}
-          className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--hover-bg-strong)] transition-colors"
-          title="Open apps (a)"
+          onClick={onToggleAppsView}
+          className={`p-1.5 rounded-md hover:bg-[var(--hover-bg-strong)] transition-colors ${
+            appsViewActive
+              ? "text-[var(--text-primary)]"
+              : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+          }`}
+          title={appsViewActive ? "Back to notifications (a)" : "Open apps (a)"}
         >
           <AppsTabIcon size={14} />
         </button>
