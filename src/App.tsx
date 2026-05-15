@@ -559,9 +559,14 @@ export function App() {
       return;
     }
 
-    const selectFirstPane = (items: FlatItem[]) => {
-      const idx = items.findIndex((f) => f.type !== "group-header");
-      if (idx >= 0) setSelectedKey(keyFromItem(items[idx]));
+    // Prefer the first pane, but fall back to the first header so collapsed
+    // groups (filter mode / no-notification groups) still get a selection —
+    // otherwise Enter on a freshly opened panel hides the panel instead of
+    // expanding the group.
+    const selectFirstItem = (items: FlatItem[]) => {
+      if (items.length === 0) return;
+      const paneIdx = items.findIndex((f) => f.type !== "group-header");
+      setSelectedKey(keyFromItem(items[paneIdx >= 0 ? paneIdx : 0]));
     };
 
     // No notifications — mirror the real tmux focused pane (covers
@@ -573,14 +578,14 @@ export function App() {
         if (cancelled) return;
         if (selectedKeyRef.current !== null) return;
         if (real) focusOnRealPane(real);
-        else selectFirstPane(flatItemsRef.current);
+        else selectFirstItem(flatItemsRef.current);
       })();
       return () => {
         cancelled = true;
       };
     }
 
-    selectFirstPane(flatItems);
+    selectFirstItem(flatItems);
   }, [
     flatItems,
     filterNotifiedOnly,
