@@ -447,6 +447,24 @@ export function App() {
     return clamped;
   }, [flatItems, selectedKey]);
 
+  // Move the cursor to the real tmux-focused pane. When the pane is hidden
+  // (non-agent + showNonAgentPanes=false), inject it as ephemeral so it
+  // shows up for one render. Shared by the `t` shortcut and the panel-open
+  // auto-focus.
+  const focusOnRealPane = useCallback((real: TmuxPane) => {
+    const items = flatItemsRef.current;
+    const existing = items.findIndex(
+      (f) => f.type === "pane-item" && f.paneItem.pane.paneId === real.paneId,
+    );
+    repositionCancelledRef.current = true;
+    if (existing >= 0) {
+      setSelectedKey(keyFromItem(items[existing]));
+    } else {
+      setEphemeralPane(real);
+      setSelectedKey({ kind: "pane", paneId: real.paneId });
+    }
+  }, []);
+
   // Esc routing — the Rust side intercepts Esc at the AppKit local-monitor
   // layer and re-delivers it as `panel:esc`. The native event never reaches
   // WebKit, so all Esc semantics inside the panel funnel through here.
@@ -541,18 +559,28 @@ export function App() {
       return;
     }
 
+    const selectFirstPane = (items: FlatItem[]) => {
+      const idx = items.findIndex((f) => f.type !== "group-header");
+      if (idx >= 0) setSelectedKey(keyFromItem(items[idx]));
+    };
+
+    // No notifications — mirror the real tmux focused pane (covers
+    // non-agent panes that backend promotion would otherwise hide).
     if (!filterNotifiedOnly) {
-      const activeIdx = flatItems.findIndex(
-        (f) => f.type === "pane-item" && f.paneItem.pane.isActive,
-      );
-      if (activeIdx >= 0) {
-        setSelectedKey(keyFromItem(flatItems[activeIdx]));
-        return;
-      }
+      let cancelled = false;
+      void (async () => {
+        const real = await invoke<TmuxPane | null>("get_focused_pane").catch(() => null);
+        if (cancelled) return;
+        if (selectedKeyRef.current !== null) return;
+        if (real) focusOnRealPane(real);
+        else selectFirstPane(flatItemsRef.current);
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
-    const idx = flatItems.findIndex((f) => f.type !== "group-header");
-    const fallback = idx >= 0 ? idx : 0;
-    setSelectedKey(keyFromItem(flatItems[fallback]));
+
+    selectFirstPane(flatItems);
   }, [
     flatItems,
     filterNotifiedOnly,
@@ -561,6 +589,7 @@ export function App() {
     displayGroups,
     manuallyToggledGroups,
     collapsedGroups,
+    focusOnRealPane,
   ]);
 
   // On panel show, auto-expand the active pane's group if it was manually
@@ -936,19 +965,7 @@ export function App() {
         void (async () => {
           const real = await invoke<TmuxPane | null>("get_focused_pane").catch(() => null);
           if (!real) return;
-          const items = flatItemsRef.current;
-          const existing = items.findIndex(
-            (f) => f.type === "pane-item" && f.paneItem.pane.paneId === real.paneId,
-          );
-          if (existing >= 0) {
-            repositionCancelledRef.current = true;
-            setSelectedKey(keyFromItem(items[existing]));
-            return;
-          }
-          // Hidden non-agent pane → inject as ephemeral and select it.
-          repositionCancelledRef.current = true;
-          setEphemeralPane(real);
-          setSelectedKey({ kind: "pane", paneId: real.paneId });
+          focusOnRealPane(real);
         })();
         break;
       }
