@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.44.0](https://github.com/shuntaka9576/agentoast/compare/v0.43.1...v0.44.0) - 2026-05-15
+- feat: focus real tmux pane on panel open when no notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/256
+
 ## [v0.43.1](https://github.com/shuntaka9576/agentoast/compare/v0.43.0...v0.43.1) - 2026-05-11
 - fix: detect running status when claude code dispatches forks by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/249
 
