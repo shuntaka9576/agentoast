@@ -419,44 +419,16 @@ fn extract_team_agent_name(line: &str) -> Option<String> {
     }
 }
 
+const MIDDLE_DOT: &str = "\u{00B7}";
+const MIDDLE_DOT_SEP: &str = "\u{00B7} ";
+
 /// Extract background shell task count from a status bar line.
 /// Matches both "shell"/"shells" (current) and "bash"/"bashes" (legacy) keywords.
 /// Pattern 1 (mode line suffix): "⏵⏵ bypass permissions on · 1 shell" → Some(1)
+///   Also tolerates trailing hints, e.g. "· 1 shell · ← for agents".
 /// Pattern 2 (standalone line):  "2 shells · PR #1381" → Some(2)
 fn extract_shell_count(line: &str) -> Option<u32> {
-    let trimmed = line.trim();
-
-    // Pattern 1: "· N shell(s)" or "· N bash(es)" suffix (· = U+00B7 MIDDLE DOT)
-    // The next token after the keyword must be absent or "·" to avoid matching
-    // conversation text like "· 7 bash commands".
-    let marker = "\u{00B7} ";
-    if let Some(pos) = trimmed.rfind(marker) {
-        let after = trimmed[pos + marker.len()..].trim();
-        let mut parts = after.split_whitespace();
-        if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-            if is_shell_keyword(parts.next()) {
-                let next = parts.next();
-                if next.is_none() || next == Some("\u{00B7}") {
-                    return Some(count);
-                }
-            }
-        }
-    }
-
-    // Pattern 2: "N shell(s)" or "N bash(es)" at line start (e.g., "2 shells · PR #1381")
-    // The next token after the keyword must be absent or "·" (middle dot) to avoid
-    // matching conversation text like "7 bash commands".
-    let mut parts = trimmed.split_whitespace();
-    if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-        if is_shell_keyword(parts.next()) {
-            let next = parts.next();
-            if next.is_none() || next == Some("\u{00B7}") {
-                return Some(count);
-            }
-        }
-    }
-
-    None
+    extract_count(line, |chunk| parse_keyword_chunk(chunk, is_shell_keyword))
 }
 
 fn is_shell_keyword(token: Option<&str>) -> bool {
@@ -467,88 +439,70 @@ fn is_shell_keyword(token: Option<&str>) -> bool {
 /// Pattern 1 (mode line suffix): "⏸ plan mode on · 1 local agent" → Some(1)
 /// Pattern 2 (standalone line):  "1 local agent · ..." → Some(1)
 fn extract_local_agent_count(line: &str) -> Option<u32> {
-    let trimmed = line.trim();
+    extract_count(line, parse_local_agent_chunk)
+}
 
-    // Pattern 1: "· N local agent(s)" suffix (· = U+00B7 MIDDLE DOT)
-    // The next token after "agent"/"agents" must be absent or "·" to avoid matching
-    // conversation text like "· 2 local agent configurations".
-    let marker = "\u{00B7} ";
-    if let Some(pos) = trimmed.rfind(marker) {
-        let after = trimmed[pos + marker.len()..].trim();
-        let mut parts = after.split_whitespace();
-        if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-            if parts.next() == Some("local") {
-                if let Some(kw) = parts.next() {
-                    if kw == "agent" || kw == "agents" {
-                        let next = parts.next();
-                        if next.is_none() || next == Some("\u{00B7}") {
-                            return Some(count);
-                        }
-                    }
-                }
-            }
-        }
+fn parse_local_agent_chunk(chunk: &str) -> Option<u32> {
+    let mut parts = chunk.split_whitespace();
+    let count = parts.next()?.parse::<u32>().ok()?;
+    if parts.next() != Some("local") {
+        return None;
     }
-
-    // Pattern 2: "N local agent(s)" at line start
-    // The next token after "agent"/"agents" must be absent or "·" (middle dot).
-    let mut parts = trimmed.split_whitespace();
-    if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-        if parts.next() == Some("local") {
-            if let Some(kw) = parts.next() {
-                if kw == "agent" || kw == "agents" {
-                    let next = parts.next();
-                    if next.is_none() || next == Some("\u{00B7}") {
-                        return Some(count);
-                    }
-                }
-            }
-        }
+    if !matches!(parts.next(), Some("agent" | "agents")) {
+        return None;
     }
-
-    None
+    is_count_terminator(parts.next()).then_some(count)
 }
 
 /// Extract background monitor count from a status bar line.
 /// Pattern 1 (mode line suffix): "⏵⏵ auto mode on · 1 monitor" → Some(1)
 /// Pattern 2 (standalone line):  "1 monitor · ..." → Some(1)
 fn extract_monitor_count(line: &str) -> Option<u32> {
-    let trimmed = line.trim();
-
-    // Pattern 1: "· N monitor(s)" suffix (· = U+00B7 MIDDLE DOT)
-    // The next token after the keyword must be absent or "·" to avoid matching
-    // conversation text like "· 1 monitor configuration".
-    let marker = "\u{00B7} ";
-    if let Some(pos) = trimmed.rfind(marker) {
-        let after = trimmed[pos + marker.len()..].trim();
-        let mut parts = after.split_whitespace();
-        if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-            if is_monitor_keyword(parts.next()) {
-                let next = parts.next();
-                if next.is_none() || next == Some("\u{00B7}") {
-                    return Some(count);
-                }
-            }
-        }
-    }
-
-    // Pattern 2: "N monitor(s)" at line start
-    // The next token after the keyword must be absent or "·" (middle dot).
-    let mut parts = trimmed.split_whitespace();
-    if let Some(count) = parts.next().and_then(|s| s.parse::<u32>().ok()) {
-        if is_monitor_keyword(parts.next()) {
-            let next = parts.next();
-            if next.is_none() || next == Some("\u{00B7}") {
-                return Some(count);
-            }
-        }
-    }
-
-    None
+    extract_count(line, |chunk| parse_keyword_chunk(chunk, is_monitor_keyword))
 }
 
 fn is_monitor_keyword(token: Option<&str>) -> bool {
     matches!(token, Some("monitor" | "monitors"))
+}
+
+/// Parse a chunk shaped as "N <keyword>" where <keyword> is matched by the
+/// given predicate. The token after the keyword must be absent or a middle
+/// dot — otherwise the line is conversation text (e.g. "· 7 bash commands").
+fn parse_keyword_chunk<F>(chunk: &str, is_keyword: F) -> Option<u32>
+where
+    F: FnOnce(Option<&str>) -> bool,
+{
+    let mut parts = chunk.split_whitespace();
+    let count = parts.next()?.parse::<u32>().ok()?;
+    if !is_keyword(parts.next()) {
+        return None;
+    }
+    is_count_terminator(parts.next()).then_some(count)
+}
+
+/// Either end-of-chunk or the next "· " separator — both signal that the
+/// preceding "N <keyword>" form is complete and not part of a longer phrase.
+fn is_count_terminator(token: Option<&str>) -> bool {
+    token.is_none() || token == Some(MIDDLE_DOT)
+}
+
+/// Walk every "· " separator and try to parse the chunk after each one.
+/// Falls back to parsing from the start of the line for the standalone-line
+/// form ("2 shells · PR #1381"). Using every position rather than just the
+/// last lets us survive trailing hints Claude Code appends to the mode line,
+/// e.g. "⏵⏵ bypass permissions on · 1 shell · ← for agents".
+fn extract_count<F>(line: &str, parse_chunk: F) -> Option<u32>
+where
+    F: Fn(&str) -> Option<u32>,
+{
+    let trimmed = line.trim();
+    for (pos, _) in trimmed.match_indices(MIDDLE_DOT_SEP) {
+        let after = &trimmed[pos + MIDDLE_DOT_SEP.len()..];
+        if let Some(count) = parse_chunk(after) {
+            return Some(count);
+        }
+    }
+    parse_chunk(trimmed)
 }
 
 /// Check if a line indicates Claude Code is actively running.
@@ -732,6 +686,66 @@ mod tests {
             result.agent_modes.iter().any(|m| m.ends_with("fork")),
             "expected fork count badge in agent_modes, got: {:?}",
             result.agent_modes
+        );
+    }
+
+    #[test]
+    fn extract_shell_count_handles_trailing_hint() {
+        // Claude Code appends "· ← for agents" after the count.
+        assert_eq!(
+            extract_shell_count(
+                "⏵⏵ bypass permissions on \u{00B7} 1 shell \u{00B7} \u{2190} for agents"
+            ),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn extract_shell_count_mode_line_suffix() {
+        assert_eq!(
+            extract_shell_count("⏵⏵ bypass permissions on \u{00B7} 1 shell"),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn extract_shell_count_alongside_local_agent() {
+        assert_eq!(
+            extract_shell_count("⏵⏵ bypass permissions on \u{00B7} 1 shell \u{00B7} 1 local agent"),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn extract_shell_count_standalone_line() {
+        assert_eq!(extract_shell_count("2 shells \u{00B7} PR #1381"), Some(2));
+    }
+
+    #[test]
+    fn extract_shell_count_ignores_conversation_text() {
+        assert_eq!(
+            extract_shell_count("⏵⏵ bypass permissions on \u{00B7} 7 bash commands"),
+            None
+        );
+    }
+
+    #[test]
+    fn extract_local_agent_count_handles_trailing_hint() {
+        assert_eq!(
+            extract_local_agent_count(
+                "⏸ plan mode on \u{00B7} 1 local agent \u{00B7} \u{2190} for agents"
+            ),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn extract_monitor_count_handles_trailing_hint() {
+        assert_eq!(
+            extract_monitor_count(
+                "⏵⏵ auto mode on \u{00B7} 1 monitor \u{00B7} \u{2190} for agents"
+            ),
+            Some(1)
         );
     }
 }
