@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.44.1](https://github.com/shuntaka9576/agentoast/compare/v0.44.0...v0.44.1) - 2026-05-22
+- fix: parse Claude mode-line counters with trailing hints by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/259
+
 ## [v0.44.0](https://github.com/shuntaka9576/agentoast/compare/v0.43.1...v0.44.0) - 2026-05-15
 - feat: focus real tmux pane on panel open when no notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/256
 
