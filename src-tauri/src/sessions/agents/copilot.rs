@@ -24,7 +24,7 @@ const COPILOT_MODE_PATTERNS: &[(&str, &str)] = &[
 ];
 
 struct CopilotPaneContentInfo {
-    has_spinner: bool,          // Spinner chars (◎○◉●) + "Esc to cancel"
+    has_spinner: bool,          // Spinner chars (◎○◉●) + "Esc to cancel" / "esc cancel"
     has_selection_dialog: bool, // ❯ N. selection cursor + 2+ numbered options
     has_tool_approval: bool,    // "Do you want to run this command?"
     at_prompt: bool,            // ❯ prompt character
@@ -126,7 +126,7 @@ fn check_copilot_pane_content(pane_id: &str, content: Option<&str>) -> CopilotPa
     for line in &last_lines {
         let trimmed = line.trim();
 
-        // Running detection: spinner char (◎○◉●) + "Esc to cancel"
+        // Running detection: spinner char (◎○◉●) + "Esc to cancel" / "esc cancel"
         if !has_spinner && is_copilot_running_line(trimmed) {
             log::debug!(
                 "check_copilot_pane_content({}): running detected: {:?}",
@@ -199,15 +199,20 @@ fn check_copilot_pane_content(pane_id: &str, content: Option<&str>) -> CopilotPa
 }
 
 /// Check if a line indicates Copilot CLI is actively running.
-/// Matches spinner characters (◎○◉●) followed by "Esc to cancel".
-/// e.g., "◎ Thinking (Esc to cancel · 668 B)"
+/// Matches spinner characters (◎○◉●) followed by an "Esc to cancel" / "esc cancel" hint.
+/// e.g., "◎ Thinking (Esc to cancel · 668 B)" or "◉ Finding deploy pattern esc cancel"
 fn is_copilot_running_line(line: &str) -> bool {
     if let Some(c) = line.chars().next() {
-        if COPILOT_SPINNER_CHARS.contains(&c) && line.contains("Esc to cancel") {
+        if COPILOT_SPINNER_CHARS.contains(&c) && contains_esc_cancel_hint(line) {
             return true;
         }
     }
     false
+}
+
+/// Accept both the legacy "Esc to cancel" and the newer "esc cancel" status hint.
+fn contains_esc_cancel_hint(line: &str) -> bool {
+    line.contains("Esc to cancel") || line.contains("esc cancel")
 }
 
 /// Check if the last meaningful line is a prompt, skipping TUI footer lines.
@@ -234,10 +239,10 @@ fn is_copilot_prompt_line(lines: &[&str]) -> bool {
             continue;
         }
         // Selection dialog footer lines
-        if trimmed.contains("to select") && trimmed.contains("Esc to cancel") {
+        if trimmed.contains("to select") && contains_esc_cancel_hint(trimmed) {
             continue;
         }
-        if trimmed.contains("to navigate") && trimmed.contains("Esc to cancel") {
+        if trimmed.contains("to navigate") && contains_esc_cancel_hint(trimmed) {
             continue;
         }
         // Numbered options inside dialogs (e.g., "  2. No, and tell Copilot ...")
