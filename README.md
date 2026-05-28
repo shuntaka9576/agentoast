@@ -259,6 +259,13 @@ mkdir -p ~/.config/opencode/plugins
 cp examples/notify/opencode.ts ~/.config/opencode/plugins/
 ```
 
+> **Note**: Earlier versions of `examples/notify/opencode.ts` included development-time debug logging that wrote every opencode event to `/tmp/opencode-notify-debug.log`, growing without bound. If you installed the plugin before this was fixed, re-copy the plugin and remove the stale log:
+>
+> ```bash
+> cp examples/notify/opencode.ts ~/.config/opencode/plugins/
+> rm -f /tmp/opencode-notify-debug.log
+> ```
+
 Supported events
 
 | Event                   | Notification      |
