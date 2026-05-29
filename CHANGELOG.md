@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.44.3](https://github.com/shuntaka9576/agentoast/compare/v0.44.2...v0.44.3) - 2026-05-29
+- fix: stop opencode notify plugin from writing unbounded debug log to /tmp by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/268
+- ci: add zizmor security audit and fix workflow findings by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/271
+
 ## [v0.44.2](https://github.com/shuntaka9576/agentoast/compare/v0.44.1...v0.44.2) - 2026-05-24
 - fix: detect Copilot CLI running state with new "esc cancel" hint by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/265
 
