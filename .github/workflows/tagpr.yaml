@@ -16,7 +16,9 @@ jobs:
     outputs:
       tag: ${{ steps.tagpr.outputs.tag }}
     steps:
-      - name: checkout
+      # tagpr pushes the release tag/commit via checkout's persisted credentials,
+      # so persist-credentials must stay enabled here.
+      - name: checkout # zizmor: ignore[artipacked]
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Wait for commit-PR association to be indexed
         env:
@@ -51,6 +53,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ needs.tagpr.outputs.tag }}
+          persist-credentials: false
       - name: Generate token for homebrew-tap
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
