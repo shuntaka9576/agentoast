@@ -2,3 +2,5 @@ pre-push:
   commands:
     lint:
       run: cargo make lint
+    zizmor:
+      run: uvx zizmor .
