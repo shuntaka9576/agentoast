@@ -59,6 +59,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: homebrew-tap
+          permission-contents: write
       - uses: ./.github/actions/release-app
         with:
           tag: ${{ needs.tagpr.outputs.tag }}
