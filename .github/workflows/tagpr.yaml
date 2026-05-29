@@ -84,4 +84,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: gh release edit ${{ needs.tagpr.outputs.tag }} --draft=false
+          TAG: ${{ needs.tagpr.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false

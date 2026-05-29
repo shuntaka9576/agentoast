@@ -82,8 +82,8 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        TAG: ${{ inputs.tag }}
       run: |
-        TAG="${{ inputs.tag }}"
         ASSETS=$(gh release view "${TAG}" --json assets --jq '.assets[].name')
         printf '%s\n' "$ASSETS" | grep -Fxq 'latest.json' || { echo "ERROR: Missing latest.json"; exit 1; }
         printf '%s\n' "$ASSETS" | grep -Eq '\.sig$' || { echo "ERROR: Missing .sig file"; exit 1; }
@@ -92,8 +92,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
         GH_PAT: ${{ inputs.homebrew_tap_token }}
+        TAG: ${{ inputs.tag }}
       run: |
-        TAG="${{ inputs.tag }}"
         VERSION="${TAG#v}"
         DMG_NAME="Agentoast_${VERSION}_aarch64.dmg"
 
