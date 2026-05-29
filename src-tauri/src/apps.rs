@@ -62,7 +62,7 @@ pub fn list_running_apps() -> Vec<RunningApp> {
         });
     }
 
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|a| a.name.to_lowercase());
     out.dedup_by(|a, b| a.bundle_id == b.bundle_id);
     out
 }
