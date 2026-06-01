@@ -74,6 +74,25 @@ echo "Done! Uninstalled agentoast"
 '''
 
 # ---------------------------------------------------------------------------
+# Skill (cross-agent messaging)
+# ---------------------------------------------------------------------------
+[tasks.install-skill]
+description = "Copy the agentoast-send skill into ~/.config/claude/skills/"
+script = [
+  "mkdir -p ~/.config/claude/skills",
+  "rm -rf ~/.config/claude/skills/agentoast-send",
+  "cp -R skills/agentoast-send ~/.config/claude/skills/",
+  "echo 'Installed skill -> ~/.config/claude/skills/agentoast-send/'",
+]
+
+[tasks.uninstall-skill]
+description = "Remove the agentoast-send skill from ~/.config/claude/skills/"
+script = [
+  "rm -rf ~/.config/claude/skills/agentoast-send",
+  "echo 'Removed skill -> ~/.config/claude/skills/agentoast-send/'",
+]
+
+# ---------------------------------------------------------------------------
 # Dev
 # ---------------------------------------------------------------------------
 [tasks.dev]

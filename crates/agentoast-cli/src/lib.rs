@@ -1,7 +1,7 @@
 pub mod hooks;
 
 use agentoast_shared::models::IconType;
-use agentoast_shared::{config, db};
+use agentoast_shared::{config, db, tmux};
 use clap::{Parser, Subcommand};
 
 use hooks::{get_git_info, parse_metadata};
@@ -92,6 +92,28 @@ enum Commands {
         tmux_pane: String,
     },
 
+    /// Inject a message into another tmux pane's agent (cross-agent messaging)
+    SendKeys {
+        /// Target tmux pane ID (e.g. %72)
+        #[arg(short = 't', long)]
+        pane: String,
+
+        /// Message text to inject
+        message: String,
+
+        /// Sender pane ID embedded as the reply address (default: $TMUX_PANE)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// Inject the raw message only, without the reply hint
+        #[arg(long)]
+        raw: bool,
+
+        /// Do not send a trailing Enter (leave the text without submitting)
+        #[arg(long)]
+        no_enter: bool,
+    },
+
     /// Open config file in editor
     Config,
 }
@@ -128,6 +150,7 @@ pub fn try_run_cli() -> bool {
     let first = &args[1];
     let known = [
         "send",
+        "send-keys",
         "hook",
         "list",
         "dismiss",
@@ -263,6 +286,52 @@ fn run(cli: Cli) {
             if let Err(e) = db::delete_notifications_by_pane(&conn, &tmux_pane) {
                 eprintln!("Failed to delete notifications: {}", e);
                 std::process::exit(1);
+            }
+        }
+        Commands::SendKeys {
+            pane,
+            message,
+            from,
+            raw,
+            no_enter,
+        } => {
+            let tmux_override = config::load_config().system.tmux;
+            let Some(tmux_bin) = tmux::find_tmux(tmux_override.as_deref()) else {
+                eprintln!("tmux not found");
+                std::process::exit(1);
+            };
+            if !tmux::pane_exists(&tmux_bin, &pane) {
+                eprintln!("pane '{}' not found", pane);
+                std::process::exit(1);
+            }
+
+            // Reply address: --from > $TMUX_PANE (the sender agent's own pane).
+            let from_pane = from
+                .or_else(|| std::env::var("TMUX_PANE").ok())
+                .filter(|s| !s.is_empty());
+
+            // Append a single-line reply hint unless --raw, so the receiving
+            // agent knows where and how to reply.
+            let body = if raw {
+                message
+            } else if let Some(fp) = &from_pane {
+                format!(
+                    "[agentoast] from {fp}: {message}  (reply: agentoast send-keys --pane {fp} \"<reply>\")"
+                )
+            } else {
+                message
+            };
+
+            match tmux::send_keys(&tmux_bin, &pane, &body, !no_enter) {
+                Ok(()) => println!(
+                    "sent to {} (from {})",
+                    pane,
+                    from_pane.as_deref().unwrap_or("-")
+                ),
+                Err(e) => {
+                    eprintln!("send-keys failed: {}", e);
+                    std::process::exit(1);
+                }
             }
         }
         Commands::Config => {
