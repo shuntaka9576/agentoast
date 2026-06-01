@@ -20,49 +20,9 @@ const KNOWN_TERMINAL_BUNDLE_IDS: &[&str] = &[
 ];
 
 pub(crate) fn find_tmux() -> Option<PathBuf> {
-    // config.toml override (highest priority)
-    if let Some(ref path) = get_config().system.tmux {
-        let p = PathBuf::from(path);
-        if p.exists() {
-            return Some(p);
-        }
-        log::warn!(
-            "config.toml system.tmux={} not found, falling back to auto-detection",
-            path
-        );
-    }
-
-    let mut candidates: Vec<PathBuf> = vec![
-        PathBuf::from("/opt/homebrew/bin/tmux"), // Homebrew (Apple Silicon)
-        PathBuf::from("/usr/local/bin/tmux"),    // Homebrew (Intel) / manual
-        PathBuf::from("/usr/bin/tmux"),          // system
-    ];
-
-    // Nix Home Manager: /etc/profiles/per-user/<username>/bin/tmux
-    if let Ok(user) = std::env::var("USER") {
-        candidates.push(PathBuf::from(format!(
-            "/etc/profiles/per-user/{}/bin/tmux",
-            user
-        )));
-    }
-    // Nix single-user profile
-    candidates.push(PathBuf::from("/nix/var/nix/profiles/default/bin/tmux"));
-
-    if let Some(found) = candidates.iter().find(|p| p.exists()) {
-        return Some(found.clone());
-    }
-
-    // PATH-based fallback (mise, asdf, custom installs, etc.)
-    if let Ok(path_var) = std::env::var("PATH") {
-        for dir in path_var.split(':') {
-            let candidate = PathBuf::from(dir).join("tmux");
-            if candidate.exists() {
-                return Some(candidate);
-            }
-        }
-    }
-
-    None
+    // Delegate to the shared resolver, passing the cached config override so
+    // session scanning (a hot path) doesn't re-read config.toml on every call.
+    agentoast_shared::tmux::find_tmux(get_config().system.tmux.as_deref())
 }
 
 pub(crate) fn find_git() -> Option<PathBuf> {
