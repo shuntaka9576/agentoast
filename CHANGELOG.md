@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.45.0](https://github.com/shuntaka9576/agentoast/compare/v0.44.3...v0.45.0) - 2026-06-01
+- feat: add send-keys for cross-agent tmux messaging by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/276
+- chore: unwrap agentoast-send skill prose to one line per paragraph by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/277
+
 ## [v0.44.3](https://github.com/shuntaka9576/agentoast/compare/v0.44.2...v0.44.3) - 2026-05-29
 - fix: stop opencode notify plugin from writing unbounded debug log to /tmp by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/268
 - ci: add zizmor security audit and fix workflow findings by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/271
