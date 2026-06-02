@@ -31,7 +31,7 @@
     "@storybook/react-vite": "^10.4.1",
     "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "cspell": "^10.0.1",
