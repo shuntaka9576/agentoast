@@ -38,6 +38,6 @@
     "lefthook": "^2.1.9",
     "storybook": "^10.4.1",
     "typescript": "~6.0.3",
-    "vite-plus": "^0.1.23"
+    "vite-plus": "^0.1.24"
   }
 }
