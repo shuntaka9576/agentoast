@@ -1,7 +1,7 @@
 pub mod hooks;
 
 use agentoast_shared::models::IconType;
-use agentoast_shared::{config, db, tmux};
+use agentoast_shared::{agent_detect, config, db, tmux};
 use clap::{Parser, Subcommand};
 
 use hooks::{get_git_info, parse_metadata};
@@ -112,6 +112,12 @@ enum Commands {
         /// Do not send a trailing Enter (leave the text without submitting)
         #[arg(long)]
         no_enter: bool,
+
+        /// Send even when the target pane has no detected AI agent (a plain
+        /// shell). By default send-keys refuses such targets to avoid typing
+        /// the message into a shell prompt.
+        #[arg(long)]
+        force: bool,
     },
 
     /// Open config file in editor
@@ -294,14 +300,37 @@ fn run(cli: Cli) {
             from,
             raw,
             no_enter,
+            force,
         } => {
             let tmux_override = config::load_config().system.tmux;
             let Some(tmux_bin) = tmux::find_tmux(tmux_override.as_deref()) else {
                 eprintln!("tmux not found");
                 std::process::exit(1);
             };
-            if !tmux::pane_exists(&tmux_bin, &pane) {
+            // Resolve the pane's pid. This doubles as an existence check (a
+            // bogus pane yields no pid) and feeds agent detection below — one
+            // tmux call instead of a separate existence query.
+            let Some(pid) = tmux::pane_pid(&tmux_bin, &pane) else {
                 eprintln!("pane '{}' not found", pane);
+                std::process::exit(1);
+            };
+
+            // Guard: send-keys is for agent-to-agent messaging. If the target
+            // pane runs no detected AI agent (e.g. a plain shell), refuse by
+            // default — otherwise the message would be typed into the shell
+            // prompt and executed as commands. --force overrides (for agents
+            // the detector doesn't recognize).
+            let process_tree = agent_detect::build_process_tree();
+            let detected_agent = agent_detect::detect_agent(&process_tree, pid);
+            if detected_agent.is_none() && !force {
+                // One sentence per line, no mid-sentence hard breaks — the
+                // terminal wraps long lines on its own, and an agent reading
+                // this back parses whole sentences more reliably.
+                eprintln!(
+                    "pane '{}' has no detected AI coding agent (it looks like a plain shell), so send-keys would just type the message into the shell prompt.",
+                    pane
+                );
+                eprintln!("If an agent really is running there, re-run with --force.");
                 std::process::exit(1);
             }
 
@@ -324,8 +353,11 @@ fn run(cli: Cli) {
 
             match tmux::send_keys(&tmux_bin, &pane, &body, !no_enter) {
                 Ok(()) => println!(
-                    "sent to {} (from {})",
+                    "sent to {}{} (from {})",
                     pane,
+                    detected_agent
+                        .map(|a| format!(" [{}]", a))
+                        .unwrap_or_default(),
                     from_pane.as_deref().unwrap_or("-")
                 ),
                 Err(e) => {

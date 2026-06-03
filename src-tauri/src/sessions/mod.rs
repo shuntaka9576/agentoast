@@ -9,13 +9,7 @@ use crate::terminal::{find_git, find_tmux};
 pub(crate) mod agents;
 use agents::{capture_pane, detect_agent_status_with_content};
 
-const AGENT_PROCESSES: &[(&str, &str)] = &[
-    ("claude", "claude-code"),
-    ("codex", "codex"),
-    ("copilot", "copilot-cli"),
-    ("opencode", "opencode"),
-    (".opencode", "opencode"), // mise/npm install: actual Go binary is named .opencode
-];
+use agentoast_shared::agent_detect::{build_process_tree, detect_agent};
 
 struct GitInfo {
     repo_root: String,
@@ -194,8 +188,8 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     let process_tree = build_process_tree();
     log::debug!(
         "sessions: process tree: {} processes, {} parent entries",
-        process_tree.commands.len(),
-        process_tree.children.len()
+        process_tree.process_count(),
+        process_tree.parent_count()
     );
 
     // Parse panes (without git info yet)
@@ -508,77 +502,4 @@ pub fn find_focused_pane() -> Result<Option<TmuxPane>, String> {
         git_branch: git_info.as_ref().and_then(|g| g.branch.clone()),
         current_command,
     }))
-}
-
-/// Process tree: maps parent PID to (child PID, command name) pairs.
-struct ProcessTree {
-    children: HashMap<u32, Vec<u32>>,
-    commands: HashMap<u32, String>,
-}
-
-fn build_process_tree() -> ProcessTree {
-    let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
-    let mut commands: HashMap<u32, String> = HashMap::new();
-
-    let output = match Command::new("/bin/ps")
-        .args(["-eo", "pid,ppid,comm"])
-        .output()
-    {
-        Ok(o) => o,
-        Err(e) => {
-            log::error!("sessions: /bin/ps exec failed: {}", e);
-            return ProcessTree { children, commands };
-        }
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    for line in stdout.lines().skip(1) {
-        let mut iter = line.split_whitespace();
-        let pid: u32 = match iter.next().and_then(|s| s.parse().ok()) {
-            Some(p) => p,
-            None => continue,
-        };
-        let ppid: u32 = match iter.next().and_then(|s| s.parse().ok()) {
-            Some(p) => p,
-            None => continue,
-        };
-        let comm: String = iter.collect::<Vec<&str>>().join(" ");
-        if comm.is_empty() {
-            continue;
-        }
-
-        children.entry(ppid).or_default().push(pid);
-        commands.insert(pid, comm);
-    }
-
-    ProcessTree { children, commands }
-}
-
-fn detect_agent(tree: &ProcessTree, pane_pid: u32) -> Option<String> {
-    // DFS through descendants of pane_pid
-    let mut stack = vec![pane_pid];
-    let mut visited = std::collections::HashSet::new();
-    while let Some(current) = stack.pop() {
-        if !visited.insert(current) {
-            continue;
-        }
-        if let Some(child_pids) = tree.children.get(&current) {
-            for &child in child_pids {
-                if let Some(comm) = tree.commands.get(&child) {
-                    let basename = comm.rsplit('/').next().unwrap_or(comm);
-                    for (process_name, agent_type) in AGENT_PROCESSES {
-                        if basename == *process_name {
-                            return Some(agent_type.to_string());
-                        }
-                    }
-                    // Agent Teams spawns the versioned binary directly (e.g. /…/claude/versions/2.1.59)
-                    if comm.contains("/claude/versions/") {
-                        return Some("claude-code".to_string());
-                    }
-                }
-                stack.push(child);
-            }
-        }
-    }
-    None
 }

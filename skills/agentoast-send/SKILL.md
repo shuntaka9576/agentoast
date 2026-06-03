@@ -48,5 +48,6 @@ The agent knows its own context and will summarize it far better than a screen g
 ## Notes
 
 - Address = tmux pane id; ids stay stable for the life of the pane.
+- The target must be a pane running an AI coding agent. `send-keys` refuses a pane with no detected agent (a plain shell), since the message would just be typed into the shell prompt — a sign you picked the wrong pane. Pass `--force` only when you are sure an agent is there but the detector doesn't recognize it.
 - If the target looks busy mid-generation, injected keystrokes can interleave — prefer sending when it is idle or waiting for input.
 - `--raw` sends without the reply hint; `--no-enter` types without submitting.

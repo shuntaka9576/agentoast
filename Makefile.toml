@@ -21,6 +21,22 @@ args = ["run", "tauri", "build"]
 description = "Build Tauri app (includes CLI)"
 dependencies = ["build-app"]
 
+# Local-dev build: only the .app bundle, with updater artifacts disabled so no
+# `TAURI_SIGNING_PRIVATE_KEY` is required. Skips the .dmg and the signed updater
+# .tar.gz that `build-app` produces for releases.
+[tasks.build-app-dev]
+description = "Build .app only, unsigned (no updater artifacts / signing key)"
+command = "bun"
+args = [
+  "run",
+  "tauri",
+  "build",
+  "--bundles",
+  "app",
+  "--config",
+  "{\"bundle\":{\"createUpdaterArtifacts\":false}}",
+]
+
 # ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
@@ -53,6 +69,13 @@ script = [
 [tasks.install]
 description = "Build and install app + CLI symlink"
 dependencies = ["stop-app", "build"]
+run_task = { name = ["install-app", "install-cli-symlink"], parallel = false }
+
+# Local-dev install: same as `install` but uses the unsigned `build-app-dev`
+# (no updater artifacts), so it works without `TAURI_SIGNING_PRIVATE_KEY`.
+[tasks.install-dev]
+description = "Build (unsigned, no updater) and install app + CLI symlink for local dev"
+dependencies = ["stop-app", "build-app-dev"]
 run_task = { name = ["install-app", "install-cli-symlink"], parallel = false }
 
 # ---------------------------------------------------------------------------
