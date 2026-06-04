@@ -25,7 +25,7 @@ tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
-log = "0.4.30"
+log = "0.4.31"
 fern = "0.7.1"
 humantime = "2.3.0"
 notify = "8.2.0"
