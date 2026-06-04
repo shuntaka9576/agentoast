@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.46.0](https://github.com/shuntaka9576/agentoast/compare/v0.45.0...v0.46.0) - 2026-06-04
+
+- feat: refuse send-keys to panes with no detected agent by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/284
+
 ## [v0.45.0](https://github.com/shuntaka9576/agentoast/compare/v0.44.3...v0.45.0) - 2026-06-01
 - feat: add send-keys for cross-agent tmux messaging by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/276
 - chore: unwrap agentoast-send skill prose to one line per paragraph by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/277
