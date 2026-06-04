@@ -59,13 +59,21 @@ pub fn find_tmux(tmux_override: Option<&str>) -> Option<PathBuf> {
     None
 }
 
-/// Check that a tmux pane with the given id (e.g. `%72`) currently exists.
-pub fn pane_exists(tmux: &Path, pane: &str) -> bool {
-    Command::new(tmux)
-        .args(["display-message", "-t", pane, "-p", "#{pane_id}"])
+/// Resolve a tmux pane's pid (e.g. for `%72`), or `None` if it doesn't exist.
+///
+/// This doubles as an existence check: `display-message` exits 0 even for a
+/// bogus target (tmux evaluates the format against the current client and
+/// prints an empty `#{pane_pid}`), but an empty / unparseable pid yields `None`
+/// — so a real pane is the only way to get `Some`.
+pub fn pane_pid(tmux: &Path, pane: &str) -> Option<u32> {
+    let out = Command::new(tmux)
+        .args(["display-message", "-t", pane, "-p", "#{pane_pid}"])
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout).trim().parse().ok()
 }
 
 /// Inject `body` into the target pane as literal keystrokes, then optionally

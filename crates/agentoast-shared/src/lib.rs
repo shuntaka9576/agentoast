@@ -1,3 +1,4 @@
+pub mod agent_detect;
 pub mod config;
 pub mod db;
 pub mod models;
