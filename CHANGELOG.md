@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.46.1](https://github.com/shuntaka9576/agentoast/compare/v0.46.0...v0.46.1) - 2026-06-09
+
 ## [v0.46.0](https://github.com/shuntaka9576/agentoast/compare/v0.45.0...v0.46.0) - 2026-06-04
 
 - feat: refuse send-keys to panes with no detected agent by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/284
