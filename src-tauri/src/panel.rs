@@ -81,7 +81,12 @@ pub fn init(app_handle: &tauri::AppHandle) -> tauri::Result<()> {
     let window = app_handle.get_webview_window("main").unwrap();
     let panel = window.to_panel::<AgentNotifyPanel>()?;
 
-    panel.set_has_shadow(false);
+    // Native macOS window shadow. AppKit derives the shadow shape from the
+    // window's rendered alpha, so it hugs the rounded panel + tray arrow the
+    // same way NSMenu/NSPopover shadows do. A CSS box-shadow can't do this:
+    // it gets clipped at the window bounds (the padding around the panel),
+    // leaving a visible rectangular gradient edge on light backgrounds.
+    panel.set_has_shadow(true);
     panel.set_opaque(false);
     panel.set_level(PanelLevel::MainMenu.value() + 1);
 

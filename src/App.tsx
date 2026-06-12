@@ -1081,7 +1081,7 @@ export function App() {
   return (
     <div className="h-screen flex flex-col items-center px-4 pb-4 pt-0.5 bg-transparent">
       <div className="tray-arrow" />
-      <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] shadow-2xl overflow-hidden">
+      <div className="w-full flex-1 min-h-0 flex flex-col bg-[var(--panel-bg)] backdrop-blur-xl rounded-xl border border-[var(--border-primary)] overflow-hidden">
         <PanelHeader
           globalMuted={globalMuted}
           filterNotifiedOnly={filterNotifiedOnly}
