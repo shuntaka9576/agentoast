@@ -1,146 +1,40 @@
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 
+use agentoast_shared::db;
+use agentoast_shared::git_info::{self, GitInfo};
 use agentoast_shared::models::{TmuxPane, TmuxPaneGroup};
-use agentoast_shared::{config, db};
 
-use crate::terminal::{find_git, find_tmux};
+use crate::terminal::find_tmux;
 
 pub(crate) mod agents;
-use agents::{capture_pane, detect_agent_status_with_content};
+mod process_tree;
+use agents::detect_agent_status_with_content;
 
-use agentoast_shared::agent_detect::{build_process_tree, detect_agent};
+use agentoast_shared::agent_detect::detect_agent;
 
-struct GitInfo {
-    repo_root: String,
-    repo_name: String,
-    branch: Option<String>,
+/// Debug-build spawn accounting so the per-cycle external-process count can
+/// be verified from the logs (the whole point of the constant-spawn work).
+#[cfg(debug_assertions)]
+static SPAWN_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub(crate) fn note_spawn() {
+    #[cfg(debug_assertions)]
+    SPAWN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// Resolve git info for a single path (3 git commands: rev-parse, remote, branch).
-fn resolve_single_git_info(git_path: &std::path::Path, path: &str) -> Option<GitInfo> {
-    // git rev-parse --show-toplevel
-    let repo_root = Command::new(git_path)
-        .env_remove("TMPDIR")
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(path)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-            } else {
-                None
-            }
-        })?;
-
-    // git remote get-url origin → extract repo name from URL
-    let repo_name = Command::new(git_path)
-        .env_remove("TMPDIR")
-        .args(["remote", "get-url", "origin"])
-        .current_dir(path)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                extract_repo_name_from_url(&url)
-            } else {
-                None
-            }
-        })
-        .unwrap_or_else(|| {
-            // Fallback: last component of repo_root
-            repo_root
-                .rsplit('/')
-                .next()
-                .unwrap_or(&repo_root)
-                .to_string()
-        });
-
-    // git branch --show-current
-    let branch = Command::new(git_path)
-        .env_remove("TMPDIR")
-        .args(["branch", "--show-current"])
-        .current_dir(path)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                let b = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                if b.is_empty() {
-                    None
-                } else {
-                    Some(b)
-                }
-            } else {
-                None
-            }
-        });
-
-    Some(GitInfo {
-        repo_root,
-        repo_name,
-        branch,
-    })
+fn log_cycle_spawns() {
+    #[cfg(debug_assertions)]
+    log::debug!(
+        "sessions: external process spawns this cycle = {}",
+        SPAWN_COUNTER.swap(0, std::sync::atomic::Ordering::Relaxed)
+    );
 }
 
-/// Resolve git info for each unique path in parallel.
-fn resolve_git_info(paths: &[String]) -> HashMap<String, Option<GitInfo>> {
-    let git_path = match find_git() {
-        Some(p) => p,
-        None => {
-            return paths.iter().map(|p| (p.clone(), None)).collect();
-        }
-    };
-
-    // Deduplicate paths
-    let unique: Vec<&String> = paths
-        .iter()
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    // Resolve git info in parallel (one thread per unique path)
-    std::thread::scope(|s| {
-        let handles: Vec<_> = unique
-            .iter()
-            .map(|path| {
-                let git_path = &git_path;
-                let path_str = path.as_str();
-                s.spawn(move || {
-                    (
-                        path_str.to_string(),
-                        resolve_single_git_info(git_path, path_str),
-                    )
-                })
-            })
-            .collect();
-
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
-    })
-}
-
-/// Extract repository name from a git remote URL.
-/// Supports HTTPS (`https://github.com/owner/repo.git`) and SSH (`git@github.com:owner/repo.git`).
-fn extract_repo_name_from_url(url: &str) -> Option<String> {
-    let path = if let Some(rest) = url.strip_prefix("git@") {
-        // SSH: git@github.com:owner/repo.git
-        rest.split(':').nth(1)?
-    } else {
-        // HTTPS: https://github.com/owner/repo.git
-        url.split("://").nth(1).unwrap_or(url)
-    };
-    let name = path.rsplit('/').next()?;
-    let name = name.strip_suffix(".git").unwrap_or(name);
-    if name.is_empty() {
-        None
-    } else {
-        Some(name.to_string())
-    }
-}
-
-pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup>, String> {
+pub fn list_tmux_panes_grouped(
+    show_non_agent: bool,
+    db_conn: &Option<db::Connection>,
+) -> Result<Vec<TmuxPaneGroup>, String> {
     log::info!(
         "sessions: get_sessions called (show_non_agent={})",
         show_non_agent
@@ -163,6 +57,7 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     let stdout_lines: Vec<String> = {
         let tmux_path = find_tmux().ok_or_else(|| "tmux not found".to_string())?;
         log::debug!("sessions: tmux found at {:?}", tmux_path);
+        note_spawn();
         let output = Command::new(&tmux_path)
             .env_remove("TMPDIR")
             .args(["list-panes", "-a", "-F", &format_str])
@@ -184,8 +79,8 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
 
     log::info!("sessions: tmux list-panes {} lines", stdout_lines.len());
 
-    // Build process tree once for all panes
-    let process_tree = build_process_tree();
+    // Build process tree once for all panes (in-process via sysinfo, no spawn)
+    let process_tree = process_tree::build_process_tree();
     log::debug!(
         "sessions: process tree: {} processes, {} parent entries",
         process_tree.process_count(),
@@ -243,46 +138,38 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     }
     log::debug!("sessions: parsed {} panes total", raw_panes.len());
 
-    // Open DB connection for agent status detection (read-only, no schema init)
-    let db_conn = db::open_reader(&config::db_path()).ok();
-
-    // Collect unique paths and agent panes for parallel execution
+    // Git info comes from on-disk .git metadata (cached across cycles in
+    // git_info) — file reads, no process spawn, so no need to parallelize.
     let unique_paths: Vec<String> = raw_panes
         .iter()
         .map(|p| p.current_path.clone())
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect();
+    let git_cache: HashMap<String, Option<GitInfo>> = unique_paths
+        .iter()
+        .map(|p| (p.clone(), git_info::resolve_git_info(p)))
+        .collect();
 
-    // Collect agent pane indices for parallel capture-pane
+    // Capture every agent pane's content with a single tmux invocation.
     let agent_pane_indices: Vec<usize> = raw_panes
         .iter()
         .enumerate()
         .filter(|(_, rp)| rp.agent_type.is_some())
         .map(|(i, _)| i)
         .collect();
-
-    // Run git info resolution and capture-pane in parallel
-    let (git_cache, captured_contents) = std::thread::scope(|s| {
-        // Git info: one thread per unique path
-        let git_handle = s.spawn(|| resolve_git_info(&unique_paths));
-
-        // Capture-pane: fan out threads to parallelize fork+exec overhead.
-        let captured: HashMap<usize, Option<String>> = {
-            let handles: Vec<_> = agent_pane_indices
-                .iter()
-                .map(|&idx| {
-                    let pane_id = raw_panes[idx].pane_id.as_str();
-                    s.spawn(move || (idx, capture_pane(pane_id)))
-                })
-                .collect();
-            handles.into_iter().map(|h| h.join().unwrap()).collect()
-        };
-
-        let git_cache = git_handle.join().unwrap();
-
-        (git_cache, captured)
-    });
+    let agent_pane_ids: Vec<&str> = agent_pane_indices
+        .iter()
+        .map(|&idx| raw_panes[idx].pane_id.as_str())
+        .collect();
+    let mut batch = agents::capture_panes_batch(&agent_pane_ids);
+    let captured_contents: HashMap<usize, Option<String>> = agent_pane_indices
+        .iter()
+        .map(|&idx| {
+            let content = batch.remove(raw_panes[idx].pane_id.as_str()).flatten();
+            (idx, content)
+        })
+        .collect();
 
     // Build TmuxPane with git info and agent status (DB lookups on main thread)
     let panes: Vec<TmuxPane> = raw_panes
@@ -293,7 +180,7 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
             let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
                 if let Some(ref at) = rp.agent_type {
                     let content = captured_contents.get(&idx).and_then(|c| c.as_deref());
-                    let r = detect_agent_status_with_content(&db_conn, &rp.pane_id, at, content);
+                    let r = detect_agent_status_with_content(db_conn, &rp.pane_id, at, content);
                     (
                         Some(r.status),
                         r.waiting_reason,
@@ -413,6 +300,8 @@ pub fn list_tmux_panes_grouped(show_non_agent: bool) -> Result<Vec<TmuxPaneGroup
     // Sort alphabetically by repo name
     groups.sort_by(|a, b| a.repo_name.cmp(&b.repo_name));
 
+    log_cycle_spawns();
+
     Ok(groups)
 }
 
@@ -479,11 +368,10 @@ pub fn find_focused_pane() -> Result<Option<TmuxPane>, String> {
         return Ok(None);
     };
 
-    let process_tree = build_process_tree();
+    let process_tree = process_tree::build_process_tree();
     let agent_type = detect_agent(&process_tree, pane_pid);
 
-    let git_info =
-        find_git().and_then(|git_path| resolve_single_git_info(&git_path, &current_path));
+    let git_info = git_info::resolve_git_info(&current_path);
 
     Ok(Some(TmuxPane {
         pane_id,

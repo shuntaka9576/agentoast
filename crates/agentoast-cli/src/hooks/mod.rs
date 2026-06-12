@@ -14,66 +14,22 @@ pub struct GitInfo {
     pub branch_name: String,
 }
 
+/// Resolve repo name + branch by reading `.git` metadata directly — hooks are
+/// invoked synchronously by the agents, so avoiding three `git` spawns keeps
+/// them fast.
 pub fn get_git_info(cwd: &Path) -> GitInfo {
-    let mut repo_name = String::new();
-    let mut branch_name = String::new();
-
-    let git_check = std::process::Command::new("git")
-        .args(["rev-parse", "--is-inside-work-tree"])
-        .current_dir(cwd)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output();
-
-    let is_git_repo = git_check
-        .as_ref()
-        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "true")
-        .unwrap_or(false);
-
-    if is_git_repo {
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["remote", "get-url", "origin"])
-            .current_dir(cwd)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .output()
-        {
-            if output.status.success() {
-                let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if let Some(caps) = url.rsplit('/').next().or_else(|| url.rsplit(':').next()) {
-                    repo_name = caps.trim_end_matches(".git").to_string();
-                }
-            }
-        }
-
-        if repo_name.is_empty() {
-            repo_name = cwd
+    match agentoast_shared::git_info::resolve_git_info_uncached(cwd) {
+        Some(info) => GitInfo {
+            repo_name: info.repo_name,
+            branch_name: info.branch.unwrap_or_default(),
+        },
+        None => GitInfo {
+            repo_name: cwd
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-        }
-
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["branch", "--show-current"])
-            .current_dir(cwd)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .output()
-        {
-            if output.status.success() {
-                branch_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            }
-        }
-    } else {
-        repo_name = cwd
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
-    }
-
-    GitInfo {
-        repo_name,
-        branch_name,
+                .unwrap_or_default(),
+            branch_name: String::new(),
+        },
     }
 }
 

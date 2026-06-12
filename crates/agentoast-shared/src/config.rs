@@ -277,7 +277,10 @@ impl Default for UpdateConfig {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SystemConfig {
     pub tmux: Option<String>,
-    pub git: Option<String>,
+    // `git` used to live here as a binary-path override. Repo/branch info is
+    // now read straight from `.git` metadata (git_info.rs), so the key is
+    // gone; configs that still contain `git = "..."` parse fine because
+    // unknown fields are ignored (no deny_unknown_fields).
 }
 
 fn default_claude_code_events() -> Vec<String> {
@@ -490,10 +493,9 @@ fn default_config_template() -> &'static str {
 # toggle_panel = "super+ctrl+n"
 
 # System settings
-# Override auto-detected binary paths (useful when auto-detection fails)
+# Override the auto-detected tmux binary path (useful when auto-detection fails)
 # [system]
 # tmux = "/custom/path/to/tmux"
-# git = "/custom/path/to/git"
 
 # Apps tab — surface frequently-used applications inside the main panel
 # Add apps from Settings → Apps. Each entry pins the app to the Apps tab so a
@@ -522,6 +524,22 @@ pub fn ensure_config_file() -> io::Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_system_git_key_is_ignored() {
+        // `[system] git` was removed when repo info became file-read based;
+        // configs written by older versions must keep parsing.
+        let toml_str = r#"
+[system]
+tmux = "/opt/homebrew/bin/tmux"
+git = "/opt/homebrew/bin/git"
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            config.system.tmux.as_deref(),
+            Some("/opt/homebrew/bin/tmux")
+        );
+    }
 
     #[test]
     fn default_claude_code_hook_config() {
