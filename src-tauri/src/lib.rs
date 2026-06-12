@@ -92,19 +92,34 @@ fn read_show_non_agent_panes(app_handle: &tauri::AppHandle) -> bool {
 
 #[cfg(target_os = "macos")]
 fn refresh_and_emit(app_handle: &tauri::AppHandle) {
+    let db_conn = db::open_reader(&config::db_path()).ok();
+    refresh_and_emit_with_conn(app_handle, &db_conn);
+}
+
+#[cfg(target_os = "macos")]
+fn refresh_and_emit_with_conn(app_handle: &tauri::AppHandle, db_conn: &Option<db::Connection>) {
     let show_non_agent = read_show_non_agent_panes(app_handle);
-    match sessions::list_tmux_panes_grouped(show_non_agent) {
+    match sessions::list_tmux_panes_grouped(show_non_agent, db_conn) {
         Ok(groups) => {
             // Reaching here means the tmux server is alive and responsive —
             // the right moment to attempt one-shot hook registration (retries
             // on every refresh until success, idempotent thereafter).
             tmux_hooks::install();
+            // The 2s poller mostly re-derives an identical snapshot; skip the
+            // serde + IPC of `sessions:updated` when nothing changed. The
+            // frontend already drops equal payloads (shallowEqualGroups).
+            let mut changed = true;
             if let Some(cache) = app_handle.try_state::<Mutex<SessionsCache>>() {
                 if let Ok(mut guard) = cache.lock() {
-                    guard.groups = Some(groups.clone());
+                    changed = guard.groups.as_ref() != Some(&groups);
+                    if changed {
+                        guard.groups = Some(groups.clone());
+                    }
                 }
             }
-            let _ = app_handle.emit("sessions:updated", &groups);
+            if changed {
+                let _ = app_handle.emit("sessions:updated", &groups);
+            }
         }
         Err(e) => {
             log::debug!("sessions refresh: list_tmux_panes_grouped failed: {}", e);
@@ -113,15 +128,25 @@ fn refresh_and_emit(app_handle: &tauri::AppHandle) {
 }
 
 /// Fixed-interval poller that refreshes the session list by spawning
-/// `tmux list-panes` + per-pane `capture-pane`. We used to maintain a
-/// long-lived `tmux -C` control client, but tmux 3.6a can wedge its
-/// control-mode subsystem in a way only `kill-server` recovers from, so
+/// `tmux list-panes` + a single batched `capture-pane` invocation. We used to
+/// maintain a long-lived `tmux -C` control client, but tmux 3.6a can wedge
+/// its control-mode subsystem in a way only `kill-server` recovers from, so
 /// Agentoast now sticks to plain commands.
 #[cfg(target_os = "macos")]
 fn start_sessions_safety_poller(app_handle: tauri::AppHandle, interval: Duration) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(interval);
-        refresh_and_emit(&app_handle);
+    std::thread::spawn(move || {
+        let db_path = config::db_path();
+        // One reader connection for the thread's lifetime (WAL allows
+        // concurrent readers/writer); reopened on the next cycle if the
+        // first open failed (e.g. DB not created yet).
+        let mut db_conn: Option<db::Connection> = None;
+        loop {
+            std::thread::sleep(interval);
+            if db_conn.is_none() {
+                db_conn = db::open_reader(&db_path).ok();
+            }
+            refresh_and_emit_with_conn(&app_handle, &db_conn);
+        }
     });
 }
 
@@ -431,7 +456,8 @@ async fn get_sessions(app_handle: tauri::AppHandle) -> Result<Vec<TmuxPaneGroup>
     {
         let show_non_agent = read_show_non_agent_panes(&app_handle);
         let result = tauri::async_runtime::spawn_blocking(move || {
-            sessions::list_tmux_panes_grouped(show_non_agent)
+            let db_conn = db::open_reader(&config::db_path()).ok();
+            sessions::list_tmux_panes_grouped(show_non_agent, &db_conn)
         })
         .await
         .map_err(|e| e.to_string())?;

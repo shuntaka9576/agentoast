@@ -26,6 +26,13 @@ pub struct ProcessTree {
 }
 
 impl ProcessTree {
+    /// Assemble a tree from pre-built maps. Used by in-process scanners
+    /// (e.g. the GUI's sysinfo-based one) that gather pid/ppid/command
+    /// without spawning `ps`.
+    pub fn from_maps(children: HashMap<u32, Vec<u32>>, commands: HashMap<u32, String>) -> Self {
+        ProcessTree { children, commands }
+    }
+
     /// Number of processes with a recorded command (for diagnostics/logging).
     pub fn process_count(&self) -> usize {
         self.commands.len()
@@ -34,6 +41,11 @@ impl ProcessTree {
     /// Number of distinct parent PIDs with at least one child (for diagnostics).
     pub fn parent_count(&self) -> usize {
         self.children.len()
+    }
+
+    /// Direct children of `pid` (for diagnostics/tests).
+    pub fn children_of(&self, pid: u32) -> &[u32] {
+        self.children.get(&pid).map(|v| v.as_slice()).unwrap_or(&[])
     }
 }
 

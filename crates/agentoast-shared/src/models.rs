@@ -70,7 +70,7 @@ pub struct Notification {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TmuxPane {
     pub pane_id: String,
@@ -90,7 +90,7 @@ pub struct TmuxPane {
     pub current_command: Option<String>, // tmux #{pane_current_command}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TmuxPaneGroup {
     pub repo_name: String,

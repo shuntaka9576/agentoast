@@ -24,13 +24,13 @@ A toast pops up whenever an agent completes or needs attention — click it to j
 
 ## Requirements
 
-| Command | Purpose                                | Required |
-| ------- | -------------------------------------- | -------- |
-| `tmux`  | Session/pane management, agent status  | Yes      |
-| `git`   | Repository detection, branch info      | Yes      |
-| `ps`    | Agent process detection (process tree) | Built-in |
+| Command | Purpose                               | Required |
+| ------- | ------------------------------------- | -------- |
+| `tmux`  | Session/pane management, agent status | Yes      |
 
-agentoast auto-detects binary paths by searching well-known locations (Homebrew, system, Nix). If the Sessions panel is empty, see the [`[system]` config](#system-binary-paths) to set paths manually.
+Repository and branch info is read directly from `.git` metadata, and the process tree is read via native macOS APIs — neither the `git` binary nor `ps` is required.
+
+agentoast auto-detects the tmux binary path by searching well-known locations (Homebrew, system, Nix). If the Sessions panel is empty, see the [`[system]` config](#system-binary-paths) to set the path manually.
 
 ## Installation
 
@@ -155,15 +155,14 @@ For the most common options (toast duration, global shortcut, auto-update, edito
 # toggle_panel = "super+ctrl+n"
 
 # System settings
-# Override auto-detected binary paths (useful when auto-detection fails)
+# Override the auto-detected tmux binary path (useful when auto-detection fails)
 # [system]
 # tmux = "/custom/path/to/tmux"
-# git = "/custom/path/to/git"
 ```
 
 #### System Binary Paths
 
-agentoast auto-detects `tmux` and `git` by searching in this order.
+agentoast auto-detects `tmux` by searching in this order.
 
 1. **Well-known paths** — Homebrew (Apple Silicon / Intel), system (`/usr/bin`)
 2. **Nix paths** — Home Manager (`/etc/profiles/per-user/$USER/bin/`), single-user (`/nix/var/nix/profiles/default/bin/`)
@@ -176,7 +175,6 @@ If auto-detection fails (Sessions panel is empty), override the path in `config.
 ```toml
 [system]
 tmux = "/your/custom/path/to/tmux"
-git = "/your/custom/path/to/git"
 ```
 
 ### Keyboard Shortcuts

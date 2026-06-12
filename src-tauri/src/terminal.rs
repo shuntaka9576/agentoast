@@ -6,12 +6,11 @@ use agentoast_shared::config::{self, AppConfig};
 
 static CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
-// Resolved binary paths, cached after the first successful probe so hot paths
+// Resolved binary path, cached after the first successful probe so hot paths
 // (per-pane capture, watcher repo resolution) don't re-stat the filesystem.
-// A failed probe is intentionally NOT cached: if tmux/git gets installed while
+// A failed probe is intentionally NOT cached: if tmux gets installed while
 // the app is running, the next call can still find it.
 static TMUX_PATH: OnceLock<PathBuf> = OnceLock::new();
-static GIT_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 fn get_config() -> &'static AppConfig {
     CONFIG.get_or_init(config::load_config)
@@ -35,61 +34,6 @@ pub(crate) fn find_tmux() -> Option<PathBuf> {
     let found = agentoast_shared::tmux::find_tmux(get_config().system.tmux.as_deref())?;
     let _ = TMUX_PATH.set(found.clone());
     Some(found)
-}
-
-pub(crate) fn find_git() -> Option<PathBuf> {
-    if let Some(p) = GIT_PATH.get() {
-        return Some(p.clone());
-    }
-    let found = probe_git()?;
-    let _ = GIT_PATH.set(found.clone());
-    Some(found)
-}
-
-fn probe_git() -> Option<PathBuf> {
-    // config.toml override (highest priority)
-    if let Some(ref path) = get_config().system.git {
-        let p = PathBuf::from(path);
-        if p.exists() {
-            return Some(p);
-        }
-        log::warn!(
-            "config.toml system.git={} not found, falling back to auto-detection",
-            path
-        );
-    }
-
-    let mut candidates: Vec<PathBuf> = vec![
-        PathBuf::from("/usr/bin/git"),          // system (Xcode CLT)
-        PathBuf::from("/opt/homebrew/bin/git"), // Homebrew (Apple Silicon)
-        PathBuf::from("/usr/local/bin/git"),    // Homebrew (Intel) / manual
-    ];
-
-    // Nix Home Manager
-    if let Ok(user) = std::env::var("USER") {
-        candidates.push(PathBuf::from(format!(
-            "/etc/profiles/per-user/{}/bin/git",
-            user
-        )));
-    }
-    // Nix single-user profile
-    candidates.push(PathBuf::from("/nix/var/nix/profiles/default/bin/git"));
-
-    if let Some(found) = candidates.iter().find(|p| p.exists()) {
-        return Some(found.clone());
-    }
-
-    // PATH-based fallback
-    if let Ok(path_var) = std::env::var("PATH") {
-        for dir in path_var.split(':') {
-            let candidate = PathBuf::from(dir).join("git");
-            if candidate.exists() {
-                return Some(candidate);
-            }
-        }
-    }
-
-    None
 }
 
 /// Resolve a pane id (%NN) to a concrete `session:window.pane` target by

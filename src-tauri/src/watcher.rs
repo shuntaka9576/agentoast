@@ -143,7 +143,7 @@ pub fn start(app_handle: AppHandle, db_path: PathBuf) {
 }
 
 /// Resolve the repository path for a tmux pane.
-/// Uses `tmux display-message` to get the pane's cwd, then `git rev-parse --show-toplevel`
+/// Uses `tmux display-message` to get the pane's cwd, then on-disk .git metadata
 /// to find the git repo root. Falls back to cwd if not a git repo.
 #[cfg(target_os = "macos")]
 fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
@@ -172,23 +172,9 @@ fn resolve_pane_repo(tmux_pane: &str) -> Option<String> {
         return None;
     }
 
-    // Try git rev-parse to get repo root
-    if let Some(git_path) = crate::terminal::find_git() {
-        if let Ok(git_output) = Command::new(&git_path)
-            .env_remove("TMPDIR")
-            .args(["rev-parse", "--show-toplevel"])
-            .current_dir(&cwd)
-            .output()
-        {
-            if git_output.status.success() {
-                let repo_root = String::from_utf8_lossy(&git_output.stdout)
-                    .trim()
-                    .to_string();
-                if !repo_root.is_empty() {
-                    return Some(repo_root);
-                }
-            }
-        }
+    // Resolve the repo root from on-disk .git metadata (no git spawn).
+    if let Some(info) = agentoast_shared::git_info::resolve_git_info(&cwd) {
+        return Some(info.repo_root);
     }
 
     Some(cwd)
