@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.46.3](https://github.com/shuntaka9576/agentoast/compare/v0.46.2...v0.46.3) - 2026-06-12
+
+- chore(deps): update frontend to ^10.4.4 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/301
+- fix: replace clipped CSS panel shadow with native macOS window shadow by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/302
+
 ## [v0.46.2](https://github.com/shuntaka9576/agentoast/compare/v0.46.1...v0.46.2) - 2026-06-12
 
 - perf: cache resolved tmux/git binary paths in GUI hot paths by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/300
