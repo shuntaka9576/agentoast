@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.46.2](https://github.com/shuntaka9576/agentoast/compare/v0.46.1...v0.46.2) - 2026-06-12
+
+- perf: cache resolved tmux/git binary paths in GUI hot paths by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/300
+- chore(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/296
+
 ## [v0.46.1](https://github.com/shuntaka9576/agentoast/compare/v0.46.0...v0.46.1) - 2026-06-09
 
 ## [v0.46.0](https://github.com/shuntaka9576/agentoast/compare/v0.45.0...v0.46.0) - 2026-06-04
