@@ -76,16 +76,39 @@ pub fn pane_pid(tmux: &Path, pane: &str) -> Option<u32> {
     String::from_utf8_lossy(&out.stdout).trim().parse().ok()
 }
 
-/// Inject `body` into the target pane as literal keystrokes, then optionally
-/// submit it with Enter.
+/// Inject `body` into the target pane via a bracketed-paste sequence, then
+/// optionally submit it with Enter.
 ///
-/// `-l` sends the text literally (no key-name interpretation) and `--`
-/// terminates option parsing, so a body starting with `-` is delivered safely.
+/// We deliberately avoid `tmux send-keys -l <body>` followed by a separate
+/// `send-keys Enter`: on some agent TUIs (notably Codex's crossterm-based
+/// input loop) the trailing Enter arrives within the body burst and is
+/// absorbed as paste content, so the message lands in the input box but
+/// never submits. The failure is intermittent — it depends on tmux server
+/// scheduling and the receiver's paste-detection heuristics.
+///
+/// Instead we stage the body in a uniquely-named tmux paste buffer and
+/// dispatch it with `paste-buffer -p`, which wraps the bytes in bracketed-
+/// paste markers (`ESC [200~ … ESC [201~`). Receivers that opt into
+/// bracketed paste mode (every modern agent TUI does) see an explicit
+/// paste-end marker before our subsequent Enter, so the Enter is
+/// unambiguously a key press and not part of the paste — eliminating the
+/// race at the byte-stream level regardless of how the TUI schedules reads.
+/// `-d` deletes the buffer after pasting so we don't leak names.
 pub fn send_keys(tmux: &Path, pane: &str, body: &str, enter: bool) -> Result<(), String> {
+    let buf_name = format!("agentoast-send-{}", std::process::id());
+
     let out = Command::new(tmux)
-        .args(["send-keys", "-t", pane, "-l", "--", body])
+        .args(["set-buffer", "-b", &buf_name, "--", body])
         .output()
-        .map_err(|e| format!("failed to run tmux send-keys: {e}"))?;
+        .map_err(|e| format!("failed to run tmux set-buffer: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+
+    let out = Command::new(tmux)
+        .args(["paste-buffer", "-t", pane, "-b", &buf_name, "-p", "-d"])
+        .output()
+        .map_err(|e| format!("failed to run tmux paste-buffer: {e}"))?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }

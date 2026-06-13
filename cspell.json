@@ -83,6 +83,8 @@
     "unminimize",
     "unparseable",
     "untap",
+    "frontmatter",
+    "ratatui",
     "wezterm",
     "worktree",
     "worktrees",
