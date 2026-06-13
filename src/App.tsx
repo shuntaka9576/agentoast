@@ -1021,17 +1021,38 @@ export function App() {
         e.preventDefault();
         repositionCancelledRef.current = true;
         const direction = e.shiftKey ? -1 : 1;
-        const curIdx = indexOfKey(flatItems, selectedKeyRef.current);
-        let nextIndex =
-          curIdx < 0 ? (direction === 1 ? 0 : flatItems.length - 1) : curIdx + direction;
-        while (nextIndex >= 0 && nextIndex < flatItems.length) {
-          const fi = flatItems[nextIndex];
-          const hasNotif = fi.type === "pane-item" && fi.paneItem.notification !== null;
-          if (hasNotif) {
-            setSelectedKey(keyFromItem(fi));
-            break;
+        const target = findNextPaneByPredicate(
+          displayGroups,
+          selectedKeyRef.current,
+          direction,
+          (pi) => pi.notification !== null,
+        );
+        if (target) {
+          if (collapsedGroups.has(target.groupKey)) {
+            toggleGroupExpanded(target.groupKey);
           }
-          nextIndex += direction;
+          setSelectedKey({ kind: "pane", paneId: target.paneId });
+        }
+        break;
+      }
+      case "r":
+      case "R": {
+        if (showHelp || e.metaKey || e.ctrlKey || e.altKey) break;
+        if (e.key === "r" && e.shiftKey) break;
+        e.preventDefault();
+        repositionCancelledRef.current = true;
+        const direction = e.key === "R" ? -1 : 1;
+        const target = findNextPaneByPredicate(
+          displayGroups,
+          selectedKeyRef.current,
+          direction,
+          (pi) => pi.pane.agentStatus === "running",
+        );
+        if (target) {
+          if (collapsedGroups.has(target.groupKey)) {
+            toggleGroupExpanded(target.groupKey);
+          }
+          setSelectedKey({ kind: "pane", paneId: target.paneId });
         }
         break;
       }
@@ -1200,6 +1221,45 @@ function keyFromItem(f: FlatItem): SelectedKey {
     return { kind: "group", groupKey: f.groupKey };
   }
   return { kind: "pane", paneId: f.paneItem.pane.paneId };
+}
+
+function findNextPaneByPredicate(
+  displayGroups: UnifiedGroup[],
+  currentKey: SelectedKey | null,
+  direction: 1 | -1,
+  predicate: (pi: PaneItem) => boolean,
+): { groupKey: string; paneId: string } | null {
+  type FlatPane = { groupKey: string; paneItem: PaneItem };
+  const allPanes: FlatPane[] = [];
+  for (const ug of displayGroups) {
+    for (const pi of ug.paneItems) {
+      allPanes.push({ groupKey: ug.groupKey, paneItem: pi });
+    }
+  }
+  const total = allPanes.length;
+  if (total === 0) return null;
+  const outOfBounds = direction === 1 ? -1 : total;
+
+  let startIdx: number;
+  if (currentKey?.kind === "pane") {
+    const idx = allPanes.findIndex((p) => p.paneItem.pane.paneId === currentKey.paneId);
+    startIdx = idx < 0 ? outOfBounds : idx;
+  } else if (currentKey?.kind === "group") {
+    const first = allPanes.findIndex((p) => p.groupKey === currentKey.groupKey);
+    startIdx = first < 0 ? outOfBounds : direction === 1 ? first - 1 : first;
+  } else {
+    startIdx = outOfBounds;
+  }
+
+  for (let step = 1; step <= total; step++) {
+    const raw = startIdx + direction * step;
+    const idx = ((raw % total) + total) % total;
+    const fp = allPanes[idx];
+    if (predicate(fp.paneItem)) {
+      return { groupKey: fp.groupKey, paneId: fp.paneItem.pane.paneId };
+    }
+  }
+  return null;
 }
 
 function indexOfKey(items: FlatItem[], key: SelectedKey | null): number {
