@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.48.1](https://github.com/shuntaka9576/agentoast/compare/v0.48.0...v0.48.1) - 2026-06-13
+
 ## [v0.48.0](https://github.com/shuntaka9576/agentoast/compare/v0.47.0...v0.48.0) - 2026-06-13
 
 - feat: add r/R to jump to running panes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/306
