@@ -242,7 +242,9 @@ No Deno dependency required. The CLI reads hook data from stdin and writes direc
 
 ```toml
 notify = [
-  "agentoast hook codex",
+  "agentoast",
+  "hook",
+  "codex",
 ]
 ```
 
