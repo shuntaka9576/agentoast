@@ -23,17 +23,29 @@ Talk to AI coding agents running in OTHER tmux panes by injecting a message into
    - The user usually provides it — often by pasting agentoast's clipboard string `Please take a look at tmux pane %72.` Take the `%72` from there.
    - If no pane id is present, ask the user which pane to send to.
 2. Run:
+
    ```
    agentoast send-keys --pane %72 "your message"
    ```
-   The text is typed straight into that agent's prompt and submitted. Your own pane is read from `$TMUX_PANE` and appended as a reply address, so the receiver sees a trailing `(reply: agentoast send-keys --pane <you> "<reply>")`. You do not add that hint yourself.
+
+   The text is staged in a tmux paste buffer and delivered to that agent's prompt with bracketed-paste markers, then submitted with Enter. When `--from` is passed or `$TMUX_PANE` is set (the normal case when you are yourself running inside tmux), that pane id is appended as a reply address, so the receiver sees a trailing `(reply: agentoast send-keys --pane <you> "<reply>")`. You do not add that hint yourself. If neither is available (e.g. you are invoked from outside tmux), no reply hint is appended — pass `--from %NN` explicitly when you want one.
+
 3. Tell the user it was sent. The reply arrives later as a new prompt in YOUR pane — there is nothing to poll or watch.
 
 Write the message yourself from the conversation so far. You hold context the other agent lacks, so phrase a self-contained request (summarize the task or question) rather than a bare "see above" — the other pane can't see your screen.
 
 ## Replying to an incoming message
 
-If your prompt contains a line like `(reply: agentoast send-keys --pane %45 "<reply>")`, that is a message from another agent. Do the work it asks for, then run that exact command with your answer in place of `<reply>`.
+If your prompt contains a line like `(reply: agentoast send-keys --pane %45 "<reply>")`, that is a message from another agent. Do the work it asks for, then run `agentoast send-keys --pane %45` with your answer as a single shell-safe argument — do not blindly paste your reply into the literal command template, because reply text often contains `"`, `` ` ``, `$(...)`, or newlines that would break shell quoting or trigger unintended expansion. Pass the answer via a quoted here-doc instead:
+
+```
+agentoast send-keys --pane %45 "$(cat <<'EOF'
+your multi-line answer with "quotes", $vars, and `backticks` is safe here
+EOF
+)"
+```
+
+The `'EOF'` (single-quoted heredoc tag) suppresses shell expansion inside the body, so nothing in the reply gets interpreted.
 
 ## Don't scrape the screen — ask the agent
 
