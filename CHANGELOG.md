@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.47.0](https://github.com/shuntaka9576/agentoast/compare/v0.46.3...v0.47.0) - 2026-06-13
+
+- feat: reduce session scanning to 2 process spawns per cycle by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/304
+
 ## [v0.46.3](https://github.com/shuntaka9576/agentoast/compare/v0.46.2...v0.46.3) - 2026-06-12
 
 - chore(deps): update frontend to ^10.4.4 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/301
