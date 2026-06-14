@@ -44,6 +44,14 @@ pub struct SessionsCache {
     pub groups: Option<Vec<TmuxPaneGroup>>,
 }
 
+/// Per-pane "did this body just change?" tracker consumed by the agent
+/// status detector. Owns nothing else; lives in its own Tauri-managed state
+/// so the hot path (`list_tmux_panes_grouped`) can lock it independently of
+/// `SessionsCache`, whose lock is taken later to publish the rendered
+/// groups.
+#[cfg(target_os = "macos")]
+pub type PaneHysteresisState = Mutex<sessions::hysteresis::PaneHysteresis>;
+
 #[derive(Default)]
 pub struct MuteState {
     pub global_muted: bool,
@@ -99,7 +107,9 @@ fn refresh_and_emit(app_handle: &tauri::AppHandle) {
 #[cfg(target_os = "macos")]
 fn refresh_and_emit_with_conn(app_handle: &tauri::AppHandle, db_conn: &Option<db::Connection>) {
     let show_non_agent = read_show_non_agent_panes(app_handle);
-    match sessions::list_tmux_panes_grouped(show_non_agent, db_conn) {
+    let hysteresis_state = app_handle.try_state::<PaneHysteresisState>();
+    let hysteresis = hysteresis_state.as_ref().map(|s| s.inner());
+    match sessions::list_tmux_panes_grouped(show_non_agent, db_conn, hysteresis) {
         Ok(groups) => {
             // Reaching here means the tmux server is alive and responsive —
             // the right moment to attempt one-shot hook registration (retries
@@ -455,9 +465,12 @@ async fn get_sessions(app_handle: tauri::AppHandle) -> Result<Vec<TmuxPaneGroup>
     #[cfg(target_os = "macos")]
     {
         let show_non_agent = read_show_non_agent_panes(&app_handle);
+        let hysteresis_handle = app_handle.clone();
         let result = tauri::async_runtime::spawn_blocking(move || {
             let db_conn = db::open_reader(&config::db_path()).ok();
-            sessions::list_tmux_panes_grouped(show_non_agent, &db_conn)
+            let hysteresis_state = hysteresis_handle.try_state::<PaneHysteresisState>();
+            let hysteresis = hysteresis_state.as_ref().map(|s| s.inner());
+            sessions::list_tmux_panes_grouped(show_non_agent, &db_conn, hysteresis)
         })
         .await
         .map_err(|e| e.to_string())?;
@@ -1235,6 +1248,10 @@ pub fn run() {
             }));
 
             app.manage(Mutex::new(SessionsCache { groups: None }));
+            #[cfg(target_os = "macos")]
+            app.manage::<PaneHysteresisState>(Mutex::new(
+                sessions::hysteresis::PaneHysteresis::default(),
+            ));
 
             app.manage(Mutex::new(MuteState {
                 global_muted: initial_muted,

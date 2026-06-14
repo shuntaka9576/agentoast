@@ -8,10 +8,14 @@ use agentoast_shared::models::{TmuxPane, TmuxPaneGroup};
 use crate::terminal::find_tmux;
 
 pub(crate) mod agents;
+pub mod hysteresis;
 mod process_tree;
 use agents::detect_agent_status_with_content;
 
 use agentoast_shared::agent_detect::detect_agent;
+use hysteresis::PaneHysteresis;
+use std::sync::Mutex;
+use std::time::Instant;
 
 /// Debug-build spawn accounting so the per-cycle external-process count can
 /// be verified from the logs (the whole point of the constant-spawn work).
@@ -34,6 +38,7 @@ fn log_cycle_spawns() {
 pub fn list_tmux_panes_grouped(
     show_non_agent: bool,
     db_conn: &Option<db::Connection>,
+    hysteresis: Option<&Mutex<PaneHysteresis>>,
 ) -> Result<Vec<TmuxPaneGroup>, String> {
     log::info!(
         "sessions: get_sessions called (show_non_agent={})",
@@ -171,6 +176,24 @@ pub fn list_tmux_panes_grouped(
         })
         .collect();
 
+    // Single-shot hysteresis observation. The write lock spans only the
+    // in-memory hash computation (no tmux / DB / git I/O), so contention
+    // with `emit_cached_sessions` and the get_sessions command stays
+    // bounded even with hundreds of panes.
+    let last_changed_map: HashMap<String, Instant> = if let Some(h) = hysteresis {
+        let mut guard = h.lock().unwrap_or_else(|e| e.into_inner());
+        let observed = guard.observe_batch(agent_pane_indices.iter().filter_map(|&idx| {
+            let rp = &raw_panes[idx];
+            let agent_type = rp.agent_type.as_deref()?;
+            let content = captured_contents.get(&idx).and_then(|c| c.as_deref())?;
+            Some((rp.pane_id.as_str(), agent_type, content))
+        }));
+        guard.retain(raw_panes.iter().map(|p| p.pane_id.as_str()));
+        observed
+    } else {
+        HashMap::new()
+    };
+
     // Build TmuxPane with git info and agent status (DB lookups on main thread)
     let panes: Vec<TmuxPane> = raw_panes
         .into_iter()
@@ -180,7 +203,17 @@ pub fn list_tmux_panes_grouped(
             let (agent_status, waiting_reason, agent_modes, team_role, team_name) =
                 if let Some(ref at) = rp.agent_type {
                     let content = captured_contents.get(&idx).and_then(|c| c.as_deref());
-                    let r = detect_agent_status_with_content(db_conn, &rp.pane_id, at, content);
+                    // Map entry absent ⇒ first observation, input region
+                    // unlocatable, or non-Claude agent — all collapse to
+                    // "no hash assist for this pane this cycle".
+                    let last_changed = last_changed_map.get(&rp.pane_id).copied();
+                    let r = detect_agent_status_with_content(
+                        db_conn,
+                        &rp.pane_id,
+                        at,
+                        content,
+                        last_changed,
+                    );
                     (
                         Some(r.status),
                         r.waiting_reason,

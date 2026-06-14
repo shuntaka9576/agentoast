@@ -1,6 +1,14 @@
+use std::time::Instant;
+
 use agentoast_shared::{db, models::AgentStatus};
 
 use super::{is_numbered_option, AgentDetectionResult};
+use crate::sessions::hysteresis::InputRegion;
+
+/// How long after the body-hash last changed the pane is still treated as
+/// Running while sitting `at_prompt`. Sized for a 2 s polling cadence so a
+/// single missed spinner frame doesn't blink the status to Idle.
+pub(crate) const CHANGE_TTL: std::time::Duration = std::time::Duration::from_millis(3000);
 
 struct ClaudePaneContentInfo {
     has_spinner: bool, // Spinner chars + "…" / "esc to interrupt" (real-time, reliable)
@@ -21,17 +29,20 @@ pub(super) fn detect_claude_status(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     content: Option<&str>,
+    last_changed_at: Option<Instant>,
 ) -> AgentDetectionResult {
     let info = check_claude_pane_content(pane_id, content);
 
+    let hash_age_ms = last_changed_at.map(|t| t.elapsed().as_millis());
     log::debug!(
-        "detect_claude_status({}): spinner={} status_running={} question_dialog={} plan_approval={} prompt={}",
+        "detect_claude_status({}): spinner={} status_running={} question_dialog={} plan_approval={} prompt={} hash_age_ms={:?}",
         pane_id,
         info.has_spinner,
         info.has_status_running,
         info.has_question_dialog,
         info.has_plan_approval,
-        info.at_prompt
+        info.at_prompt,
+        hash_age_ms,
     );
 
     // Background work indicators that should override at_prompt Idle.
@@ -63,13 +74,24 @@ pub(super) fn detect_claude_status(
     } else if has_background_work {
         // Background work in progress — Running regardless of prompt state.
         (AgentStatus::Running, None)
+    } else if hash_assist_says_running(last_changed_at) {
+        // Body content is still mutating off-screen — almost always means
+        // the agent is mid-stream and the spinner was simply absent from
+        // this capture. Sits above at_prompt because pure text streaming
+        // hides the input box (is_prompt_line returns false), which would
+        // otherwise drop us straight to the Idle fallback below. Sits
+        // BELOW the question / plan-approval checks so explicit Waiting
+        // dialogs still win during a recent hash change.
+        (AgentStatus::Running, None)
     } else if info.at_prompt {
-        if let Some(conn) = db_conn {
-            if let Ok(Some(_)) = db::get_latest_notification_by_pane(conn, pane_id) {
-                (AgentStatus::Waiting, None)
-            } else {
-                (AgentStatus::Idle, None)
-            }
+        let has_recent_notif = db_conn.as_ref().is_some_and(|conn| {
+            matches!(
+                db::get_latest_notification_by_pane(conn, pane_id),
+                Ok(Some(_))
+            )
+        });
+        if has_recent_notif {
+            (AgentStatus::Waiting, None)
         } else {
             (AgentStatus::Idle, None)
         }
@@ -91,6 +113,149 @@ pub(super) fn detect_claude_status(
         team_role: info.team_role,
         team_name: info.team_name,
     }
+}
+
+fn hash_assist_says_running(last_changed_at: Option<Instant>) -> bool {
+    last_changed_at.is_some_and(|t| t.elapsed() < CHANGE_TTL)
+}
+
+/// Locate the input box region in a Claude Code pane capture.
+///
+/// Real Claude layouts place the `│ ... │` input box ABOVE the mode line,
+/// usage stats footer, and shortcut hints — i.e., the box is not the
+/// bottom-most non-empty content. Walk up from the bottom skipping empty,
+/// separator, and footer-noise lines, then expect a `│`-prefixed block and
+/// return its contiguous span. `None` means we did not find a box (startup
+/// splash, modal dialog covering the box, plain shell after agent exit,
+/// etc.) — the hysteresis layer disables hash assist for that cycle rather
+/// than risk hashing the user's keystrokes.
+pub(super) fn locate_input_region(lines: &[&str]) -> Option<InputRegion> {
+    let mut end = lines.len();
+    loop {
+        if end == 0 {
+            return None;
+        }
+        let idx = end - 1;
+        let line = lines[idx];
+        let trimmed = line.trim();
+        if trimmed.is_empty() || is_separator_line(trimmed) || is_footer_noise(line) {
+            end -= 1;
+            continue;
+        }
+        if is_box_border_line(line) {
+            break;
+        }
+        // A non-box, non-footer line below where the input box should be —
+        // not a Claude TUI we recognize. Bail.
+        return None;
+    }
+    let last_box = end - 1;
+    let mut start = last_box;
+    while start > 0 && is_box_border_line(lines[start - 1]) {
+        start -= 1;
+    }
+    Some(InputRegion {
+        start_line: start,
+        end_line: last_box,
+    })
+}
+
+fn is_box_border_line(line: &str) -> bool {
+    line.trim_start().starts_with('\u{2502}')
+}
+
+/// Lines immediately above the input region eligible for footer normalization.
+/// Anything further up is conversation body and is hashed verbatim — that way
+/// a code block in the chat that mentions e.g. "ctrl+c" never gets stripped.
+const FOOTER_SCAN_LINES: usize = 10;
+
+/// Collect the lines that should feed Claude's body hash. The cutoff is the
+/// start of the input region when we can locate the `│ ... │` box; when we
+/// cannot — and pure text streaming is the canonical case, because the
+/// response scrolls the input box off-screen — we hash the entire capture.
+/// Returns `None` only when there's nothing to hash (zero non-blank lines)
+/// or when the input region is reported as starting at line 0, which means
+/// the box ate the whole screen and there is no body left.
+///
+/// **Safety of the full-content fallback:** Claude Code holds the keyboard
+/// while streaming (the TUI does not accept input characters until the
+/// response completes), so the user can never be typing into the input box
+/// when the box is off-screen. That means hashing the full capture in the
+/// streaming case cannot accidentally fold user keystrokes into the body
+/// hash — the only thing that can change is generated output, which is
+/// exactly the signal hash assist is looking for.
+pub(super) fn collect_hashable_body(content: &str) -> Option<Vec<&str>> {
+    let lines: Vec<&str> = content.lines().collect();
+    let cutoff = match locate_input_region(&lines) {
+        Some(region) if region.start_line == 0 => return None,
+        Some(region) => region.start_line,
+        None => lines.len(),
+    };
+    if cutoff == 0 {
+        return None;
+    }
+    let scan_start = cutoff.saturating_sub(FOOTER_SCAN_LINES);
+    let mut out: Vec<&str> = Vec::with_capacity(cutoff);
+    for (idx, line) in lines.iter().enumerate().take(cutoff) {
+        if idx >= scan_start && is_footer_noise(line) {
+            continue;
+        }
+        out.push(line);
+    }
+    Some(out)
+}
+
+/// Claude Code mode-line run / pause markers. Used in three places
+/// (`is_claude_tui_footer_line`, the team-role detector, `is_prompt_line`)
+/// so the literal escapes don't drift across sites.
+const MODE_PLAY: char = '\u{23F5}'; // ⏵
+const MODE_PAUSE: char = '\u{23F8}'; // ⏸
+
+/// Recognize a line as a built-in Claude Code TUI footer fragment shared
+/// between two callers: `is_prompt_line` (which walks past these to look
+/// for the real prompt) and `is_footer_noise` (which strips them from the
+/// hashable body). Keeping the shared facts in one helper prevents the two
+/// callers from silently diverging when Claude's footer changes.
+fn is_claude_tui_footer_line(trimmed: &str) -> bool {
+    if trimmed.starts_with(MODE_PLAY) || trimmed.starts_with(MODE_PAUSE) {
+        return true;
+    }
+    if trimmed.contains("Context left until auto-compact") {
+        return true;
+    }
+    if trimmed.contains("for shortcuts") {
+        return true;
+    }
+    false
+}
+
+/// Recognize a line as periodic-update footer noise from Claude Code's
+/// built-in TUI. Intentionally narrow — anything that could be a custom
+/// statusline (user-configured model badges, rate-limit clusters, time
+/// indicators, etc.) is NOT matched here, so this code stays portable
+/// across statusline customizations. The cost of a false negative is a
+/// brief false Running blip; the cost of a false positive is missing a
+/// real diff and reverting to Idle while the agent is streaming, which is
+/// the bug we're fixing.
+fn is_footer_noise(line: &str) -> bool {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if is_claude_tui_footer_line(trimmed) {
+        return true;
+    }
+    // Claude's ctrl-hint footer rows have the shape "ctrl+X (...) to <verb>"
+    // (or "ctrl-X to <verb>"). Requiring both the modifier and the trailing
+    // " to " keeps a bare "ctrl+c" inside a conversation code block from
+    // being stripped, even when it ends up inside the footer scan window.
+    // (is_prompt_line uses the broader, unguarded ctrl+ check below — safe
+    // there because that detector only sees the absolute bottom of the
+    // screen, where conversation text never lands.)
+    if (trimmed.contains("ctrl+") || trimmed.contains("ctrl-")) && trimmed.contains(" to ") {
+        return true;
+    }
+    false
 }
 
 /// Claude Code spinner characters that appear at the start of running lines.
@@ -264,7 +429,7 @@ fn check_claude_pane_content(pane_id: &str, content: Option<&str>) -> ClaudePane
         // Lead: mode line (⏵/⏸) containing "teammate"
         //   e.g., "⏸ plan mode on · 3 teammates"
         if team_role.is_none() {
-            let is_mode_line = trimmed.starts_with('⏵') || trimmed.starts_with('⏸');
+            let is_mode_line = trimmed.starts_with(MODE_PLAY) || trimmed.starts_with(MODE_PAUSE);
             if is_mode_line && trimmed.contains("teammate") {
                 log::debug!(
                     "check_claude_pane_content({}): agent team lead detected (mode line): {:?}",
@@ -546,24 +711,20 @@ fn is_prompt_line(lines: &[&str]) -> bool {
         if is_separator_line(trimmed) {
             continue;
         }
-        // Mode indicator: ⏵⏵ bypass permissions, ⏸ plan mode
-        if trimmed.starts_with('⏵') || trimmed.starts_with('⏸') {
+        // Built-in Claude TUI footer (mode line, auto-compact warning, "for
+        // shortcuts" hint). Single shared predicate so this detector and
+        // is_footer_noise can't drift.
+        if is_claude_tui_footer_line(trimmed) {
             continue;
         }
         // ctrl shortcut hints (e.g., "ctrl+b ctrl+b (twice) to run in background",
-        // "ctrl-g to edit in Nvim")
+        // "ctrl-g to edit in Nvim"). Unguarded match is safe here because the
+        // detector only inspects the absolute bottom of the screen.
         if trimmed.contains("ctrl+") || trimmed.contains("ctrl-") {
             continue;
         }
-        // Context auto-compact warning (e.g., "Context left until auto-compact: 8%")
-        if trimmed.contains("Context left until auto-compact") {
-            continue;
-        }
-        // Skip Claude Code TUI footer lines
-        if trimmed.contains("for shortcuts")
-            || trimmed.contains("shift+tab to cycle")
-            || is_file_changes_line(trimmed)
-        {
+        // Remaining footer odds and ends not in the shared predicate.
+        if trimmed.contains("shift+tab to cycle") || is_file_changes_line(trimmed) {
             continue;
         }
         // Claude Code elicitation numbered options (e.g., "  2. Yes, and bypass permissions")
@@ -670,7 +831,7 @@ mod tests {
 
     #[test]
     fn detects_running_when_fork_is_active_without_parent_spinner() {
-        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER));
+        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER), None);
         assert_eq!(
             result.status,
             AgentStatus::Running,
@@ -681,7 +842,7 @@ mod tests {
 
     #[test]
     fn fork_count_added_to_agent_modes() {
-        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER));
+        let result = detect_claude_status(&None, "%4", Some(FORK_RUNNING_NO_PARENT_SPINNER), None);
         assert!(
             result.agent_modes.iter().any(|m| m.ends_with("fork")),
             "expected fork count badge in agent_modes, got: {:?}",
@@ -747,5 +908,216 @@ mod tests {
             ),
             Some(1)
         );
+    }
+
+    /// Pane sitting at an empty prompt with no spinner and no notification —
+    /// matches the real Claude TUI layout where the built-in mode line
+    /// renders BELOW the input box. Uses only built-in TUI patterns so the
+    /// tests don't pin behavior to a specific statusline customization.
+    const AT_PROMPT_NO_SPINNER: &str = "\
+some history line
+another history line
+────────────────────────────────────────────────────────────────────────────────
+│ ❯                                                                            │
+────────────────────────────────────────────────────────────────────────────────
+  ⏸ plan mode on (shift+tab to cycle)
+";
+
+    #[test]
+    fn hash_assist_recent_change_promotes_to_running() {
+        let result = detect_claude_status(
+            &None,
+            "%9",
+            Some(AT_PROMPT_NO_SPINNER),
+            Some(Instant::now()),
+        );
+        assert_eq!(
+            result.status,
+            AgentStatus::Running,
+            "recent body change should keep pane Running, got {:?}",
+            result.status
+        );
+    }
+
+    #[test]
+    fn hash_assist_stale_falls_through_to_idle() {
+        let stale = Instant::now() - CHANGE_TTL - std::time::Duration::from_millis(500);
+        let result = detect_claude_status(&None, "%9", Some(AT_PROMPT_NO_SPINNER), Some(stale));
+        assert_eq!(
+            result.status,
+            AgentStatus::Idle,
+            "stale body change should let Idle win, got {:?}",
+            result.status
+        );
+    }
+
+    #[test]
+    fn hash_assist_none_preserves_legacy_idle() {
+        // No hash assist available (first-seen pane / unlocatable input) —
+        // judgement must match the pre-change behavior exactly.
+        let result = detect_claude_status(&None, "%9", Some(AT_PROMPT_NO_SPINNER), None);
+        assert_eq!(result.status, AgentStatus::Idle);
+    }
+
+    /// Pure text streaming: spinner happens to be missing from this capture,
+    /// and the bottom of the screen is mid-response text (no input box
+    /// drawn), so `is_prompt_line` returns false. Without hash assist this
+    /// falls through every status check and lands on the Idle fallback,
+    /// which is exactly the user-visible bug fixed here.
+    const STREAMING_NO_INPUT_BOX: &str = "\
+some history line
+⏺ Claude is streaming a response and the input box is hidden while text
+  pours into the conversation history. Once the spinner glyph briefly
+  drops out of view, none of the status-bar markers help either.
+1234567890 lorem ipsum dolor sit amet consectetur adipiscing elit
+1234567890 sed do eiusmod tempor incididunt ut labore et dolore magna
+";
+
+    #[test]
+    fn hash_assist_runs_even_when_at_prompt_is_false() {
+        let result = detect_claude_status(
+            &None,
+            "%9",
+            Some(STREAMING_NO_INPUT_BOX),
+            Some(Instant::now()),
+        );
+        assert_eq!(
+            result.status,
+            AgentStatus::Running,
+            "streaming content with recent body change must be Running, got {:?}",
+            result.status
+        );
+    }
+
+    #[test]
+    fn hash_assist_stale_during_streaming_falls_to_idle_fallback() {
+        // After CHANGE_TTL has elapsed and no spinner / prompt is visible,
+        // the existing fallback (Idle) takes over. This is the natural
+        // recovery path after interrupt with no further activity.
+        let stale = Instant::now() - CHANGE_TTL - std::time::Duration::from_millis(500);
+        let result = detect_claude_status(&None, "%9", Some(STREAMING_NO_INPUT_BOX), Some(stale));
+        assert_eq!(result.status, AgentStatus::Idle);
+    }
+
+    #[test]
+    fn locate_input_region_finds_box_border_block() {
+        let content = "history\n────\n│ first  │\n│ second │";
+        let lines: Vec<&str> = content.lines().collect();
+        let region = locate_input_region(&lines).expect("box border expected");
+        assert_eq!(region.start_line, 2);
+        assert_eq!(region.end_line, 3);
+    }
+
+    #[test]
+    fn locate_input_region_returns_none_without_box_border() {
+        let content = "history\nmore history\nplain shell prompt $";
+        let lines: Vec<&str> = content.lines().collect();
+        assert!(locate_input_region(&lines).is_none());
+    }
+
+    #[test]
+    fn collect_hashable_body_drops_input_and_footer_inside_scan_window() {
+        let content = "history line A\nhistory line B\nhistory line C\nContext left until auto-compact: 8%\n⏵⏵ bypass permissions on · 1 shell\n│ user typed │\n│ second row │\n│             │";
+        let body = collect_hashable_body(content).expect("box border present");
+        let joined = body.join("\n");
+        assert!(joined.contains("history line A"));
+        assert!(joined.contains("history line C"));
+        assert!(!joined.contains("Context left until auto-compact"));
+        assert!(!joined.contains("bypass permissions"));
+        assert!(!joined.contains("user typed"));
+    }
+
+    #[test]
+    fn collect_hashable_body_keeps_footer_lookalikes_outside_scan_window() {
+        // "ctrl+" mention at line 0 must survive — input box starts at line
+        // 20, so the 10-line footer scan window only covers lines 10..20.
+        // This guarantees a code block in the conversation that mentions
+        // "ctrl+c" still moves the body hash and counts as activity.
+        let mut lines: Vec<String> = vec!["Press ctrl+c to abort".into()];
+        for _ in 0..19 {
+            lines.push("history filler".into());
+        }
+        lines.push("│ input │".into());
+        lines.push("│ input │".into());
+        lines.push("│ input │".into());
+        let content = lines.join("\n");
+        let body = collect_hashable_body(&content).expect("box border present");
+        assert!(
+            body.iter().any(|l| l.contains("ctrl+c to abort")),
+            "expected conversation body to survive footer scan: {:?}",
+            body
+        );
+    }
+
+    #[test]
+    fn collect_hashable_body_keeps_bare_ctrl_mention_inside_scan_window() {
+        // The footer-noise predicate requires both "ctrl+" AND " to " — a
+        // bare mention without the trailing " to <verb>" hint must NOT be
+        // stripped, even when it lands inside the 10-line scan window.
+        let lines = [
+            "history",
+            "use ctrl+c",
+            "history",
+            "history",
+            "history",
+            "│ input │",
+            "│ input │",
+            "│ input │",
+        ];
+        let content = lines.join("\n");
+        let body = collect_hashable_body(&content).expect("box border present");
+        assert!(
+            body.iter().any(|l| l.contains("use ctrl+c")),
+            "bare ctrl+c mention must survive shape-gated footer scan: {:?}",
+            body
+        );
+    }
+
+    #[test]
+    fn collect_hashable_body_falls_back_to_full_content_when_box_missing() {
+        // Pure text streaming pushes the input box off-screen — there's no
+        // `│ ... │` block to find. The detector must still hash whatever
+        // text it can see, otherwise hash assist never fires during
+        // long-form generation and the pane blinks back to Idle.
+        let content = "history A\nhistory B\n⏺ streaming response text appears here\nmore streaming text on this line\nyet more streaming text";
+        let body = collect_hashable_body(content).expect("streaming content must hash");
+        assert!(body.iter().any(|l| l.contains("streaming response text")));
+        assert!(body.iter().any(|l| l.contains("yet more streaming text")));
+    }
+
+    #[test]
+    fn collect_hashable_body_strips_real_claude_ctrl_hint() {
+        // Real Claude footer hint lines have the shape "ctrl+X (...) to <verb>";
+        // those MUST still be stripped.
+        let lines = [
+            "history",
+            "history",
+            "history",
+            "history",
+            "ctrl+b to bookmark",
+            "│ input │",
+            "│ input │",
+            "│ input │",
+        ];
+        let content = lines.join("\n");
+        let body = collect_hashable_body(&content).expect("box border present");
+        assert!(
+            !body.iter().any(|l| l.contains("ctrl+b to bookmark")),
+            "shape-matching ctrl hint must be stripped: {:?}",
+            body
+        );
+    }
+
+    #[test]
+    fn locate_input_region_finds_box_with_footer_below() {
+        // Real Claude layout: built-in mode line and shortcut hints render
+        // BELOW the input box. The detector must walk past them before
+        // landing on the box border. Uses ONLY Claude built-in TUI patterns
+        // (⏸ mode line, ctrl+X to ... hint) — no custom statusline.
+        let content = "history A\nhistory B\n────────\n│ ❯ first  │\n│ second    │\n────────\n  ⏸ plan mode on (shift+tab to cycle)\n  ctrl+b to bookmark\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let region = locate_input_region(&lines).expect("input region expected");
+        assert_eq!(region.start_line, 3);
+        assert_eq!(region.end_line, 4);
     }
 }

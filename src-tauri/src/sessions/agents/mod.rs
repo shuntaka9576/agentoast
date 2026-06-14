@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
 use agentoast_shared::{db, models::AgentStatus};
 
@@ -182,14 +183,20 @@ pub(super) fn is_numbered_option(line: &str) -> bool {
 /// Detect agent status using pre-captured pane content.
 /// This avoids redundant capture-pane calls when content is already available
 /// (e.g., captured in parallel by the caller).
+///
+/// `last_changed_at` is supplied by `crate::sessions::hysteresis` and is
+/// used as a short-term Running assist on Claude's `at_prompt` path. Only
+/// the Claude detector takes it today — adding it to the other detectors
+/// would just produce three dead args.
 pub(super) fn detect_agent_status_with_content(
     db_conn: &Option<db::Connection>,
     pane_id: &str,
     agent_type: &str,
     content: Option<&str>,
+    last_changed_at: Option<Instant>,
 ) -> AgentDetectionResult {
     match agent_type {
-        "claude-code" => claude::detect_claude_status(db_conn, pane_id, content),
+        "claude-code" => claude::detect_claude_status(db_conn, pane_id, content, last_changed_at),
         "codex" => codex::detect_codex_status(db_conn, pane_id, content),
         "copilot-cli" => copilot::detect_copilot_status(db_conn, pane_id, content),
         "opencode" => opencode::detect_opencode_status(db_conn, pane_id, content),
@@ -207,6 +214,21 @@ pub(super) fn detect_agent_status_with_content(
                 team_name: None,
             }
         }
+    }
+}
+
+/// Extract the lines an agent's body hash should cover. The hashing,
+/// tracking, and timestamp logic live in `sessions::hysteresis`; only the
+/// agent-specific knowledge of which lines are conversation body (vs. input
+/// box, vs. periodically-redrawn footer) lives here. Returning `None`
+/// signals the hysteresis layer to skip this pane for this cycle.
+pub(crate) fn collect_hashable_body<'a>(
+    agent_type: &str,
+    content: &'a str,
+) -> Option<Vec<&'a str>> {
+    match agent_type {
+        "claude-code" => claude::collect_hashable_body(content),
+        _ => None,
     }
 }
 
