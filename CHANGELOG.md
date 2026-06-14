@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.49.1](https://github.com/shuntaka9576/agentoast/compare/v0.49.0...v0.49.1) - 2026-06-14
+
+- fix: eliminate Codex enter race and overhaul agentoast-send skill triage by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/312
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/310
+
 ## [v0.49.0](https://github.com/shuntaka9576/agentoast/compare/v0.48.0...v0.49.0) - 2026-06-14
 
 - feat: keep streaming Claude panes Running via body-hash hysteresis by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/313
