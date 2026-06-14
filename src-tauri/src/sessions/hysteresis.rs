@@ -43,7 +43,7 @@ impl PaneHysteresis {
     /// since startup. First-seen panes seed the tracker but are omitted
     /// from the result, so a fresh app start or a pane switch does not
     /// flash 3 s of false Running for every agent pane. Panes whose
-    /// hashable body could not be extracted (input region unlocatable,
+    /// hashable body could not be extracted (input region not found,
     /// unknown agent) are also omitted.
     pub fn observe_batch<'a>(
         &mut self,

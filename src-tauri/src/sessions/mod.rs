@@ -204,7 +204,7 @@ pub fn list_tmux_panes_grouped(
                 if let Some(ref at) = rp.agent_type {
                     let content = captured_contents.get(&idx).and_then(|c| c.as_deref());
                     // Map entry absent ⇒ first observation, input region
-                    // unlocatable, or non-Claude agent — all collapse to
+                    // not found, or non-Claude agent — all collapse to
                     // "no hash assist for this pane this cycle".
                     let last_changed = last_changed_map.get(&rp.pane_id).copied();
                     let r = detect_agent_status_with_content(

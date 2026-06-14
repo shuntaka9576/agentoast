@@ -953,7 +953,7 @@ another history line
 
     #[test]
     fn hash_assist_none_preserves_legacy_idle() {
-        // No hash assist available (first-seen pane / unlocatable input) —
+        // No hash assist available (first-seen pane / input not found) —
         // judgement must match the pre-change behavior exactly.
         let result = detect_claude_status(&None, "%9", Some(AT_PROMPT_NO_SPINNER), None);
         assert_eq!(result.status, AgentStatus::Idle);
@@ -969,8 +969,8 @@ some history line
 ⏺ Claude is streaming a response and the input box is hidden while text
   pours into the conversation history. Once the spinner glyph briefly
   drops out of view, none of the status-bar markers help either.
-1234567890 lorem ipsum dolor sit amet consectetur adipiscing elit
-1234567890 sed do eiusmod tempor incididunt ut labore et dolore magna
+1234567890 streaming token output line continues here
+1234567890 another generated line filling the bottom of the screen
 ";
 
     #[test]
