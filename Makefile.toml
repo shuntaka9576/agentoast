@@ -115,6 +115,24 @@ script = [
   "echo 'Removed skill -> ~/.config/claude/skills/agentoast-send/'",
 ]
 
+[tasks.link-skill-project]
+description = "Symlink the agentoast-send skill into project-level .claude/ and .agent/ so in-repo agents (Claude Code, Codex, etc.) pick it up while iterating"
+script = [
+  "mkdir -p .claude/skills .agent/skills",
+  "rm -rf .claude/skills/agentoast-send .agent/skills/agentoast-send",
+  "ln -s ../../skills/agentoast-send .claude/skills/agentoast-send",
+  "ln -s ../../skills/agentoast-send .agent/skills/agentoast-send",
+  "echo 'Linked .claude/skills/agentoast-send  -> ../../skills/agentoast-send'",
+  "echo 'Linked .agent/skills/agentoast-send   -> ../../skills/agentoast-send'",
+]
+
+[tasks.unlink-skill-project]
+description = "Remove project-level skill symlinks under .claude/ and .agent/"
+script = [
+  "rm -rf .claude/skills/agentoast-send .agent/skills/agentoast-send",
+  "echo 'Unlinked project-level skill symlinks'",
+]
+
 # ---------------------------------------------------------------------------
 # Dev
 # ---------------------------------------------------------------------------

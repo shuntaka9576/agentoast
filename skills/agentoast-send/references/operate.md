@@ -1,0 +1,47 @@
+# agentoast-send: send and reply flow
+
+You should be reading this file only after SKILL.md Step 2 confirmed an AI coding agent is actually running at the target pane. If you got here without verifying, go back and verify first.
+
+## Sending a message
+
+Run:
+
+```
+agentoast send-keys --pane %72 "your message"
+```
+
+The text is typed into that agent's prompt and submitted. If you are running inside tmux (`$TMUX_PANE` set) or you pass `--from %NN`, your pane id is appended as a reply address so the receiver sees `(reply: agentoast send-keys --pane <you> "<reply>")` — you do not add that hint yourself.
+
+If the command exits non-zero with `pane '%NN' has no detected AI coding agent`, your Step 2 verification was wrong (it can happen if a `node`/`python` process happened not to be an agent). Do NOT retry with `--force` unless the user explicitly insists. Tell them, stop sending, and handle the rest of the request without messaging.
+
+After a successful send, tell the user it was sent. The reply arrives later as a new prompt in YOUR pane — there is nothing to poll or watch.
+
+Write the message yourself from the conversation so far. You hold context the other agent lacks, so phrase a self-contained request (summarize the task or question) rather than a bare "see above" — the other pane can't see your screen.
+
+## Replying to an incoming message
+
+If your prompt contains a line like `(reply: agentoast send-keys --pane %45 "<reply>")`, that is a message from another agent. Do the work it asks for, then send your answer back. Always pass the reply via a single-quoted heredoc so `"`, backticks, `$(...)`, and newlines in the body do not break shell quoting or get expanded:
+
+```
+agentoast send-keys --pane %45 "$(cat <<'EOF'
+your reply, including "quotes", $vars, and `backticks`
+EOF
+)"
+```
+
+## Don't scrape the screen — ask the agent
+
+To learn what another agent is doing or what its task is, do NOT run `tmux capture-pane`. In a conversation TUI the captured text is clipped to the pane width and truncated, and scrollback can't hold the whole conversation — you get a broken, partial view. Instead, ask the agent and let it answer in clean, authored prose:
+
+```
+agentoast send-keys --pane %72 "What task or blocker are you working on right now?"
+```
+
+The agent knows its own context and will summarize it far better than a screen grab.
+
+## Notes
+
+- Address = tmux pane id; ids stay stable for the life of the pane.
+- `send-keys` refuses a pane with no detected AI coding agent (a plain shell), since the message would just be typed into the shell prompt — a sign you picked the wrong pane. Pass `--force` only when you are sure an agent is there but the detector doesn't recognize it.
+- If the target looks busy mid-generation, injected keystrokes can interleave — prefer sending when it is idle or waiting for input.
+- `--raw` sends without the reply hint; `--no-enter` types without submitting.

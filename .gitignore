@@ -19,6 +19,7 @@ src-tauri/gen/schemas/
 
 __pycache__
 .claude/
+.agent/
 
 # TypeScript
 *.tsbuildinfo

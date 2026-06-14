@@ -1,53 +1,49 @@
 ---
 name: agentoast-send
-description: >-
-  Send a request or question to another AI coding agent running in a different
-  tmux pane, and reply to messages from other agents — via the `agentoast
-  send-keys` CLI (address = a tmux pane id like %72; no team, login, or setup).
-  Use this whenever the user wants to delegate to, ask, hand off to, or relay a
-  message to an agent in another pane/window/session — e.g. "ask the agent in
-  pane %72 to review this", "have the other session check X", or right after the
-  user pastes "Please take a look at tmux pane %72." — and whenever an incoming
-  prompt contains a "(reply: agentoast send-keys --pane %NN ...)" hint to answer.
-  Prefer this over reading another pane's screen with `tmux capture-pane`, which
-  truncates lines and cannot see the full conversation.
+description: Delegate a task, question, or reply TO an AI coding agent running in another tmux pane via the `agentoast send-keys` CLI. Use only when the user's intent is to send a message TO another agent — not to read or inspect a pane.
+when_to_use: |
+  Trigger when ANY of:
+  - The user asks to send / ask / delegate / forward / hand off / reply TO an agent in pane %NN (e.g. "ask the agent in %72 to review this", "send this to %39", "reply to %45", "have the other Codex in %37 check X").
+  - The user pastes the agentoast notification clipboard string "Please take a look at tmux pane %NN." verbatim.
+  - The incoming prompt contains a "(reply: agentoast send-keys --pane %NN ...)" sentinel from another agent.
+
+  Do NOT trigger when:
+  - The user only wants to inspect, read, check, or look at what is displayed in a pane ("what's in %23", "check pane %15", "show me %4", "look at the output in %9"). Handle those normally without messaging.
+  - A pane id (%NN) is mentioned without any send/ask/delegate intent.
+  - The intent is ambiguous — defer to the user.
 ---
 
-# agentoast-send: cross-pane agent messaging
+# agentoast-send: triage before you send
 
-Talk to AI coding agents running in OTHER tmux panes by injecting a message into their prompt, and reply to messages they send you. The transport is the `agentoast send-keys` CLI and the address is just a tmux pane id (e.g. `%72`). There is no team, login, or registration: if you know the pane, you can message it.
+This skill messages an AI coding agent running in another tmux pane via the `agentoast send-keys` CLI. The transport is a tmux pane id (e.g. `%72`).
 
-## Sending a message
+Trigger conditions in the frontmatter `when_to_use` already filter most non-delegation prompts out. The job of this body is a single thing: **before you reach for the send command, prove there is actually an agent at the target pane.** A wrong target is a more common mistake than a wrong message — once you confirm the target, the actual send/reply flow is straightforward and lives in [references/operate.md](references/operate.md). Don't read that file until Step 2 below passes.
 
-1. Resolve the target pane id (`%NN`).
-   - The user usually provides it — often by pasting agentoast's clipboard string `Please take a look at tmux pane %72.` Take the `%72` from there.
-   - If no pane id is present, ask the user which pane to send to.
-2. Run:
-   ```
-   agentoast send-keys --pane %72 "your message"
-   ```
-   The text is typed straight into that agent's prompt and submitted. Your own pane is read from `$TMUX_PANE` and appended as a reply address, so the receiver sees a trailing `(reply: agentoast send-keys --pane <you> "<reply>")`. You do not add that hint yourself.
-3. Tell the user it was sent. The reply arrives later as a new prompt in YOUR pane — there is nothing to poll or watch.
+## Step 1: Resolve the target pane id (`%NN`)
 
-Write the message yourself from the conversation so far. You hold context the other agent lacks, so phrase a self-contained request (summarize the task or question) rather than a bare "see above" — the other pane can't see your screen.
+- The user usually provides it — often by pasting agentoast's clipboard string `Please take a look at tmux pane %72.` Take the `%72` from there.
+- A reply sentinel `(reply: agentoast send-keys --pane %45 "<reply>")` names the target directly.
+- If no pane id is anywhere in scope, ask the user which pane they mean. Do not guess.
 
-## Replying to an incoming message
+## Step 2: Verify an agent is actually at `%NN`
 
-If your prompt contains a line like `(reply: agentoast send-keys --pane %45 "<reply>")`, that is a message from another agent. Do the work it asks for, then run that exact command with your answer in place of `<reply>`.
-
-## Don't scrape the screen — ask the agent
-
-To learn what another agent is doing or what its task is, do NOT run `tmux capture-pane`. In a conversation TUI the captured text is clipped to the pane width and truncated, and scrollback can't hold the whole conversation — you get a broken, partial view. Instead, ask the agent and let it answer in clean, authored prose:
+Most panes are shells, editors, build runs, or REPLs. Sending into those just dumps the message into a shell prompt and is annoying. Always check before you send by listing every process attached to the pane's tty and matching against known agent binary names:
 
 ```
-agentoast send-keys --pane %72 "What task or blocker are you working on right now?"
+ps -t "$(tmux display-message -t %NN -p '#{pane_tty}' | sed 's|^/dev/||')" -o command= 2>/dev/null | grep -qiE '(^|/)(claude|codex|cursor-agent|aider|cody|continue)( |$)' && echo agent || echo no-agent
 ```
 
-The agent knows its own context and will summarize it far better than a screen grab.
+- **`agent`** → an AI coding agent (Claude Code, Codex, Cursor, Aider, etc.) is genuinely running in `%NN`. Proceed to Step 3.
+- **`no-agent`** → STOP. Tell the user that `%NN` is not running an agent (you can show them the process list above to clarify) and handle the rest of their request as a normal task: if they wanted to see what's in the pane, run `tmux capture-pane -t %NN -p` and discuss it; if they just mentioned the pane in passing, carry on with the original conversation. Do NOT call `agentoast send-keys`.
 
-## Notes
+Why this check rather than `pane_current_command` or `tmux capture-pane`:
 
-- Address = tmux pane id; ids stay stable for the life of the pane.
-- The target must be a pane running an AI coding agent. `send-keys` refuses a pane with no detected agent (a plain shell), since the message would just be typed into the shell prompt — a sign you picked the wrong pane. Pass `--force` only when you are sure an agent is there but the detector doesn't recognize it.
-- If the target looks busy mid-generation, injected keystrokes can interleave — prefer sending when it is idle or waiting for input.
-- `--raw` sends without the reply hint; `--no-enter` types without submitting.
+- `pane_current_command` reports the foreground binary, which is `node` for Codex, a version string like `2.1.177` for Claude Code, `cargo-make` for a build run — too coarse to tell agents apart from build tools.
+- `tmux capture-pane` is unreliable for agents whose TUI is cursor-positioned (Codex via ratatui, others): their scrollback can be empty even while the UI is on screen.
+- The process list attached to the tty always contains the actual agent CLI invocation (`claude --chrome ...`, `.../bin/codex`, etc.), so grepping it is robust regardless of how the UI is drawn.
+
+If Step 2 says STOP, the skill's job is done. Hand control back to the main task.
+
+## Step 3: Send (and reply)
+
+Open and follow [references/operate.md](references/operate.md). That file contains the actual `agentoast send-keys` invocation, the reply-via-heredoc pattern, and a short Notes section on flags. Reading it before Step 2 passes is wasted context.
