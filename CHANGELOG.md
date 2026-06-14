@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.49.0](https://github.com/shuntaka9576/agentoast/compare/v0.48.0...v0.49.0) - 2026-06-14
+
+- feat: keep streaming Claude panes Running via body-hash hysteresis by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/313
+
 ## [v0.48.0](https://github.com/shuntaka9576/agentoast/compare/v0.47.0...v0.48.0) - 2026-06-13
 
 - feat: add r/R to jump to running panes by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/306
