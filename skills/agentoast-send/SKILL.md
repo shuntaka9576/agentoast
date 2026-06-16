@@ -27,22 +27,16 @@ Trigger conditions in the frontmatter `when_to_use` already filter most non-dele
 
 ## Step 2: Verify an agent is actually at `%NN`
 
-Most panes are shells, editors, build runs, or REPLs. Sending into those just dumps the message into a shell prompt and is annoying. Always check before you send by listing every process attached to the pane's tty and matching against known agent binary names:
+Most panes are shells, editors, build runs, or REPLs. Sending into those just dumps the message into a shell prompt and is annoying. Ask the CLI:
 
 ```
-ps -t "$(tmux display-message -t %NN -p '#{pane_tty}' | sed 's|^/dev/||')" -o command= 2>/dev/null | grep -qiE '(^|/)(claude|codex|cursor-agent|aider|cody|continue)( |$)' && echo agent || echo no-agent
+agentoast detect-agent --pane %NN
 ```
 
-- **`agent`** → an AI coding agent (Claude Code, Codex, Cursor, Aider, etc.) is genuinely running in `%NN`. Proceed to Step 3.
-- **`no-agent`** → STOP. Tell the user that `%NN` is not running an agent (you can show them the process list above to clarify) and handle the rest of their request as a normal task: if they wanted to see what's in the pane, run `tmux capture-pane -t %NN -p` and discuss it; if they just mentioned the pane in passing, carry on with the original conversation. Do NOT call `agentoast send-keys`.
+- **`agent` (exit 0)** → an AI coding agent is running in `%NN`. Proceed to Step 3.
+- **`no-agent` (exit ≠ 0)** → STOP. The skill is done here. Do NOT open `references/operate.md`, do NOT call `agentoast send-keys`, do NOT run `tmux capture-pane` or any other tmux probe on behalf of this skill. Reply to the user with one short sentence — "`%NN` is not running an AI coding agent, so I won't send anything." — and then handle the rest of their request as a normal conversation (if they later ask to see what's in the pane, use plain `tmux` at that point, outside this skill).
 
-Why this check rather than `pane_current_command` or `tmux capture-pane`:
-
-- `pane_current_command` reports the foreground binary, which is `node` for Codex, a version string like `2.1.177` for Claude Code, `cargo-make` for a build run — too coarse to tell agents apart from build tools.
-- `tmux capture-pane` is unreliable for agents whose TUI is cursor-positioned (Codex via ratatui, others): their scrollback can be empty even while the UI is on screen.
-- The process list attached to the tty always contains the actual agent CLI invocation (`claude --chrome ...`, `.../bin/codex`, etc.), so grepping it is robust regardless of how the UI is drawn.
-
-If Step 2 says STOP, the skill's job is done. Hand control back to the main task.
+The single source of truth for "what counts as an agent" is `AGENT_PROCESSES` in `crates/agentoast-shared/src/agent_detect.rs`. Both `detect-agent` and `send-keys` share it, so adding a new agent only requires editing that one list — this skill needs no update.
 
 ## Step 3: Send (and reply)
 

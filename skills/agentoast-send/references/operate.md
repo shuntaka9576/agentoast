@@ -12,7 +12,7 @@ agentoast send-keys --pane %72 "your message"
 
 The text is typed into that agent's prompt and submitted. If you are running inside tmux (`$TMUX_PANE` set) or you pass `--from %NN`, your pane id is appended as a reply address so the receiver sees `(reply: agentoast send-keys --pane <you> "<reply>")` — you do not add that hint yourself.
 
-If the command exits non-zero with `pane '%NN' has no detected AI coding agent`, your Step 2 verification was wrong (it can happen if a `node`/`python` process happened not to be an agent). Do NOT retry with `--force` unless the user explicitly insists. Tell them, stop sending, and handle the rest of the request without messaging.
+Step 2 (`agentoast detect-agent`) already confirmed an agent is at the target, so `send-keys` should not refuse. In the rare case it does (a one-off race in detection), report the refusal to the user and stop. Do not retry.
 
 After a successful send, tell the user it was sent. The reply arrives later as a new prompt in YOUR pane — there is nothing to poll or watch.
 
@@ -42,6 +42,6 @@ The agent knows its own context and will summarize it far better than a screen g
 ## Notes
 
 - Address = tmux pane id; ids stay stable for the life of the pane.
-- `send-keys` refuses a pane with no detected AI coding agent (a plain shell), since the message would just be typed into the shell prompt — a sign you picked the wrong pane. Pass `--force` only when you are sure an agent is there but the detector doesn't recognize it.
+- `send-keys` refuses a pane with no detected AI coding agent (a plain shell), since the message would just be typed into the shell prompt — a sign you picked the wrong pane. If a real agent isn't being detected, that's an `AGENT_PROCESSES` gap to fix in Rust, not something this skill bypasses.
 - If the target looks busy mid-generation, injected keystrokes can interleave — prefer sending when it is idle or waiting for input.
 - `--raw` sends without the reply hint; `--no-enter` types without submitting.
