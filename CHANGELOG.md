@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.49.2](https://github.com/shuntaka9576/agentoast/compare/v0.49.1...v0.49.2) - 2026-06-16
+
+- fix: tighten agentoast-send detection and reply discipline by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/315
+
 ## [v0.49.1](https://github.com/shuntaka9576/agentoast/compare/v0.49.0...v0.49.1) - 2026-06-14
 
 - fix: eliminate Codex enter race and overhaul agentoast-send skill triage by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/312
