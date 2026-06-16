@@ -40,4 +40,4 @@ The single source of truth for "what counts as an agent" is `AGENT_PROCESSES` in
 
 ## Step 3: Send (and reply)
 
-Open and follow [references/operate.md](references/operate.md). It covers the `agentoast send-keys` invocation, the reply pattern for incoming messages, and when the right move is to *not* send anything (handoffs, acks, status pings). Reading it before Step 2 passes is wasted context.
+Open and follow [references/operate.md](references/operate.md). It covers the `agentoast send-keys` invocation, the reply pattern for incoming messages, and when the right move is to _not_ send anything (handoffs, acknowledgments, status pings). Reading it before Step 2 passes is wasted context.

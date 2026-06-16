@@ -31,7 +31,7 @@ EOF
 
 ## When NOT to reply
 
-`send-keys` is a working channel, not a chat. Every message you send another agent costs them a turn of context. Don't spend it on social glue — bare acknowledgments ("got it", "thanks", "will share progress"), echoing the plan back to confirm understanding, or a standalone "done" ping with no result attached. If you finished, the result *is* the message: send the diff, the path, or the answer in the same call. If the artifact is already visible to them (commit pushed, file saved), send nothing and let it speak.
+`send-keys` is a working channel, not a chat. Every message you send another agent costs them a turn of context. Don't spend it on social glue — bare acknowledgments ("got it", "thanks", "will share progress"), echoing the plan back to confirm understanding, or a standalone "done" ping with no result attached. If you finished, the result _is_ the message: send the diff, the path, or the answer in the same call. If the artifact is already visible to them (commit pushed, file saved), send nothing and let it speak.
 
 A reply is the right call only when (a) you have a substantive answer to a question they asked, (b) you hit a blocker only they can resolve, or (c) you finished and the result isn't otherwise visible. Otherwise, finish the work and stay silent.
 
@@ -39,7 +39,7 @@ A reply is the right call only when (a) you have a substantive answer to a quest
 
 When the incoming message hands the task to you — "take it from here", "you own this now", "hand it over to you" — that is a transfer of responsibility, not a question. The sender has stepped out. Don't ack before starting, and don't send mid-task status pings; the handoff already said they're not waiting. Report back only when you finish (with the result in the same message) or when you genuinely cannot proceed without their input.
 
-If you finish a handed-off task, the audience for the result is usually the human in *your* pane, not the original agent. Surface the result in your normal output — don't ping the previous agent over `send-keys` just to close the loop.
+If you finish a handed-off task, the audience for the result is usually the human in _your_ pane, not the original agent. Surface the result in your normal output — don't ping the previous agent over `send-keys` just to close the loop.
 
 ## Don't scrape the screen — ask the agent
 
