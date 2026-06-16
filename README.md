@@ -377,31 +377,25 @@ agentoast send \
 
 ### Cross-Agent Messaging (Experimental)
 
-> **Experimental**: This feature and its skill packaging are still evolving and may change or be removed without notice.
+> **Experimental**: API and skill packaging may change without notice.
 
-`agentoast send-keys` injects a message straight into another agent's prompt running in a different tmux pane, addressed only by its pane id (e.g. `%72`) — no team, login, or registration. Your own pane (`$TMUX_PANE`) is appended as a reply address, so the receiving agent can answer back into your pane.
+`agentoast send-keys` injects a message straight into another agent's prompt running in a different tmux pane, addressed only by its pane id (e.g. `%72`).
 
 ```bash
 agentoast send-keys --pane %72 "Please review the diff on this branch"
 ```
 
-| Option       | Short | Default      | Description                                           |
-| ------------ | ----- | ------------ | ----------------------------------------------------- |
-| `--pane`     | `-t`  | (required)   | Target tmux pane id (e.g. `%72`)                      |
-| `--from`     | —     | `$TMUX_PANE` | Sender pane id embedded as the reply address          |
-| `--raw`      | —     | `false`      | Inject the raw message only, without the reply hint   |
-| `--no-enter` | —     | `false`      | Type the text without submitting (no trailing Enter)  |
-| `--force`    | —     | `false`      | Send even when the target pane runs no detected agent |
+How it works:
 
-By default `send-keys` refuses a target pane that has no detected AI agent (a plain shell), since the message would just be typed into the shell prompt — usually a sign you picked the wrong pane. Pass `--force` when you are sure an agent is running there but the detector doesn't recognize it.
+- **Detection.** The target pane's process tree must contain one of the names in `AGENT_PROCESSES` (`crates/agentoast-shared/src/agent_detect.rs`). Panes that look like a plain shell are refused — sending into a shell would just execute the message as a command. To support a new agent, add its binary name to that list.
+- **Reply address.** `$TMUX_PANE` (or `--from`) is appended as a single-line hint so the receiver can reply with `agentoast send-keys --pane <you> "..."`.
+- **Detection-only probe.** `agentoast detect-agent --pane %NN` reports `agent` / `no-agent` without sending anything. The bundled skill uses it as a precondition.
 
-To let an agent drive this on its own (delegate a task, hand off, or reply to incoming messages), install the bundled [`agentoast-send`](skills/agentoast-send/SKILL.md) skill with [apm](https://github.com/danielmeppiel/apm).
+Run `agentoast send-keys --help` for the full flag list. To let an agent drive this on its own (delegate, hand off, or reply), install the bundled [`agentoast-send`](skills/agentoast-send/SKILL.md) skill with [apm](https://github.com/danielmeppiel/apm).
 
 ```bash
 apm install shuntaka9576/agentoast -t claude
 ```
-
-This deploys the skill to `.claude/skills/`. Once installed, asking your agent to "ask the agent in pane %72 to review this" routes through `send-keys` automatically.
 
 ### Tips
 
