@@ -11,6 +11,12 @@ when_to_use: |
   - The user only wants to inspect, read, check, or look at what is displayed in a pane ("what's in %23", "check pane %15", "show me %4", "look at the output in %9"). Handle those normally without messaging.
   - A pane id (%NN) is mentioned without any send/ask/delegate intent.
   - The intent is ambiguous — defer to the user.
+license: MIT
+compatibility: Requires agentoast CLI and tmux
+allowed-tools: Bash(agentoast:*) Read
+metadata:
+  author: shuntaka9576
+  version: "0.49.2"
 ---
 
 # agentoast-send: triage before you send
