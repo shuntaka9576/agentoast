@@ -1,16 +1,10 @@
 ---
 name: agentoast-send
-description: Delegate a task, question, or reply TO an AI coding agent running in another tmux pane via the `agentoast send-keys` CLI. Use only when the user's intent is to send a message TO another agent — not to read or inspect a pane.
+description: Send a message TO an AI coding agent running in another tmux pane via the `agentoast send-keys` CLI.
 when_to_use: |
-  Trigger when ANY of:
-  - The user asks to send / ask / delegate / forward / hand off / reply TO an agent in pane %NN (e.g. "ask the agent in %72 to review this", "send this to %39", "reply to %45", "have the other Codex in %37 check X").
-  - The user pastes the agentoast notification clipboard string "Please take a look at tmux pane %NN." verbatim.
-  - The incoming prompt contains a "(reply: agentoast send-keys --pane %NN ...)" sentinel from another agent.
-
-  Do NOT trigger when:
-  - The user only wants to inspect, read, check, or look at what is displayed in a pane ("what's in %23", "check pane %15", "show me %4", "look at the output in %9"). Handle those normally without messaging.
-  - A pane id (%NN) is mentioned without any send/ask/delegate intent.
-  - The intent is ambiguous — defer to the user.
+  Trigger only when BOTH are true:
+  - The prompt contains the agentoast notification text "Please take a look at tmux pane %NN.".
+  - The user adds an explicit instruction to send / reply / delegate something to that agent on top of the pasted notification.
 license: MIT
 compatibility: Requires agentoast CLI and tmux
 allowed-tools: Bash(agentoast:*) Read
@@ -40,7 +34,7 @@ agentoast detect-agent --pane %NN
 ```
 
 - **`agent` (exit 0)** → an AI coding agent is running in `%NN`. Proceed to Step 3.
-- **`no-agent` (exit ≠ 0)** → STOP. The skill is done here. Do NOT open `references/operate.md`, do NOT call `agentoast send-keys`, do NOT run `tmux capture-pane` or any other tmux probe on behalf of this skill. Reply to the user with one short sentence — "`%NN` is not running an AI coding agent, so I won't send anything." — and then handle the rest of their request as a normal conversation (if they later ask to see what's in the pane, use plain `tmux` at that point, outside this skill).
+- **`no-agent` (exit ≠ 0)** → Nothing to send. Answer the user's original prompt normally; if you need to know what's in the pane, run `tmux capture-pane -t %NN -p`.
 
 The single source of truth for "what counts as an agent" is `AGENT_PROCESSES` in `crates/agentoast-shared/src/agent_detect.rs`. Both `detect-agent` and `send-keys` share it, so adding a new agent only requires editing that one list — this skill needs no update.
 
