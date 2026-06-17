@@ -1,6 +1,6 @@
 [tagpr]
 	vPrefix = true
 	releaseBranch = main
-	versionFile = Cargo.toml,src-tauri/tauri.conf.json,package.json
+	versionFile = Cargo.toml,src-tauri/tauri.conf.json,package.json,skills/agentoast-send/SKILL.md
 	release = draft
 	postVersionCommand = cargo update --workspace && bun x vp fmt
