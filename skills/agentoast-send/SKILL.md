@@ -10,7 +10,7 @@ compatibility: Requires agentoast CLI and tmux
 allowed-tools: Bash(agentoast:*) Read
 metadata:
   author: shuntaka9576
-  version: "0.49.3"
+  version: "0.49.4"
 ---
 
 # agentoast-send: triage before you send
