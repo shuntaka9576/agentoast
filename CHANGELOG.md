@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.49.3](https://github.com/shuntaka9576/agentoast/compare/v0.49.2...v0.49.3) - 2026-06-17
+
+- chore: track agentoast-send skill version via tagpr by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/320
+
 ## [v0.49.2](https://github.com/shuntaka9576/agentoast/compare/v0.49.1...v0.49.2) - 2026-06-16
 
 - fix: tighten agentoast-send detection and reply discipline by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/315
