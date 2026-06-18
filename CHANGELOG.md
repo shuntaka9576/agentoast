@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.49.5](https://github.com/shuntaka9576/agentoast/compare/v0.49.4...v0.49.5) - 2026-06-18
+
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/324
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/323
+- fix: route agentoast-send no-agent path through raw tmux send-keys by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/326
+
 ## [v0.49.4](https://github.com/shuntaka9576/agentoast/compare/v0.49.3...v0.49.4) - 2026-06-17
 
 - fix: tighten agentoast-send trigger and soften no-agent fallback by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/321
