@@ -27,14 +27,14 @@ Trigger conditions in the frontmatter `when_to_use` already filter most non-dele
 
 ## Step 2: Verify an agent is actually at `%NN`
 
-Most panes are shells, editors, build runs, or REPLs. Sending into those just dumps the message into a shell prompt and is annoying. Ask the CLI:
+The right send CLI depends on what's in the pane: `agentoast send-keys` for AI agent panes, plain `tmux send-keys` for shells. Pick the right one:
 
 ```
 agentoast detect-agent --pane %NN
 ```
 
 - **`agent` (exit 0)** → an AI coding agent is running in `%NN`. Proceed to Step 3.
-- **`no-agent` (exit ≠ 0)** → Nothing to send. Answer the user's original prompt normally; if you need to know what's in the pane, run `tmux capture-pane -t %NN -p`.
+- **`no-agent` (exit ≠ 0)** → Don't stall asking for clarification. Carry out the user's instruction with raw `tmux send-keys` (agentoast refuses no-agent panes).
 
 The single source of truth for "what counts as an agent" is `AGENT_PROCESSES` in `crates/agentoast-shared/src/agent_detect.rs`. Both `detect-agent` and `send-keys` share it, so adding a new agent only requires editing that one list — this skill needs no update.
 
