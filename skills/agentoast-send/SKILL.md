@@ -36,8 +36,6 @@ agentoast detect-agent --pane %NN
 - **`agent` (exit 0)** → an AI coding agent is running in `%NN`. Proceed to Step 3.
 - **`no-agent` (exit ≠ 0)** → Don't stall asking for clarification. Carry out the user's instruction with raw `tmux send-keys` (agentoast refuses no-agent panes).
 
-The single source of truth for "what counts as an agent" is `AGENT_PROCESSES` in `crates/agentoast-shared/src/agent_detect.rs`. Both `detect-agent` and `send-keys` share it, so adding a new agent only requires editing that one list — this skill needs no update.
-
 ## Step 3: Send (and reply)
 
 Open and follow [references/operate.md](references/operate.md). It covers the `agentoast send-keys` invocation, the reply pattern for incoming messages, and when the right move is to _not_ send anything (handoffs, acknowledgments, status pings). Reading it before Step 2 passes is wasted context.
