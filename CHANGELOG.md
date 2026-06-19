@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.49.6](https://github.com/shuntaka9576/agentoast/compare/v0.49.5...v0.49.6) - 2026-06-19
+
+- fix: drop AGENT_PROCESSES internals note from agentoast-send skill by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/331
+
 ## [v0.49.5](https://github.com/shuntaka9576/agentoast/compare/v0.49.4...v0.49.5) - 2026-06-18
 
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/324
