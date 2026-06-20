@@ -48,6 +48,7 @@ objc2-foundation = { version = "0.3.2", features = [
 objc2-app-kit = { version = "0.3.2", features = [
   "NSRunningApplication",
   "NSWorkspace",
+  "NSApplication",
   "NSPanel",
   "NSWindow",
   "NSView",
@@ -63,6 +64,12 @@ objc2-app-kit = { version = "0.3.2", features = [
   "NSImage",
   "NSImageView",
   "NSBitmapImageRep",
+  "NSStatusBar",
+  "NSStatusBarButton",
+  "NSStatusItem",
+  "NSControl",
+  "NSButton",
+  "NSResponder",
 ] }
 objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
