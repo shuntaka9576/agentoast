@@ -8,6 +8,8 @@ mod macos_hotkeys;
 mod native_toast;
 mod panel;
 #[cfg(target_os = "macos")]
+mod screen;
+#[cfg(target_os = "macos")]
 mod sessions;
 #[cfg(target_os = "macos")]
 mod terminal;
@@ -21,7 +23,7 @@ use std::sync::{Mutex, OnceLock};
 #[cfg(target_os = "macos")]
 use std::time::Duration;
 
-use agentoast_shared::config::{self, AllowedApp, AppConfig};
+use agentoast_shared::config::{self, AllowedApp, AppConfig, ToastPosition};
 use agentoast_shared::db;
 use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::{Deserialize, Serialize};
@@ -657,6 +659,7 @@ fn get_update_enabled(state: tauri::State<'_, Mutex<AppState>>) -> Result<bool, 
 pub struct SettingsPayload {
     pub toast_duration_ms: u64,
     pub toast_persistent: bool,
+    pub toast_positions: Vec<ToastPosition>,
     pub toggle_panel_shortcut: String,
     pub editor: String,
     pub autostart_enabled: bool,
@@ -675,6 +678,7 @@ fn get_settings(state: tauri::State<'_, Mutex<AppState>>) -> Result<SettingsPayl
     Ok(SettingsPayload {
         toast_duration_ms: state.config.toast.duration_ms,
         toast_persistent: state.config.toast.persistent,
+        toast_positions: state.config.toast.positions.clone(),
         toggle_panel_shortcut: state.config.keybinding.toggle_panel.clone(),
         editor: state.config.editor.clone().unwrap_or_default(),
         autostart_enabled,
@@ -714,11 +718,18 @@ fn save_settings(
         (
             guard.config.toast.duration_ms,
             guard.config.toast.persistent,
+            guard.config.toast.positions.clone(),
             guard.config.keybinding.toggle_panel.clone(),
             guard.config.editor.clone().unwrap_or_default(),
         )
     };
-    let (old_toast_duration_ms, old_toast_persistent, old_shortcut_str, old_editor) = snapshot;
+    let (
+        old_toast_duration_ms,
+        old_toast_persistent,
+        old_toast_positions,
+        old_shortcut_str,
+        old_editor,
+    ) = snapshot;
 
     let shortcut_changed = old_shortcut_str != payload.toggle_panel_shortcut;
 
@@ -740,6 +751,9 @@ fn save_settings(
         }
         if old_toast_persistent != payload.toast_persistent {
             config::save_toast_persistent(payload.toast_persistent).map_err(|e| e.to_string())?;
+        }
+        if old_toast_positions != payload.toast_positions {
+            config::save_toast_positions(&payload.toast_positions).map_err(|e| e.to_string())?;
         }
         if shortcut_changed {
             config::save_keybinding_toggle_panel(&payload.toggle_panel_shortcut)
@@ -764,6 +778,13 @@ fn save_settings(
             log::error!(
                 "Rollback: failed to restore toast.persistent={}: {}",
                 old_toast_persistent,
+                e
+            );
+        }
+        if let Err(e) = config::save_toast_positions(&old_toast_positions) {
+            log::error!(
+                "Rollback: failed to restore toast.positions={:?}: {}",
+                old_toast_positions,
                 e
             );
         }
@@ -794,6 +815,7 @@ fn save_settings(
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.config.toast.duration_ms = payload.toast_duration_ms;
         guard.config.toast.persistent = payload.toast_persistent;
+        guard.config.toast.positions = payload.toast_positions.clone();
         guard.config.keybinding.toggle_panel = payload.toggle_panel_shortcut.clone();
         guard.config.editor = if payload.editor.is_empty() {
             None
@@ -804,7 +826,11 @@ fn save_settings(
 
     // --- Phase 4: runtime-push for settings that have live consumers. ---
     #[cfg(target_os = "macos")]
-    native_toast::update_settings(payload.toast_duration_ms, payload.toast_persistent);
+    native_toast::update_settings(
+        payload.toast_duration_ms,
+        payload.toast_persistent,
+        payload.toast_positions.clone(),
+    );
 
     // --- Phase 5: autostart (System Events login item). Not mirrored in
     // config.toml, so a failure here is surfaced but does not need a toml

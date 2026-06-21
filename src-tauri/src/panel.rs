@@ -7,7 +7,9 @@ use objc2::msg_send_id;
 // NB: NSPoint, NSRect, NSEvent, MainThreadMarker, Retained, Bool are pulled in
 // at module scope by `tauri_panel!` below — DON'T re-import them or rustc
 // trips E0252. Use bare names downstream.
-use objc2_app_kit::{NSApplication, NSEventMask, NSScreen};
+use objc2_app_kit::NSEventMask;
+
+use crate::screen::current_active_screen;
 use tauri::tray::TrayIconId;
 use tauri::Emitter;
 use tauri::Manager;
@@ -220,32 +222,6 @@ pub fn position_panel_appkit(app_handle: &tauri::AppHandle) {
     unsafe {
         let _: () = objc2::msg_send![ns_panel, setFrameOrigin: origin];
     }
-}
-
-/// Resolve the "screen the user is currently looking at". Tries the cursor's
-/// screen first, then the key window's screen, then the main screen.
-fn current_active_screen(mtm: MainThreadMarker) -> Option<Retained<NSScreen>> {
-    let mouse_loc = NSEvent::mouseLocation();
-    let screens = NSScreen::screens(mtm);
-    for screen in screens.iter() {
-        let f = screen.frame();
-        if mouse_loc.x >= f.origin.x
-            && mouse_loc.x < f.origin.x + f.size.width
-            && mouse_loc.y >= f.origin.y
-            && mouse_loc.y < f.origin.y + f.size.height
-        {
-            return Some(screen);
-        }
-    }
-
-    let app = NSApplication::sharedApplication(mtm);
-    if let Some(key_window) = app.keyWindow() {
-        if let Some(screen) = key_window.screen() {
-            return Some(screen);
-        }
-    }
-
-    NSScreen::mainScreen(mtm)
 }
 
 /// Get the tray icon's window frame and its screen's frame, both in AppKit

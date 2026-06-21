@@ -8,6 +8,7 @@ import { NumberStepper } from "@/components/number-stepper";
 import { RestartBanner } from "@/components/restart-banner";
 import { SettingsRow, SettingsSection } from "@/components/settings-section";
 import { ShortcutRecorder } from "@/components/shortcut-recorder";
+import { ToastPositionPicker } from "@/components/toast-position-picker";
 import { Toggle } from "@/components/toggle";
 import type { AllowedApp } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -200,7 +201,7 @@ export function SettingsApp() {
 
         <SettingsSection
           title="Toast"
-          description="Transient popup at the top-right when a new notification arrives."
+          description="Transient popup shown when a new notification arrives. Toasts follow the cursor's screen."
         >
           <SettingsRow
             label="Display duration"
@@ -227,6 +228,16 @@ export function SettingsApp() {
               ariaLabel="Keep toast until clicked"
             />
           </SettingsRow>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Toast position"
+          description="Choose where notifications appear. Multiple positions can be selected."
+        >
+          <ToastPositionPicker
+            value={draft.toastPositions}
+            onChange={(v) => updateField("toastPositions", v)}
+          />
         </SettingsSection>
 
         <SettingsSection title="Startup" description="Control how agentoast launches on this Mac.">
