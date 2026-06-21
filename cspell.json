@@ -73,6 +73,7 @@
     "subcmd",
     "subview",
     "subviews",
+    "superview",
     "staticlib",
     "symbolichotkeys",
     "sysinfo",

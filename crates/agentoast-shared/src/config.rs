@@ -83,12 +83,37 @@ pub struct AllowedApp {
     pub display_name: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToastPosition {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl ToastPosition {
+    /// The canonical kebab-case string used in config.toml and IPC payloads.
+    /// Must stay in lockstep with the `rename_all = "kebab-case"` serde attr
+    /// above — keep them together so changes are obvious.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ToastPosition::TopLeft => "top-left",
+            ToastPosition::TopRight => "top-right",
+            ToastPosition::BottomLeft => "bottom-left",
+            ToastPosition::BottomRight => "bottom-right",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ToastConfig {
     #[serde(default = "default_toast_duration")]
     pub duration_ms: u64,
     #[serde(default)]
     pub persistent: bool,
+    #[serde(default = "default_toast_positions")]
+    pub positions: Vec<ToastPosition>,
 }
 
 impl Default for ToastConfig {
@@ -96,8 +121,13 @@ impl Default for ToastConfig {
         Self {
             duration_ms: default_toast_duration(),
             persistent: false,
+            positions: default_toast_positions(),
         }
     }
+}
+
+fn default_toast_positions() -> Vec<ToastPosition> {
+    vec![ToastPosition::TopRight]
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -354,6 +384,19 @@ pub fn save_toast_persistent(value: bool) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
+/// Update [toast] positions in config.toml, preserving existing comments and formatting.
+pub fn save_toast_positions(values: &[ToastPosition]) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    let mut arr = toml_edit::Array::new();
+    for v in values {
+        arr.push(v.as_str());
+    }
+    doc["toast"]["positions"] = toml_edit::value(arr);
+    std::fs::write(&path, doc.to_string())
+}
+
 /// Update [keybinding] toggle_panel in config.toml, preserving existing comments and formatting.
 pub fn save_keybinding_toggle_panel(value: &str) -> io::Result<()> {
     let path = config_path();
@@ -426,6 +469,11 @@ fn default_config_template() -> &'static str {
 
 # Keep toast visible until clicked (default: false)
 # persistent = false
+
+# Where toast notifications appear on the active screen.
+# Multiple positions show the same toast in each corner simultaneously.
+# Valid values: "top-left", "top-right", "bottom-left", "bottom-right"
+# positions = ["top-right"]
 
 # Notification settings
 [notification]
@@ -539,6 +587,35 @@ git = "/opt/homebrew/bin/git"
             config.system.tmux.as_deref(),
             Some("/opt/homebrew/bin/tmux")
         );
+    }
+
+    #[test]
+    fn default_toast_positions_is_top_right() {
+        let config = ToastConfig::default();
+        assert_eq!(config.positions, vec![ToastPosition::TopRight]);
+    }
+
+    #[test]
+    fn parse_toast_positions_kebab_case() {
+        let toml_str = r#"
+[toast]
+positions = ["top-left", "bottom-right"]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            config.toast.positions,
+            vec![ToastPosition::TopLeft, ToastPosition::BottomRight]
+        );
+    }
+
+    #[test]
+    fn missing_positions_falls_back_to_default() {
+        let toml_str = r#"
+[toast]
+duration_ms = 2000
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.toast.positions, vec![ToastPosition::TopRight]);
     }
 
     #[test]

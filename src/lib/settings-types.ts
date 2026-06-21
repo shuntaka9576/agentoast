@@ -1,6 +1,9 @@
+export type ToastPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
 export interface SettingsPayload {
   toastDurationMs: number;
   toastPersistent: boolean;
+  toastPositions: ToastPosition[];
   togglePanelShortcut: string;
   editor: string;
   autostartEnabled: boolean;
