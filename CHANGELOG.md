@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.49.7](https://github.com/shuntaka9576/agentoast/compare/v0.49.6...v0.49.7) - 2026-06-21
+
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/332
+- fix: simplify main panel positioning to a single AppKit-coord path by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/333
+
 ## [v0.49.6](https://github.com/shuntaka9576/agentoast/compare/v0.49.5...v0.49.6) - 2026-06-19
 
 - fix: drop AGENT_PROCESSES internals note from agentoast-send skill by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/331
