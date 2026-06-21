@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.50.0](https://github.com/shuntaka9576/agentoast/compare/v0.49.7...v0.50.0) - 2026-06-21
+
+- feat: let users pick which screen corners show toast notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/337
+
 ## [v0.49.7](https://github.com/shuntaka9576/agentoast/compare/v0.49.6...v0.49.7) - 2026-06-21
 
 - fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/332
