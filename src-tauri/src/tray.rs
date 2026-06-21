@@ -5,7 +5,7 @@ use tauri::tray::{MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_nspanel::ManagerExt;
 
-use crate::panel::position_panel_at_tray_icon;
+use crate::panel::position_panel_appkit;
 
 macro_rules! get_or_init_panel {
     ($app_handle:expr) => {
@@ -42,7 +42,7 @@ pub fn toggle_panel(app_handle: &AppHandle) {
         let _ = app_handle.emit("notifications:refresh", ());
         panel.set_alpha_value(0.0);
         panel.show_and_make_key();
-        crate::panel::position_panel_for_shortcut(app_handle);
+        position_panel_appkit(app_handle);
         panel.set_alpha_value(1.0);
     }
 }
@@ -87,12 +87,9 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
         .on_tray_icon_event(|tray, event| {
             let app_handle = tray.app_handle();
 
-            if let TrayIconEvent::Click {
-                button_state, rect, ..
-            } = event
-            {
+            if let TrayIconEvent::Click { button_state, .. } = event {
                 if button_state == MouseButtonState::Up {
-                    log::info!("[panel-pos] entry=tray-click rect={:?}", rect);
+                    log::info!("[panel-pos] entry=tray-click");
                     let Some(panel) = get_or_init_panel!(app_handle) else {
                         return;
                     };
@@ -107,7 +104,7 @@ pub fn create(app_handle: &AppHandle) -> tauri::Result<()> {
                     let _ = app_handle.emit("notifications:refresh", ());
                     panel.set_alpha_value(0.0);
                     panel.show_and_make_key();
-                    position_panel_at_tray_icon(app_handle, rect.position, rect.size);
+                    position_panel_appkit(app_handle);
                     panel.set_alpha_value(1.0);
                 }
             }

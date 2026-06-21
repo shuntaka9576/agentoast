@@ -414,7 +414,7 @@ fn show_panel(app_handle: tauri::AppHandle) {
         // its last position (e.g. screen center on a fresh launch).
         panel.set_alpha_value(0.0);
         panel.show_and_make_key();
-        panel::position_panel_for_shortcut(&app_handle);
+        panel::position_panel_appkit(&app_handle);
         panel.set_alpha_value(1.0);
     }
 }
