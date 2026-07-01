@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.50.1](https://github.com/shuntaka9576/agentoast/compare/v0.50.0...v0.50.1) - 2026-07-01
+
+- fix(deps): update rust crate tauri to 2.11.4 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/349
+- fix(deps): update frontend to ^4.3.2 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/348
+- chore(deps): update rust to v1.96.1 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/351
+
 ## [v0.50.0](https://github.com/shuntaka9576/agentoast/compare/v0.49.7...v0.50.0) - 2026-06-21
 
 - feat: let users pick which screen corners show toast notifications by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/337
