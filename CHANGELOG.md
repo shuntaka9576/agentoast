@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.50.2](https://github.com/shuntaka9576/agentoast/compare/v0.50.1...v0.50.2) - 2026-07-18
+
+- fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/353
+- fix(deps): update frontend by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/354
+
 ## [v0.50.1](https://github.com/shuntaka9576/agentoast/compare/v0.50.0...v0.50.1) - 2026-07-01
 
 - fix(deps): update rust crate tauri to 2.11.4 by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/349
