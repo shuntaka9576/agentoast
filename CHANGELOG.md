@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.51.0](https://github.com/shuntaka9576/agentoast/compare/v0.50.2...v0.51.0) - 2026-07-23
+
+- feat: add optional multi-monitor toast display by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/376
+
 ## [v0.50.2](https://github.com/shuntaka9576/agentoast/compare/v0.50.1...v0.50.2) - 2026-07-18
 
 - fix(deps): update rust-workspace by @renovate[bot] in https://github.com/shuntaka9576/agentoast/pull/353
