@@ -3,7 +3,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use agentoast_shared::config;
-use agentoast_shared::config::ToastPosition;
+use agentoast_shared::config::{ToastDisplay, ToastPosition};
 use agentoast_shared::models::Notification;
 use block2::RcBlock;
 use objc2::rc::Retained;
@@ -28,20 +28,13 @@ struct SendSyncWrapper<T>(T);
 unsafe impl<T> Send for SendSyncWrapper<T> {}
 unsafe impl<T> Sync for SendSyncWrapper<T> {}
 
-/// Four NSPanels — one per ToastPosition, kept alive for the app's lifetime.
-/// Lookup via `panel_index(position)`. We allocate all 4 upfront (cheap)
-/// rather than reactively creating/destroying them when the user's selection
-/// changes — simpler, and the cost of an unused, hidden NSPanel is negligible.
-static TOAST_PANELS: OnceLock<[SendSyncWrapper<Retained<NSPanel>>; 4]> = OnceLock::new();
-
-fn panel_index(p: ToastPosition) -> usize {
-    match p {
-        ToastPosition::TopLeft => 0,
-        ToastPosition::TopRight => 1,
-        ToastPosition::BottomLeft => 2,
-        ToastPosition::BottomRight => 3,
-    }
-}
+/// Pool of NSPanels, kept alive for the app's lifetime. One panel is needed
+/// per (screen × selected corner) — with `display = "all"` that count depends
+/// on how many screens are attached, which can change at runtime, so the pool
+/// grows on demand in `update_and_show` and never shrinks: the cost of an
+/// unused, hidden NSPanel is negligible, and reuse avoids churning windows on
+/// every toast.
+static TOAST_PANELS: Mutex<Vec<SendSyncWrapper<Retained<NSPanel>>>> = Mutex::new(Vec::new());
 static TOAST_STATE: OnceLock<Mutex<ToastState>> = OnceLock::new();
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 static TOAST_TIMER: Mutex<Option<SendSyncWrapper<Retained<NSTimer>>>> = Mutex::new(None);
@@ -95,9 +88,11 @@ struct ToastState {
     is_visible: bool,
     duration_ms: u64,
     persistent: bool,
-    /// Corners currently selected by the user. Each entry causes one of the
-    /// 4 preallocated panels to be shown for every notification.
+    /// Corners currently selected by the user. Each entry causes one panel
+    /// per targeted screen to be shown for every notification.
     positions: Vec<ToastPosition>,
+    /// Which screens to target: the cursor's screen only, or all of them.
+    display: ToastDisplay,
 }
 
 // --- Color definitions ---
@@ -212,21 +207,14 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<(), String> {
             duration_ms: cfg.toast.duration_ms,
             persistent: cfg.toast.persistent,
             positions: cfg.toast.positions.clone(),
+            display: cfg.toast.display,
         }
     }));
 
-    let mtm = MainThreadMarker::new().ok_or_else(|| "Must be called on main thread".to_string())?;
+    MainThreadMarker::new().ok_or_else(|| "Must be called on main thread".to_string())?;
 
-    let panels = [
-        SendSyncWrapper(create_panel(mtm)),
-        SendSyncWrapper(create_panel(mtm)),
-        SendSyncWrapper(create_panel(mtm)),
-        SendSyncWrapper(create_panel(mtm)),
-    ];
-    TOAST_PANELS
-        .set(panels)
-        .map_err(|_| "Toast panels already initialized".to_string())?;
-
+    // Panels are created lazily in update_and_show — the count depends on the
+    // screen configuration at display time, so nothing to preallocate here.
     install_event_monitor();
 
     log::info!("[native_toast] init complete");
@@ -327,7 +315,12 @@ pub fn show_notifications(notifications: Vec<Notification>) {
 
 /// Push runtime settings updates into the live toast state so new settings
 /// take effect on the next displayed toast without requiring an app restart.
-pub fn update_settings(duration_ms: u64, persistent: bool, positions: Vec<ToastPosition>) {
+pub fn update_settings(
+    duration_ms: u64,
+    persistent: bool,
+    positions: Vec<ToastPosition>,
+    display: ToastDisplay,
+) {
     let Some(state) = TOAST_STATE.get() else {
         return;
     };
@@ -337,17 +330,17 @@ pub fn update_settings(duration_ms: u64, persistent: bool, positions: Vec<ToastP
     guard.duration_ms = duration_ms;
     guard.persistent = persistent;
     guard.positions = positions;
+    guard.display = display;
 }
 
 pub fn hide() {
-    let Some(panels) = TOAST_PANELS.get() else {
-        return;
-    };
     cancel_timer();
     cancel_fade_timer();
 
-    for wrapper in panels.iter() {
-        wrapper.0.orderOut(None);
+    if let Ok(panels) = TOAST_PANELS.lock() {
+        for wrapper in panels.iter() {
+            wrapper.0.orderOut(None);
+        }
     }
 
     if let Some(state_mutex) = TOAST_STATE.get() {
@@ -362,9 +355,6 @@ pub fn hide() {
 // --- Internal ---
 
 fn update_and_show() {
-    let Some(panels) = TOAST_PANELS.get() else {
-        return;
-    };
     let Some(state_mutex) = TOAST_STATE.get() else {
         return;
     };
@@ -388,6 +378,7 @@ fn update_and_show() {
     let duration_ms = state.duration_ms;
     let persistent = state.persistent;
     let positions = state.positions.clone();
+    let display = state.display;
     drop(state);
 
     let mtm = match MainThreadMarker::new() {
@@ -401,47 +392,66 @@ fn update_and_show() {
     let has_body = !current.body.is_empty();
     let panel_height = compute_panel_height(has_meta, has_body);
 
-    // Resolve the active screen once and reuse it for every panel — otherwise
-    // a cursor move mid-fan-out could place two panels on different screens.
-    let active_screen = current_active_screen(mtm);
+    // Resolve the target screens once and reuse them for every panel —
+    // otherwise a cursor move (or a display change) mid-fan-out could place
+    // panels inconsistently.
+    let screens: Vec<Retained<NSScreen>> = match display {
+        ToastDisplay::All => NSScreen::screens(mtm).iter().collect(),
+        ToastDisplay::Active => current_active_screen(mtm).into_iter().collect(),
+    };
 
-    // Hide every panel first so deselected corners don't keep a stale toast
-    // on screen across a settings change. When `positions` is empty this is
-    // the only thing that runs, and `start_timer` below drains the queue.
+    let Ok(mut panels) = TOAST_PANELS.lock() else {
+        return;
+    };
+
+    // Grow the pool to one panel per (screen × corner). Never shrinks; extra
+    // panels just stay hidden.
+    let needed = screens.len() * positions.len();
+    while panels.len() < needed {
+        panels.push(SendSyncWrapper(create_panel(mtm)));
+    }
+
+    // Hide every panel first so deselected corners / detached screens don't
+    // keep a stale toast on screen across a settings or display change. When
+    // `needed` is 0 this is the only thing that runs, and `start_timer` below
+    // drains the queue.
     for wrapper in panels.iter() {
         wrapper.0.orderOut(None);
     }
 
-    for &position in &positions {
-        let wrapper = &panels[panel_index(position)];
-        let panel = &wrapper.0;
+    let mut pool_index = 0;
+    for screen in &screens {
+        for &position in &positions {
+            let panel = &panels[pool_index].0;
+            pool_index += 1;
 
-        // Resize panel BEFORE setting content view to prevent layout distortion in release builds.
-        // Setting content view on a panel with stale size causes AppKit to resize subviews incorrectly.
-        if let Some(ref screen) = active_screen {
+            // Resize panel BEFORE setting content view to prevent layout distortion in release builds.
+            // Setting content view on a panel with stale size causes AppKit to resize subviews incorrectly.
             position_at_corner(panel, panel_height, position, screen);
+
+            // Build a fresh content view per panel — NSView can only belong to
+            // one superview at a time, so we can't reuse a single view.
+            let content_view =
+                build_toast_view(mtm, &current, current_index, queue_len, panel_height);
+            panel.setContentView(Some(&content_view));
+
+            // Show with fade-in animation
+            panel.setAlphaValue(0.0);
+            panel.orderFrontRegardless();
+
+            let panel_ptr = Retained::as_ptr(panel) as usize;
+            NSAnimationContext::runAnimationGroup(&RcBlock::new(
+                move |context: std::ptr::NonNull<NSAnimationContext>| {
+                    let ctx = unsafe { context.as_ref() };
+                    ctx.setDuration(FADE_DURATION);
+                    let panel_ref: &NSPanel = unsafe { &*(panel_ptr as *const NSPanel) };
+                    let animator: Retained<NSPanel> = unsafe { msg_send_id![panel_ref, animator] };
+                    animator.setAlphaValue(1.0);
+                },
+            ));
         }
-
-        // Build a fresh content view per panel — NSView can only belong to
-        // one superview at a time, so we can't reuse a single view.
-        let content_view = build_toast_view(mtm, &current, current_index, queue_len, panel_height);
-        panel.setContentView(Some(&content_view));
-
-        // Show with fade-in animation
-        panel.setAlphaValue(0.0);
-        panel.orderFrontRegardless();
-
-        let panel_ptr = Retained::as_ptr(panel) as usize;
-        NSAnimationContext::runAnimationGroup(&RcBlock::new(
-            move |context: std::ptr::NonNull<NSAnimationContext>| {
-                let ctx = unsafe { context.as_ref() };
-                ctx.setDuration(FADE_DURATION);
-                let panel_ref: &NSPanel = unsafe { &*(panel_ptr as *const NSPanel) };
-                let animator: Retained<NSPanel> = unsafe { msg_send_id![panel_ref, animator] };
-                animator.setAlphaValue(1.0);
-            },
-        ));
     }
+    drop(panels);
 
     // Start auto-advance timer
     if !persistent {
@@ -980,17 +990,21 @@ fn install_event_monitor() {
         unsafe {
             let block = RcBlock::new(|event: std::ptr::NonNull<NSEvent>| -> *mut NSEvent {
                 let event_ref = event.as_ref();
-                let Some(panels) = TOAST_PANELS.get() else {
-                    return event.as_ptr();
-                };
 
-                // Click must be inside one of our 4 panels — otherwise let it
-                // pass through to the underlying window.
+                // Click must be inside one of our panels — otherwise let it
+                // pass through to the underlying window. Scope the pool lock
+                // so it's released before the handlers below re-enter
+                // update_and_show (which locks the pool again).
                 let event_window_num: i64 = msg_send![event_ref, windowNumber];
-                let matched = panels.iter().any(|wrapper| {
-                    let n: i64 = msg_send![&wrapper.0, windowNumber];
-                    n == event_window_num
-                });
+                let matched = {
+                    let Ok(panels) = TOAST_PANELS.lock() else {
+                        return event.as_ptr();
+                    };
+                    panels.iter().any(|wrapper| {
+                        let n: i64 = msg_send![&wrapper.0, windowNumber];
+                        n == event_window_num
+                    })
+                };
                 if !matched {
                     return event.as_ptr();
                 }
@@ -1161,22 +1175,23 @@ fn advance() {
 }
 
 fn fade_out_and_hide() {
-    let Some(panels) = TOAST_PANELS.get() else {
-        return;
-    };
     cancel_timer();
 
-    for wrapper in panels.iter() {
-        let panel_ptr = Retained::as_ptr(&wrapper.0) as usize;
-        NSAnimationContext::runAnimationGroup(&RcBlock::new(
-            move |context: std::ptr::NonNull<NSAnimationContext>| {
-                let ctx = unsafe { context.as_ref() };
-                ctx.setDuration(FADE_DURATION);
-                let panel_ref: &NSPanel = unsafe { &*(panel_ptr as *const NSPanel) };
-                let animator: Retained<NSPanel> = unsafe { msg_send_id![panel_ref, animator] };
-                animator.setAlphaValue(0.0);
-            },
-        ));
+    if let Ok(panels) = TOAST_PANELS.lock() {
+        // Fading hidden pool panels too is harmless — animating alpha on an
+        // ordered-out window is a no-op visually.
+        for wrapper in panels.iter() {
+            let panel_ptr = Retained::as_ptr(&wrapper.0) as usize;
+            NSAnimationContext::runAnimationGroup(&RcBlock::new(
+                move |context: std::ptr::NonNull<NSAnimationContext>| {
+                    let ctx = unsafe { context.as_ref() };
+                    ctx.setDuration(FADE_DURATION);
+                    let panel_ref: &NSPanel = unsafe { &*(panel_ptr as *const NSPanel) };
+                    let animator: Retained<NSPanel> = unsafe { msg_send_id![panel_ref, animator] };
+                    animator.setAlphaValue(0.0);
+                },
+            ));
+        }
     }
 
     start_fade_timer();

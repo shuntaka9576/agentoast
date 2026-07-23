@@ -201,7 +201,7 @@ export function SettingsApp() {
 
         <SettingsSection
           title="Toast"
-          description="Transient popup shown when a new notification arrives. Toasts follow the cursor's screen."
+          description="Transient popup shown when a new notification arrives. Toasts follow the cursor's screen by default."
         >
           <SettingsRow
             label="Display duration"
@@ -238,6 +238,18 @@ export function SettingsApp() {
             value={draft.toastPositions}
             onChange={(v) => updateField("toastPositions", v)}
           />
+          <SettingsRow
+            label="Show on all displays"
+            hint="Mirror toasts onto every attached display instead of only the cursor's display."
+            htmlFor="toast-display-all"
+          >
+            <Toggle
+              id="toast-display-all"
+              checked={draft.toastDisplay === "all"}
+              onChange={(v) => updateField("toastDisplay", v ? "all" : "active")}
+              ariaLabel="Show toasts on all displays"
+            />
+          </SettingsRow>
         </SettingsSection>
 
         <SettingsSection title="Startup" description="Control how agentoast launches on this Mac.">

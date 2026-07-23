@@ -106,6 +106,28 @@ impl ToastPosition {
     }
 }
 
+/// Which screens a toast appears on. `Active` follows the cursor's screen
+/// (historical behavior); `All` mirrors the toast onto every attached screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToastDisplay {
+    #[default]
+    Active,
+    All,
+}
+
+impl ToastDisplay {
+    /// The canonical kebab-case string used in config.toml and IPC payloads.
+    /// Must stay in lockstep with the `rename_all = "kebab-case"` serde attr
+    /// above — keep them together so changes are obvious.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ToastDisplay::Active => "active",
+            ToastDisplay::All => "all",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ToastConfig {
     #[serde(default = "default_toast_duration")]
@@ -114,6 +136,8 @@ pub struct ToastConfig {
     pub persistent: bool,
     #[serde(default = "default_toast_positions")]
     pub positions: Vec<ToastPosition>,
+    #[serde(default)]
+    pub display: ToastDisplay,
 }
 
 impl Default for ToastConfig {
@@ -122,6 +146,7 @@ impl Default for ToastConfig {
             duration_ms: default_toast_duration(),
             persistent: false,
             positions: default_toast_positions(),
+            display: ToastDisplay::default(),
         }
     }
 }
@@ -397,6 +422,15 @@ pub fn save_toast_positions(values: &[ToastPosition]) -> io::Result<()> {
     std::fs::write(&path, doc.to_string())
 }
 
+/// Update [toast] display in config.toml, preserving existing comments and formatting.
+pub fn save_toast_display(value: ToastDisplay) -> io::Result<()> {
+    let path = config_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut doc: DocumentMut = content.parse().unwrap_or_default();
+    doc["toast"]["display"] = toml_edit::value(value.as_str());
+    std::fs::write(&path, doc.to_string())
+}
+
 /// Update [keybinding] toggle_panel in config.toml, preserving existing comments and formatting.
 pub fn save_keybinding_toggle_panel(value: &str) -> io::Result<()> {
     let path = config_path();
@@ -474,6 +508,10 @@ fn default_config_template() -> &'static str {
 # Multiple positions show the same toast in each corner simultaneously.
 # Valid values: "top-left", "top-right", "bottom-left", "bottom-right"
 # positions = ["top-right"]
+
+# Which screens show toasts (default: "active")
+# "active" = only the screen the cursor is on, "all" = every attached screen
+# display = "active"
 
 # Notification settings
 [notification]
@@ -616,6 +654,32 @@ duration_ms = 2000
 "#;
         let config: AppConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.toast.positions, vec![ToastPosition::TopRight]);
+    }
+
+    #[test]
+    fn default_toast_display_is_active() {
+        let config = ToastConfig::default();
+        assert_eq!(config.display, ToastDisplay::Active);
+    }
+
+    #[test]
+    fn parse_toast_display_all() {
+        let toml_str = r#"
+[toast]
+display = "all"
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.toast.display, ToastDisplay::All);
+    }
+
+    #[test]
+    fn missing_toast_display_falls_back_to_active() {
+        let toml_str = r#"
+[toast]
+duration_ms = 2000
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.toast.display, ToastDisplay::Active);
     }
 
     #[test]
