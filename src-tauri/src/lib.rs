@@ -23,7 +23,7 @@ use std::sync::{Mutex, OnceLock};
 #[cfg(target_os = "macos")]
 use std::time::Duration;
 
-use agentoast_shared::config::{self, AllowedApp, AppConfig, ToastPosition};
+use agentoast_shared::config::{self, AllowedApp, AppConfig, ToastDisplay, ToastPosition};
 use agentoast_shared::db;
 use agentoast_shared::models::{Notification, TmuxPaneGroup};
 use serde::{Deserialize, Serialize};
@@ -660,6 +660,7 @@ pub struct SettingsPayload {
     pub toast_duration_ms: u64,
     pub toast_persistent: bool,
     pub toast_positions: Vec<ToastPosition>,
+    pub toast_display: ToastDisplay,
     pub toggle_panel_shortcut: String,
     pub editor: String,
     pub autostart_enabled: bool,
@@ -679,6 +680,7 @@ fn get_settings(state: tauri::State<'_, Mutex<AppState>>) -> Result<SettingsPayl
         toast_duration_ms: state.config.toast.duration_ms,
         toast_persistent: state.config.toast.persistent,
         toast_positions: state.config.toast.positions.clone(),
+        toast_display: state.config.toast.display,
         toggle_panel_shortcut: state.config.keybinding.toggle_panel.clone(),
         editor: state.config.editor.clone().unwrap_or_default(),
         autostart_enabled,
@@ -719,6 +721,7 @@ fn save_settings(
             guard.config.toast.duration_ms,
             guard.config.toast.persistent,
             guard.config.toast.positions.clone(),
+            guard.config.toast.display,
             guard.config.keybinding.toggle_panel.clone(),
             guard.config.editor.clone().unwrap_or_default(),
         )
@@ -727,6 +730,7 @@ fn save_settings(
         old_toast_duration_ms,
         old_toast_persistent,
         old_toast_positions,
+        old_toast_display,
         old_shortcut_str,
         old_editor,
     ) = snapshot;
@@ -754,6 +758,9 @@ fn save_settings(
         }
         if old_toast_positions != payload.toast_positions {
             config::save_toast_positions(&payload.toast_positions).map_err(|e| e.to_string())?;
+        }
+        if old_toast_display != payload.toast_display {
+            config::save_toast_display(payload.toast_display).map_err(|e| e.to_string())?;
         }
         if shortcut_changed {
             config::save_keybinding_toggle_panel(&payload.toggle_panel_shortcut)
@@ -788,6 +795,13 @@ fn save_settings(
                 e
             );
         }
+        if let Err(e) = config::save_toast_display(old_toast_display) {
+            log::error!(
+                "Rollback: failed to restore toast.display={:?}: {}",
+                old_toast_display,
+                e
+            );
+        }
         if shortcut_changed {
             if let Err(e) = config::save_keybinding_toggle_panel(&old_shortcut_str) {
                 log::error!(
@@ -816,6 +830,7 @@ fn save_settings(
         guard.config.toast.duration_ms = payload.toast_duration_ms;
         guard.config.toast.persistent = payload.toast_persistent;
         guard.config.toast.positions = payload.toast_positions.clone();
+        guard.config.toast.display = payload.toast_display;
         guard.config.keybinding.toggle_panel = payload.toggle_panel_shortcut.clone();
         guard.config.editor = if payload.editor.is_empty() {
             None
@@ -830,6 +845,7 @@ fn save_settings(
         payload.toast_duration_ms,
         payload.toast_persistent,
         payload.toast_positions.clone(),
+        payload.toast_display,
     );
 
     // --- Phase 5: autostart (System Events login item). Not mirrored in
