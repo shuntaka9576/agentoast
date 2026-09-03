@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.51.1](https://github.com/shuntaka9576/agentoast/compare/v0.51.0...v0.51.1) - 2026-09-03
+
 ## [v0.51.0](https://github.com/shuntaka9576/agentoast/compare/v0.50.2...v0.51.0) - 2026-07-23
 
 - feat: add optional multi-monitor toast display by @shuntaka9576 in https://github.com/shuntaka9576/agentoast/pull/376
