@@ -21,7 +21,7 @@ jobs:
       - name: install dependencies
         run: bun install --frozen-lockfile
       - name: install cargo-make
-        uses: taiki-e/install-action@26e9283f268b880168bdbd2c545dfcd60ec2c6ab # v2.87.13
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
           tool: cargo-make
       - name: lint
